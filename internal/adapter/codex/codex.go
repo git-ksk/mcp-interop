@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -128,11 +129,9 @@ func (a *Adapter) Run(ctx context.Context, target interop.Target, session *inter
 }
 
 func writeConfig(codexHome, endpoint string) error {
-	quotedEndpoint, err := json.Marshal(endpoint)
-	if err != nil {
-		return errors.New("encode Remote MCP endpoint")
-	}
-
+	// Remote MCP URLs are valid TOML basic-string content after Go quoting. URL
+	// validation rejects raw control characters before the adapter runs.
+	quotedEndpoint := strconv.Quote(endpoint)
 	content := fmt.Sprintf("[mcp_servers.%s]\nurl = %s\n", testServerName, quotedEndpoint)
 	path := filepath.Join(codexHome, "config.toml")
 	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
