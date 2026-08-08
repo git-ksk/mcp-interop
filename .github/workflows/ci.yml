@@ -39,3 +39,23 @@ jobs:
 
       - name: Build
         run: go build ./cmd/mcp-interop
+
+      - name: Release build smoke
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: |
+          bash scripts/build-release.sh \
+            v0.0.0-test \
+            0123456789abcdef0123456789abcdef01234567 \
+            1970-01-01T00:00:00Z
+          test -f dist/mcp-interop_0.0.0-test_darwin_amd64.tar.gz
+          test -f dist/mcp-interop_0.0.0-test_darwin_arm64.tar.gz
+          test -f dist/mcp-interop_0.0.0-test_linux_amd64.tar.gz
+          test -f dist/mcp-interop_0.0.0-test_linux_arm64.tar.gz
+          test -f dist/mcp-interop_0.0.0-test_windows_amd64.zip
+          test -f dist/mcp-interop_0.0.0-test_windows_arm64.zip
+          test -s dist/checksums.txt
+          mkdir -p /tmp/mcp-interop-release-smoke
+          tar -xzf dist/mcp-interop_0.0.0-test_linux_amd64.tar.gz \
+            -C /tmp/mcp-interop-release-smoke
+          /tmp/mcp-interop-release-smoke/mcp-interop version | grep -F 'v0.0.0-test'

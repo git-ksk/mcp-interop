@@ -1,0 +1,63 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Validate release tag
+        shell: bash
+        run: |
+          if [[ ! "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$ ]]; then
+            echo "unsupported release tag: $GITHUB_REF_NAME" >&2
+            exit 1
+          fi
+
+      - name: Build release archives
+        shell: bash
+        run: |
+          bash scripts/build-release.sh \
+            "$GITHUB_REF_NAME" \
+            "$GITHUB_SHA" \
+            "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+      - name: Verify embedded version
+        shell: bash
+        run: |
+          mkdir -p /tmp/mcp-interop-release-check
+          tar -xzf "dist/mcp-interop_${GITHUB_REF_NAME#v}_linux_amd64.tar.gz" \
+            -C /tmp/mcp-interop-release-check
+          /tmp/mcp-interop-release-check/mcp-interop version | grep -F "$GITHUB_REF_NAME"
+
+      - name: Create GitHub release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" dist/* --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" \
+              dist/* \
+              --verify-tag \
+              --generate-notes \
+              --title "$GITHUB_REF_NAME"
+          fi
