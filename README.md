@@ -10,11 +10,12 @@
 
 Early development.
 
-The first live adapter is implemented for **Codex CLI**, including an explicit opt-in OAuth flow. The V1 roadmap also targets:
+Live adapters currently exist for:
 
-- Cursor CLI
-- Antigravity CLI
-- VS Code (beta adapter)
+- **Codex CLI** — live inventory and explicit opt-in OAuth flow.
+- **Cursor CLI (beta)** — live no-auth inventory via dedicated MCP management commands; OAuth completion is still pending maintainer E2E verification.
+
+The V1 roadmap also targets an Antigravity CLI beta adapter. VS Code remains research-only until a stable no-model server-start/tool-discovery surface is available.
 
 GitHub Copilot CLI is a follow-up candidate. Claude Code support is intentionally deferred.
 
@@ -40,7 +41,7 @@ mcp-interop clients
 mcp-interop clients --json
 ```
 
-Run the current live Codex test:
+Run a live Codex test:
 
 ```console
 mcp-interop test https://example.com/mcp
@@ -48,13 +49,27 @@ mcp-interop test https://example.com/mcp --client codex
 mcp-interop test https://example.com/mcp --client codex --json
 ```
 
-If the server requires OAuth, opt in explicitly:
+Run the Cursor beta adapter against a no-auth Remote MCP server:
+
+```console
+mcp-interop test https://example.com/mcp --client cursor
+```
+
+Run multiple implemented adapters sequentially:
+
+```console
+mcp-interop test https://example.com/mcp --client codex,cursor
+```
+
+If a Codex target requires OAuth, opt in explicitly:
 
 ```console
 mcp-interop test https://example.com/mcp --client codex --oauth
 ```
 
-`--oauth` does not silently open a browser. `mcp-interop` prints the authorization URL to stderr and waits for the real Codex OAuth callback. Open that URL in a browser to continue. The URL contains short-lived OAuth state and should not be shared.
+`--oauth` does not silently open a browser. For Codex, `mcp-interop` prints the authorization URL to stderr and waits for the real Codex OAuth callback. Open that URL in a browser to continue. The URL contains short-lived OAuth state and should not be shared.
+
+Cursor OAuth completion is not enabled yet. The beta adapter detects an authentication-required boundary and returns an incomplete result instead of starting an unverified credential flow.
 
 Example successful result:
 
@@ -104,14 +119,34 @@ This prevents the test from using the normal automatic/keyring MCP OAuth storage
 - Current Codex app-server versions can expose an unreachable server and a legitimate zero-tool server in the same empty-inventory shape. `mcp-interop` therefore reports those stages as `unknown` instead of inventing a pass/fail result.
 - The adapter relies on the installed Codex app-server MCP status and OAuth surfaces. Older or future Codex versions that do not expose the required methods may return an inconclusive/error result until the adapter is updated.
 
+## Cursor adapter (beta)
+
+The Cursor adapter:
+
+1. creates an isolated temporary `HOME` and workspace;
+2. writes only the target Remote MCP endpoint to `<workspace>/.cursor/mcp.json`;
+3. invokes the installed Cursor CLI's MCP management surface;
+4. attempts `mcp enable`, then queries `mcp list` and `mcp list-tools`;
+5. treats a successful `mcp list-tools` as direct evidence from Cursor's real MCP client;
+6. removes all temporary Cursor state during shared session cleanup.
+
+The adapter never sends a Cursor model prompt. A fresh isolated HOME prevents the test from reusing normal Cursor MCP auth/config state.
+
+### Current Cursor limitations
+
+- Maintainer PoC has verified OAuth discovery, DCR, PKCE flow start, and the local callback listener, but token exchange plus authenticated `tools/list` has not yet been completed with the localhost fixture.
+- Until that verification is complete, an OAuth-required target returns an incomplete auth result rather than invoking `mcp login` automatically.
+- MCP management output is human-readable rather than a dedicated JSON contract, so the adapter keeps interpretation deliberately conservative.
+- Initial live validation is macOS-specific; additional client-version/OS evidence should be added as the adapter matures.
+
 ## Safety and isolation
 
 - **Real clients, not emulators.** Client-specific checks invoke the installed client wherever practical.
 - **No model benchmark required.** The core interoperability path does not ask a model to choose or call tools.
 - **Do not mutate user configuration.** Live adapters must use isolated/temporary profiles or return `skip`/`unknown`.
-- **Private temporary state.** Session directories are created with owner-only permissions where the OS supports them, and Codex test configuration/credential files use owner-only permissions on POSIX systems.
+- **Private temporary state.** Session directories are created with owner-only permissions where the OS supports them, and test configuration/credential files use owner-only permissions on POSIX systems where applicable.
 - **Credential redaction.** Bearer/OAuth material and credential-like Remote MCP URL query parameters are redacted from reports.
-- **OAuth is explicit.** Authorization only starts when the caller opts in with `--oauth`.
+- **OAuth is explicit.** Authorization only starts when the caller opts in and the selected adapter has a verified isolated OAuth implementation.
 - **No hosted service required.** The core tool runs locally and in CI without a project-operated backend.
 
 ## V1 roadmap
@@ -120,10 +155,12 @@ This prevents the test from using the normal automatic/keyring MCP OAuth storage
 - [x] Isolated test-session lifecycle and secret redaction
 - [x] Codex CLI live inventory adapter
 - [x] Codex OAuth live flow
-- [ ] Cursor CLI live adapter
-- [ ] Establish a safe non-interactive Antigravity CLI automation boundary
-- [ ] VS Code beta adapter
+- [x] Cursor CLI no-auth live adapter (beta)
+- [ ] Cursor OAuth completion + authenticated tool discovery
+- [ ] Antigravity CLI no-auth live adapter (beta)
+- [ ] Safe Antigravity OAuth completion boundary
 - [ ] Cross-client combined report
+- [ ] Revisit VS Code when a supported direct lifecycle/tool-discovery surface exists
 
 ## Non-goals for V1
 
