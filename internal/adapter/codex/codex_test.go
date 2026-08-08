@@ -2,12 +2,15 @@ package codex
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/git-ksk/mcp-interop/internal/interop"
 )
@@ -124,6 +127,9 @@ func TestWriteConfigUsesOnlyIsolatedFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	text := string(content)
+	if !strings.Contains(text, `mcp_oauth_credentials_store = "file"`) {
+		t.Fatalf("Codex OAuth storage is not forced to isolated file mode: %s", text)
+	}
 	if !strings.Contains(text, "[mcp_servers."+testServerName+"]") || !strings.Contains(text, endpoint) {
 		t.Fatalf("unexpected config: %s", text)
 	}
@@ -136,6 +142,26 @@ func TestWriteConfigUsesOnlyIsolatedFile(t *testing.T) {
 		if got := info.Mode().Perm(); got != 0o600 {
 			t.Fatalf("config permissions = %o, want 600", got)
 		}
+	}
+}
+
+func TestOptionsEnableAuthorizationWithoutChangingDefault(t *testing.T) {
+	plain := New("codex", "test")
+	if plain.authorize != nil || plain.oauthTimeout != defaultOAuthTimeout {
+		t.Fatalf("unexpected default adapter options: %#v", plain)
+	}
+
+	called := false
+	handler := func(context.Context, string) error {
+		called = true
+		return errors.New("expected test error")
+	}
+	configured := New("codex", "test", WithAuthorizationHandler(handler), WithOAuthTimeout(3*time.Second))
+	if configured.authorize == nil || configured.oauthTimeout != 3*time.Second {
+		t.Fatalf("OAuth options were not applied: %#v", configured)
+	}
+	if err := configured.authorize(context.Background(), "https://example.com/authorize"); err == nil || !called {
+		t.Fatal("configured authorization handler did not run")
 	}
 }
 
