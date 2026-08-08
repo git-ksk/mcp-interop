@@ -13,11 +13,11 @@ const (
 
 // Spec describes a real MCP client that mcp-interop knows how to detect.
 type Spec struct {
-	ID           string   `json:"id"`
-	DisplayName  string   `json:"display_name"`
-	Tier         Tier     `json:"tier"`
-	Executables  []string `json:"executables"`
-	VersionArgs  []string `json:"-"`
+	ID          string   `json:"id"`
+	DisplayName string   `json:"display_name"`
+	Tier        Tier     `json:"tier"`
+	Executables []string `json:"executables"`
+	VersionArgs []string `json:"-"`
 }
 
 // Detection is the result of looking for one client on the local machine.
