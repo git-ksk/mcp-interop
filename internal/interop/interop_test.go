@@ -52,6 +52,22 @@ func TestRedactSecrets(t *testing.T) {
 	}
 }
 
+func TestSanitizeEndpointMasksCredentialQueries(t *testing.T) {
+	input := "https://example.com/mcp?tenant=acme&api_key=very-secret&access_token=token-secret"
+	got := SanitizeEndpoint(input)
+	for _, secret := range []string{"very-secret", "token-secret"} {
+		if strings.Contains(got, secret) {
+			t.Fatalf("endpoint leaked %q: %s", secret, got)
+		}
+	}
+	if !strings.Contains(got, "tenant=acme") {
+		t.Fatalf("expected non-sensitive routing parameter to remain: %s", got)
+	}
+	if !strings.Contains(got, "REDACTED") {
+		t.Fatalf("expected endpoint redaction marker: %s", got)
+	}
+}
+
 func TestSessionRejectsTraversal(t *testing.T) {
 	session, err := NewSession()
 	if err != nil {
@@ -93,12 +109,18 @@ func (a *fakeAdapter) Run(_ context.Context, target Target, session *Session) (R
 
 func TestRunnerCleansSessionAndRedactsDiagnostics(t *testing.T) {
 	adapter := &fakeAdapter{}
-	result, err := NewRunner().Run(context.Background(), adapter, Target{Endpoint: "https://example.com/mcp"})
+	result, err := NewRunner().Run(context.Background(), adapter, Target{Endpoint: "https://example.com/mcp?api_key=endpoint-secret&tenant=acme"})
 	if err == nil {
 		t.Fatal("expected fake adapter error")
 	}
 	if strings.Contains(err.Error(), "secret-token") {
 		t.Fatalf("runner leaked token in error: %v", err)
+	}
+	if strings.Contains(result.Endpoint, "endpoint-secret") {
+		t.Fatalf("runner leaked endpoint credential: %s", result.Endpoint)
+	}
+	if !strings.Contains(result.Endpoint, "tenant=acme") {
+		t.Fatalf("runner removed non-sensitive endpoint query: %s", result.Endpoint)
 	}
 	if adapter.root == "" {
 		t.Fatal("fake adapter did not receive a session")
@@ -116,7 +138,12 @@ func TestRunnerCleansSessionAndRedactsDiagnostics(t *testing.T) {
 }
 
 func TestTargetValidation(t *testing.T) {
-	for _, endpoint := range []string{"", "ftp://example.com/mcp", "https://user:pass@example.com/mcp"} {
+	for _, endpoint := range []string{
+		"",
+		"ftp://example.com/mcp",
+		"https://user:pass@example.com/mcp",
+		"https://example.com/mcp#fragment",
+	} {
 		if err := (Target{Endpoint: endpoint}).Validate(); err == nil {
 			t.Fatalf("expected endpoint %q to be rejected", endpoint)
 		}
