@@ -26,6 +26,9 @@ func (t Target) Validate() error {
 	if u.User != nil {
 		return errors.New("endpoint must not embed user info")
 	}
+	if u.Fragment != "" {
+		return errors.New("endpoint must not include a URL fragment")
+	}
 	return nil
 }
 
@@ -65,6 +68,9 @@ func (r *Runner) Run(ctx context.Context, adapter Adapter, target Target) (Resul
 
 	result, runErr := adapter.Run(ctx, target, session)
 	cleanupErr := session.Cleanup()
+	if result.Endpoint == "" {
+		result.Endpoint = target.Endpoint
+	}
 	result = RedactResult(result)
 
 	if runErr != nil {
