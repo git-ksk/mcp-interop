@@ -18,6 +18,7 @@ type rpcClient struct {
 
 type rpcResponse struct {
 	ID     json.RawMessage `json:"id"`
+	Method string          `json:"method"`
 	Result json.RawMessage `json:"result"`
 	Error  *rpcError       `json:"error"`
 }
@@ -61,8 +62,10 @@ func (c *rpcClient) call(method string, params any, out any) error {
 		if err := json.Unmarshal(line, &response); err != nil {
 			return errors.New("codex app-server emitted invalid JSON")
 		}
-		if len(response.ID) == 0 {
-			// Notifications are expected while app-server is running.
+		if response.Method != "" || len(response.ID) == 0 {
+			// Notifications and server-initiated requests are expected while
+			// app-server is running. This adapter does not opt into request
+			// capabilities, so neither should satisfy one of our calls.
 			continue
 		}
 
