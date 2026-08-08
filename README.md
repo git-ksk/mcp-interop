@@ -8,7 +8,7 @@
 
 ## Status
 
-Early development.
+Pre-v0.1 development.
 
 Live adapters currently exist for:
 
@@ -19,6 +19,24 @@ Live adapters currently exist for:
 VS Code remains research-only until a stable no-model server-start/tool-discovery surface is available.
 
 GitHub Copilot CLI is a follow-up candidate. Claude Code support is intentionally deferred.
+
+## Install
+
+With Go 1.24 or newer:
+
+```console
+go install github.com/git-ksk/mcp-interop/cmd/mcp-interop@latest
+```
+
+Check the installed build:
+
+```console
+mcp-interop version
+# or
+mcp-interop --version
+```
+
+Tagged releases are configured to publish checksummed archives for macOS, Linux, and Windows on both amd64 and arm64. The first `v0.1.0` tag has not been published yet.
 
 ## What a test proves
 
@@ -158,6 +176,12 @@ The Antigravity adapter currently ships a live implementation for macOS only:
 - **OAuth is explicit.** Authorization only starts when the caller opts in and the selected adapter has a verified isolated OAuth implementation.
 - **No hosted service required.** The core tool runs locally and in CI without a project-operated backend.
 
+## Release process
+
+Release archives are built by `scripts/build-release.sh`. A `v*` tag triggers the release workflow, which validates the tag, embeds version/commit/build-time metadata, builds six platform/architecture archives, generates `checksums.txt`, verifies the Linux artifact's embedded version, and publishes the files to GitHub Releases.
+
+Normal pull requests smoke-test the same release build path on Ubuntu before a tag is ever created.
+
 ## V1 roadmap
 
 - [x] Shared `pass` / `fail` / `skip` / `unknown` result model
@@ -169,6 +193,7 @@ The Antigravity adapter currently ships a live implementation for macOS only:
 - [x] Antigravity CLI no-auth live adapter (beta, macOS)
 - [ ] Safe Antigravity OAuth completion boundary
 - [x] Cross-client combined text report
+- [x] Versioned release build/release automation
 - [ ] Revisit VS Code when a supported direct lifecycle/tool-discovery surface exists
 
 ## Non-goals for V1
