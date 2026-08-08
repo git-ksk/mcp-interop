@@ -10,16 +10,27 @@ func TestParseTestOptionsAcceptsFlagsAfterURL(t *testing.T) {
 		"https://example.com/mcp",
 		"--client",
 		"codex",
+		"--oauth",
 		"--json",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if options.endpoint != "https://example.com/mcp" || !options.json {
+	if options.endpoint != "https://example.com/mcp" || !options.json || !options.oauth {
 		t.Fatalf("unexpected options: %#v", options)
 	}
 	if !reflect.DeepEqual(options.clients, []string{"codex"}) {
 		t.Fatalf("unexpected clients: %#v", options.clients)
+	}
+}
+
+func TestParseTestOptionsDefaultsOAuthOff(t *testing.T) {
+	options, err := parseTestOptions([]string{"https://example.com/mcp"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if options.oauth {
+		t.Fatal("OAuth must remain explicit opt-in")
 	}
 }
 
