@@ -10,6 +10,7 @@ import (
 	"text/tabwriter"
 
 	codexadapter "github.com/git-ksk/mcp-interop/internal/adapter/codex"
+	cursoradapter "github.com/git-ksk/mcp-interop/internal/adapter/cursor"
 	"github.com/git-ksk/mcp-interop/internal/client"
 	"github.com/git-ksk/mcp-interop/internal/interop"
 )
@@ -18,7 +19,7 @@ const usageText = `mcp-interop - live interoperability testing for Remote MCP se
 
 Usage:
   mcp-interop clients [--json]
-  mcp-interop test <url> [--client codex] [--oauth] [--json]
+  mcp-interop test <url> [--client codex,cursor] [--oauth] [--json]
   mcp-interop help
 
 Commands:
@@ -26,10 +27,11 @@ Commands:
   test      Run a Remote MCP interoperability test through real clients.
 
 Test options:
-  --oauth   Opt in to interactive OAuth when the client reports login is required.
+  --oauth   Opt in to interactive OAuth where the live adapter supports it (currently Codex).
 
 Current live adapters:
   codex     Codex CLI via its app-server MCP inventory surface.
+  cursor    Cursor CLI via mcp list/list-tools (OAuth completion pending).
 `
 
 func main() {
@@ -143,10 +145,7 @@ func runTest(ctx context.Context, args []string) int {
 		case "codex":
 			detection := detectClient(ctx, "codex")
 			if !detection.Installed {
-				result := interop.NewResult("codex", "Codex CLI", "", options.endpoint)
-				for _, stage := range interop.OrderedStages {
-					result.Set(stage, interop.StatusSkip, "Codex CLI is not installed")
-				}
+				result := missingClientResult("codex", "Codex CLI", options.endpoint)
 				results = append(results, interop.RedactResult(result))
 				hadFailure = true
 				continue
@@ -166,6 +165,29 @@ func runTest(ctx context.Context, args []string) int {
 			if !result.Passed() {
 				hadFailure = true
 			}
+
+		case "cursor":
+			detection := detectClient(ctx, "cursor")
+			if !detection.Installed {
+				result := missingClientResult("cursor", "Cursor CLI", options.endpoint)
+				results = append(results, interop.RedactResult(result))
+				hadFailure = true
+				continue
+			}
+			if options.oauth {
+				fmt.Fprintln(os.Stderr, "Cursor OAuth completion is not enabled yet; --oauth currently applies only to supported adapters such as Codex.")
+			}
+			adapter := cursoradapter.New(detection.Path, detection.Version)
+			result, runErr := interop.NewRunner().Run(ctx, adapter, interop.Target{Endpoint: options.endpoint})
+			results = append(results, result)
+			if runErr != nil {
+				fmt.Fprintf(os.Stderr, "Cursor test error: %v\n", runErr)
+				hadFailure = true
+			}
+			if !result.Passed() {
+				hadFailure = true
+			}
+
 		default:
 			fmt.Fprintf(os.Stderr, "live adapter %q is not implemented yet\n", clientID)
 			return 2
@@ -188,6 +210,14 @@ func runTest(ctx context.Context, args []string) int {
 		return 1
 	}
 	return 0
+}
+
+func missingClientResult(id, name, endpoint string) interop.Result {
+	result := interop.NewResult(id, name, "", endpoint)
+	for _, stage := range interop.OrderedStages {
+		result.Set(stage, interop.StatusSkip, name+" is not installed")
+	}
+	return result
 }
 
 func parseTestOptions(args []string) (testOptions, error) {
