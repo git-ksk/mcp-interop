@@ -115,10 +115,10 @@ func runClients(ctx context.Context, args []string) int {
 }
 
 type testOptions struct {
-	endpoint  string
-	clients   []string
-	json      bool
-	showHelp  bool
+	endpoint string
+	clients  []string
+	json     bool
+	showHelp bool
 }
 
 func runTest(ctx context.Context, args []string) int {
