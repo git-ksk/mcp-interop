@@ -155,7 +155,7 @@ func runTest(ctx context.Context, args []string) int {
 				fmt.Fprintf(os.Stderr, "Codex test error: %v\n", runErr)
 				hadFailure = true
 			}
-			if result.Failed() {
+			if !result.Passed() {
 				hadFailure = true
 			}
 		default:
