@@ -22,11 +22,13 @@ const usageText = `mcp-interop - live interoperability testing for Remote MCP se
 Usage:
   mcp-interop clients [--json]
   mcp-interop test <url> [--client codex,cursor,antigravity] [--oauth] [--json]
+  mcp-interop version
   mcp-interop help
 
 Commands:
   clients   Detect supported MCP clients installed on this machine.
   test      Run a Remote MCP interoperability test through real clients.
+  version   Print mcp-interop build version information.
 
 Test options:
   --oauth   Opt in to interactive OAuth where the live adapter supports it (currently Codex).
@@ -52,6 +54,9 @@ func run(ctx context.Context, args []string) int {
 		return runClients(ctx, args[1:])
 	case "test":
 		return runTest(ctx, args[1:])
+	case "version", "--version":
+		fmt.Println(formatVersion(currentVersionInfo()))
+		return 0
 	case "help", "-h", "--help":
 		fmt.Print(usageText)
 		return 0
