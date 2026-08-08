@@ -14,8 +14,9 @@ Live adapters currently exist for:
 
 - **Codex CLI** — live inventory and explicit opt-in OAuth flow.
 - **Cursor CLI (beta)** — live no-auth inventory via dedicated MCP management commands; OAuth completion is still pending maintainer E2E verification.
+- **Antigravity CLI (beta, macOS)** — live no-auth inventory through an isolated no-prompt PTY startup and machine-readable MCP tool cache; automated OAuth completion is intentionally disabled.
 
-The V1 roadmap also targets an Antigravity CLI beta adapter. VS Code remains research-only until a stable no-model server-start/tool-discovery surface is available.
+VS Code remains research-only until a stable no-model server-start/tool-discovery surface is available.
 
 GitHub Copilot CLI is a follow-up candidate. Claude Code support is intentionally deferred.
 
@@ -41,25 +42,31 @@ mcp-interop clients
 mcp-interop clients --json
 ```
 
-Run a live Codex test:
+Run one live adapter:
 
 ```console
-mcp-interop test https://example.com/mcp
 mcp-interop test https://example.com/mcp --client codex
-mcp-interop test https://example.com/mcp --client codex --json
-```
-
-Run the Cursor beta adapter against a no-auth Remote MCP server:
-
-```console
 mcp-interop test https://example.com/mcp --client cursor
+mcp-interop test https://example.com/mcp --client antigravity
 ```
 
 Run multiple implemented adapters sequentially:
 
 ```console
-mcp-interop test https://example.com/mcp --client codex,cursor
+mcp-interop test https://example.com/mcp --client codex,cursor,antigravity
 ```
+
+When more than one client is selected, the text output starts with a cross-client summary and then prints the detailed result for each client:
+
+```text
+SUMMARY
+CLIENT           REACH  AUTH  INIT  TOOLS  VERSION
+Codex CLI        PASS   PASS  PASS  PASS   codex-cli 0.133.0
+Cursor CLI       PASS   PASS  PASS  PASS   2026.08.04-aaa8809
+Antigravity CLI  PASS   PASS  PASS  PASS   1.1.11
+```
+
+JSON output remains an array, preserving the existing machine-readable contract.
 
 If a Codex target requires OAuth, opt in explicitly:
 
@@ -69,23 +76,7 @@ mcp-interop test https://example.com/mcp --client codex --oauth
 
 `--oauth` does not silently open a browser. For Codex, `mcp-interop` prints the authorization URL to stderr and waits for the real Codex OAuth callback. Open that URL in a browser to continue. The URL contains short-lived OAuth state and should not be shared.
 
-Cursor OAuth completion is not enabled yet. The beta adapter detects an authentication-required boundary and returns an incomplete result instead of starting an unverified credential flow.
-
-Example successful result:
-
-```text
-CLIENT    Codex CLI
-VERSION   codex-cli 0.133.0
-ENDPOINT  https://example.com/mcp
-
-STAGE  STATUS  DETAIL
-reach  PASS    Codex returned live MCP inventory
-auth   PASS    Codex reports an OAuth-authenticated MCP session
-init   PASS    tool discovery proves MCP initialization completed
-tools  PASS    Codex discovered 3 MCP tool(s)
-```
-
-JSON output is an array from the start so additional real-client adapters can be added without changing the top-level output contract.
+Cursor and Antigravity OAuth completion are not enabled yet. Their beta adapters return incomplete/inconclusive authentication results rather than starting an unverified credential flow.
 
 ## Codex adapter
 
@@ -139,6 +130,24 @@ The adapter never sends a Cursor model prompt. A fresh isolated HOME prevents th
 - MCP management output is human-readable rather than a dedicated JSON contract, so the adapter keeps interpretation deliberately conservative.
 - Initial live validation is macOS-specific; additional client-version/OS evidence should be added as the adapter matures.
 
+## Antigravity adapter (beta)
+
+The Antigravity adapter currently ships a live implementation for macOS only:
+
+1. creates an isolated temporary `HOME` and workspace;
+2. writes the target Remote MCP endpoint to the temporary `~/.gemini/config/mcp_config.json` using the current `serverUrl` field;
+3. starts the installed `agy` process under a PTY without sending TUI input or a model prompt;
+4. observes machine-readable tool schema state under the isolated `~/.gemini/antigravity-cli/mcp/<server>/` cache;
+5. treats valid tool schema files as evidence that the real client reached the server, initialized MCP, and completed tool discovery;
+6. terminates the PTY process group and removes the temporary HOME/workspace.
+
+### Current Antigravity limitations
+
+- The no-prompt PTY/tool-cache path has been maintainer-validated on macOS and is deliberately `skip` on other operating systems until equivalent real-client evidence exists.
+- OAuth-required discovery and DCR have been observed in the maintainer fixture, but automated authorization/token exchange is disabled because credential storage has not yet been proven to remain fully isolated from the macOS Keychain.
+- If no isolated tool cache appears, the adapter returns `unknown` rather than treating configuration discovery as interoperability success.
+- The tool cache is an observed Antigravity client surface rather than a stable cross-vendor protocol API, so version information must remain part of every result.
+
 ## Safety and isolation
 
 - **Real clients, not emulators.** Client-specific checks invoke the installed client wherever practical.
@@ -157,9 +166,9 @@ The adapter never sends a Cursor model prompt. A fresh isolated HOME prevents th
 - [x] Codex OAuth live flow
 - [x] Cursor CLI no-auth live adapter (beta)
 - [ ] Cursor OAuth completion + authenticated tool discovery
-- [ ] Antigravity CLI no-auth live adapter (beta)
+- [x] Antigravity CLI no-auth live adapter (beta, macOS)
 - [ ] Safe Antigravity OAuth completion boundary
-- [ ] Cross-client combined report
+- [x] Cross-client combined text report
 - [ ] Revisit VS Code when a supported direct lifecycle/tool-discovery surface exists
 
 ## Non-goals for V1

@@ -1,8 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"reflect"
+	"strings"
 	"testing"
+
+	"github.com/git-ksk/mcp-interop/internal/interop"
 )
 
 func TestParseTestOptionsAcceptsFlagsAfterURL(t *testing.T) {
@@ -50,5 +54,55 @@ func TestParseTestOptionsDeduplicatesClients(t *testing.T) {
 func TestParseTestOptionsRejectsEmptyClientList(t *testing.T) {
 	if _, err := parseTestOptions([]string{"https://example.com/mcp", "--client", ","}); err == nil {
 		t.Fatal("expected empty client list to fail")
+	}
+}
+
+func TestWriteTestResultsIncludesCrossClientSummary(t *testing.T) {
+	codex := interop.NewResult("codex", "Codex CLI", "codex-test", "https://example.com/mcp")
+	for _, stage := range interop.OrderedStages {
+		codex.Set(stage, interop.StatusPass, "ok")
+	}
+
+	cursor := interop.NewResult("cursor", "Cursor CLI", "cursor-test", "https://example.com/mcp")
+	cursor.Set(interop.StageReach, interop.StatusPass, "reached")
+	cursor.Set(interop.StageAuth, interop.StatusSkip, "auth required")
+	cursor.Set(interop.StageInit, interop.StatusSkip, "auth incomplete")
+	cursor.Set(interop.StageTools, interop.StatusSkip, "auth incomplete")
+
+	var output bytes.Buffer
+	if err := writeTestResults(&output, []interop.Result{codex, cursor}); err != nil {
+		t.Fatal(err)
+	}
+	text := output.String()
+	for _, want := range []string{
+		"SUMMARY",
+		"CLIENT",
+		"REACH",
+		"AUTH",
+		"INIT",
+		"TOOLS",
+		"Codex CLI",
+		"Cursor CLI",
+		"PASS",
+		"SKIP",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("summary output missing %q:\n%s", want, text)
+		}
+	}
+}
+
+func TestWriteTestResultsSingleClientDoesNotPrintSummary(t *testing.T) {
+	result := interop.NewResult("codex", "Codex CLI", "codex-test", "https://example.com/mcp")
+	for _, stage := range interop.OrderedStages {
+		result.Set(stage, interop.StatusPass, "ok")
+	}
+
+	var output bytes.Buffer
+	if err := writeTestResults(&output, []interop.Result{result}); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(output.String(), "SUMMARY") {
+		t.Fatalf("single-client output unexpectedly contains summary:\n%s", output.String())
 	}
 }

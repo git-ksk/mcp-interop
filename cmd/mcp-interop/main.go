@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"text/tabwriter"
 
+	antigravityadapter "github.com/git-ksk/mcp-interop/internal/adapter/antigravity"
 	codexadapter "github.com/git-ksk/mcp-interop/internal/adapter/codex"
 	cursoradapter "github.com/git-ksk/mcp-interop/internal/adapter/cursor"
 	"github.com/git-ksk/mcp-interop/internal/client"
@@ -19,7 +21,7 @@ const usageText = `mcp-interop - live interoperability testing for Remote MCP se
 
 Usage:
   mcp-interop clients [--json]
-  mcp-interop test <url> [--client codex,cursor] [--oauth] [--json]
+  mcp-interop test <url> [--client codex,cursor,antigravity] [--oauth] [--json]
   mcp-interop help
 
 Commands:
@@ -30,8 +32,9 @@ Test options:
   --oauth   Opt in to interactive OAuth where the live adapter supports it (currently Codex).
 
 Current live adapters:
-  codex     Codex CLI via its app-server MCP inventory surface.
-  cursor    Cursor CLI via mcp list/list-tools (OAuth completion pending).
+  codex        Codex CLI via its app-server MCP inventory surface.
+  cursor       Cursor CLI via mcp list/list-tools (OAuth completion pending).
+  antigravity  Antigravity CLI beta via isolated no-prompt PTY/tool-cache observation on macOS.
 `
 
 func main() {
@@ -188,6 +191,28 @@ func runTest(ctx context.Context, args []string) int {
 				hadFailure = true
 			}
 
+		case "antigravity":
+			detection := detectClient(ctx, "antigravity")
+			if !detection.Installed {
+				result := missingClientResult("antigravity", "Antigravity CLI", options.endpoint)
+				results = append(results, interop.RedactResult(result))
+				hadFailure = true
+				continue
+			}
+			if options.oauth {
+				fmt.Fprintln(os.Stderr, "Antigravity OAuth completion is not enabled; the beta adapter does not write MCP OAuth credentials or automate authorization.")
+			}
+			adapter := antigravityadapter.New(detection.Path, detection.Version)
+			result, runErr := interop.NewRunner().Run(ctx, adapter, interop.Target{Endpoint: options.endpoint})
+			results = append(results, result)
+			if runErr != nil {
+				fmt.Fprintf(os.Stderr, "Antigravity test error: %v\n", runErr)
+				hadFailure = true
+			}
+			if !result.Passed() {
+				hadFailure = true
+			}
+
 		default:
 			fmt.Fprintf(os.Stderr, "live adapter %q is not implemented yet\n", clientID)
 			return 2
@@ -301,7 +326,31 @@ func printAuthorizationURL(ctx context.Context, authorizationURL string) error {
 }
 
 func printTestResults(results []interop.Result) error {
-	writer := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
+	return writeTestResults(os.Stdout, results)
+}
+
+func writeTestResults(output io.Writer, results []interop.Result) error {
+	writer := tabwriter.NewWriter(output, 0, 4, 2, ' ', 0)
+	if len(results) > 1 {
+		fmt.Fprintln(writer, "SUMMARY")
+		fmt.Fprintln(writer, "CLIENT\tREACH\tAUTH\tINIT\tTOOLS\tVERSION")
+		for _, result := range results {
+			version := result.ClientVersion
+			if version == "" {
+				version = "-"
+			}
+			fmt.Fprintf(writer, "%s\t%s\t%s\t%s\t%s\t%s\n",
+				result.ClientName,
+				stageStatus(result, interop.StageReach),
+				stageStatus(result, interop.StageAuth),
+				stageStatus(result, interop.StageInit),
+				stageStatus(result, interop.StageTools),
+				version,
+			)
+		}
+		fmt.Fprintln(writer)
+	}
+
 	for index, result := range results {
 		if index > 0 {
 			fmt.Fprintln(writer)
@@ -323,4 +372,12 @@ func printTestResults(results []interop.Result) error {
 		}
 	}
 	return writer.Flush()
+}
+
+func stageStatus(result interop.Result, stage interop.Stage) string {
+	item, ok := result.Get(stage)
+	if !ok {
+		return "UNKNOWN"
+	}
+	return strings.ToUpper(string(item.Status))
 }
