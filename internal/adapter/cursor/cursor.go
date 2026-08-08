@@ -161,13 +161,15 @@ func writeConfig(workspace, endpoint string) error {
 			testServerName: {"url": endpoint},
 		},
 	}
-	encoded, err := json.MarshalIndent(payload, "", "  ")
-	if err != nil {
+	var encoded bytes.Buffer
+	encoder := json.NewEncoder(&encoded)
+	encoder.SetIndent("", "  ")
+	encoder.SetEscapeHTML(false)
+	if err := encoder.Encode(payload); err != nil {
 		return fmt.Errorf("encode isolated Cursor configuration: %w", err)
 	}
-	encoded = append(encoded, '\n')
 	path := filepath.Join(configDir, "mcp.json")
-	if err := os.WriteFile(path, encoded, 0o600); err != nil {
+	if err := os.WriteFile(path, encoded.Bytes(), 0o600); err != nil {
 		return fmt.Errorf("write isolated Cursor configuration: %w", err)
 	}
 	return nil
@@ -185,11 +187,7 @@ func requiresOAuth(output string) bool {
 		"requires authentication",
 		"requires oauth",
 		"oauth required",
-		"run", "mcp login",
 	} {
-		if marker == "run" {
-			continue
-		}
 		if strings.Contains(lower, marker) {
 			return true
 		}
