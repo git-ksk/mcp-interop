@@ -86,3 +86,19 @@ func (r Result) Failed() bool {
 	}
 	return false
 }
+
+// Passed reports whether the complete interoperability contract was proven.
+// Unknown and skipped stages are intentionally not treated as success so CI
+// cannot silently pass an inconclusive client test.
+func (r Result) Passed() bool {
+	if len(r.Stages) != len(OrderedStages) {
+		return false
+	}
+	for _, stage := range OrderedStages {
+		item, ok := r.Get(stage)
+		if !ok || item.Status != StatusPass {
+			return false
+		}
+	}
+	return true
+}
