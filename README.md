@@ -134,6 +134,12 @@ This prevents the test from using the normal automatic/keyring MCP OAuth storage
 - A new OAuth or MCP conformance specification
 - Guaranteeing compatibility without running the corresponding client
 
+## Contributing and security
+
+Contributions are welcome; see `CONTRIBUTING.md` for the adapter and test requirements.
+
+Please report suspected vulnerabilities privately according to `SECURITY.md` rather than opening a public issue with sensitive details.
+
 ## License
 
-License will be finalized before the first public release.
+Licensed under the Apache License, Version 2.0. See `LICENSE`.
