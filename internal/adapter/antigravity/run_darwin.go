@@ -67,10 +67,14 @@ func (a *Adapter) Run(ctx context.Context, target interop.Target, session *inter
 	go func() {
 		done <- cmd.Wait()
 	}()
+	processWaited := false
 	defer func() {
 		_ = stdin.Close()
-		if cmd.Process != nil {
+		if cmd.Process != nil && !processWaited {
 			_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+		}
+		if processWaited {
+			return
 		}
 		select {
 		case <-done:
@@ -97,6 +101,7 @@ func (a *Adapter) Run(ctx context.Context, target interop.Target, session *inter
 			}
 
 		case processErr := <-done:
+			processWaited = true
 			count, cacheErr := countValidToolCacheFiles(home)
 			if cacheErr != nil {
 				return result, fmt.Errorf("inspect isolated Antigravity MCP cache after exit: %w", cacheErr)
