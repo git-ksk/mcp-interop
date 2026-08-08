@@ -1,0 +1,15 @@
+# Build output
+/mcp-interop
+/mcp-interop.exe
+/dist/
+
+# Test / coverage
+/coverage.out
+
+# Editors / OS
+.DS_Store
+.idea/
+.vscode/
+
+# Local interoperability artifacts
+/.mcp-interop/
