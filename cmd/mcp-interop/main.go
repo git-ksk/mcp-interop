@@ -18,12 +18,15 @@ const usageText = `mcp-interop - live interoperability testing for Remote MCP se
 
 Usage:
   mcp-interop clients [--json]
-  mcp-interop test <url> [--client codex] [--json]
+  mcp-interop test <url> [--client codex] [--oauth] [--json]
   mcp-interop help
 
 Commands:
   clients   Detect supported MCP clients installed on this machine.
   test      Run a Remote MCP interoperability test through real clients.
+
+Test options:
+  --oauth   Opt in to interactive OAuth when the client reports login is required.
 
 Current live adapters:
   codex     Codex CLI via its app-server MCP inventory surface.
@@ -118,6 +121,7 @@ type testOptions struct {
 	endpoint string
 	clients  []string
 	json     bool
+	oauth    bool
 	showHelp bool
 }
 
@@ -148,7 +152,11 @@ func runTest(ctx context.Context, args []string) int {
 				continue
 			}
 
-			adapter := codexadapter.New(detection.Path, detection.Version)
+			adapterOptions := make([]codexadapter.Option, 0, 1)
+			if options.oauth {
+				adapterOptions = append(adapterOptions, codexadapter.WithAuthorizationHandler(printAuthorizationURL))
+			}
+			adapter := codexadapter.New(detection.Path, detection.Version, adapterOptions...)
 			result, runErr := interop.NewRunner().Run(ctx, adapter, interop.Target{Endpoint: options.endpoint})
 			results = append(results, result)
 			if runErr != nil {
@@ -191,6 +199,8 @@ func parseTestOptions(args []string) (testOptions, error) {
 			options.showHelp = true
 		case arg == "--json":
 			options.json = true
+		case arg == "--oauth":
+			options.oauth = true
 		case arg == "--client":
 			if i+1 >= len(args) {
 				return options, fmt.Errorf("--client requires a value")
@@ -244,6 +254,20 @@ func detectClient(ctx context.Context, id string) client.Detection {
 		}
 	}
 	return client.Detection{ID: id}
+}
+
+func printAuthorizationURL(ctx context.Context, authorizationURL string) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
+	fmt.Fprintln(os.Stderr, "\nCodex OAuth authorization required.")
+	fmt.Fprintln(os.Stderr, "Open this URL in a browser to continue (it contains short-lived OAuth state; do not share it):")
+	fmt.Fprintln(os.Stderr, authorizationURL)
+	fmt.Fprintln(os.Stderr, "Waiting for Codex OAuth callback...")
+	return nil
 }
 
 func printTestResults(results []interop.Result) error {
