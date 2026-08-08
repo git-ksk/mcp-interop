@@ -8,19 +8,29 @@ import (
 	"io"
 )
 
-const maxAppServerMessageBytes = 32 << 20
+const (
+	maxAppServerMessageBytes = 32 << 20
+	maxQueuedNotifications   = 128
+)
 
 type rpcClient struct {
-	writer io.Writer
-	scan   *bufio.Scanner
-	nextID int64
+	writer        io.Writer
+	scan          *bufio.Scanner
+	nextID        int64
+	notifications []rpcNotification
 }
 
-type rpcResponse struct {
+type rpcMessage struct {
 	ID     json.RawMessage `json:"id"`
 	Method string          `json:"method"`
+	Params json.RawMessage `json:"params"`
 	Result json.RawMessage `json:"result"`
 	Error  *rpcError       `json:"error"`
+}
+
+type rpcNotification struct {
+	Method string
+	Params json.RawMessage
 }
 
 type rpcError struct {
@@ -52,43 +62,103 @@ func (c *rpcClient) call(method string, params any, out any) error {
 		return fmt.Errorf("write app-server request: %w", err)
 	}
 
+	for {
+		message, err := c.readMessage()
+		if err != nil {
+			return err
+		}
+		if message.Method != "" {
+			if len(message.ID) == 0 {
+				c.queueNotification(rpcNotification{Method: message.Method, Params: message.Params})
+			}
+			// Notifications and server-initiated requests are expected while
+			// app-server is running. This adapter does not opt into request
+			// capabilities, so neither should satisfy one of our calls.
+			continue
+		}
+		if len(message.ID) == 0 {
+			continue
+		}
+
+		var responseID int64
+		if err := json.Unmarshal(message.ID, &responseID); err != nil || responseID != id {
+			// Ignore responses to unrelated requests. mcp-interop performs its own
+			// requests sequentially, but app-server may serve other internal work.
+			continue
+		}
+		if message.Error != nil {
+			return fmt.Errorf("codex app-server JSON-RPC error %d", message.Error.Code)
+		}
+		if out == nil || len(message.Result) == 0 || string(message.Result) == "null" {
+			return nil
+		}
+		if err := json.Unmarshal(message.Result, out); err != nil {
+			return errors.New("decode codex app-server response")
+		}
+		return nil
+	}
+}
+
+func (c *rpcClient) waitNotification(method string, out any) error {
+	for {
+		for i, notification := range c.notifications {
+			if notification.Method != method {
+				continue
+			}
+			c.notifications = append(c.notifications[:i], c.notifications[i+1:]...)
+			return decodeNotification(notification, out)
+		}
+
+		message, err := c.readMessage()
+		if err != nil {
+			return err
+		}
+		if message.Method == "" || len(message.ID) != 0 {
+			continue
+		}
+		notification := rpcNotification{Method: message.Method, Params: message.Params}
+		if notification.Method == method {
+			return decodeNotification(notification, out)
+		}
+		c.queueNotification(notification)
+	}
+}
+
+func (c *rpcClient) readMessage() (rpcMessage, error) {
 	for c.scan.Scan() {
 		line := c.scan.Bytes()
 		if len(line) == 0 {
 			continue
 		}
 
-		var response rpcResponse
-		if err := json.Unmarshal(line, &response); err != nil {
-			return errors.New("codex app-server emitted invalid JSON")
+		var message rpcMessage
+		if err := json.Unmarshal(line, &message); err != nil {
+			return rpcMessage{}, errors.New("codex app-server emitted invalid JSON")
 		}
-		if response.Method != "" || len(response.ID) == 0 {
-			// Notifications and server-initiated requests are expected while
-			// app-server is running. This adapter does not opt into request
-			// capabilities, so neither should satisfy one of our calls.
-			continue
-		}
-
-		var responseID int64
-		if err := json.Unmarshal(response.ID, &responseID); err != nil || responseID != id {
-			// Ignore responses to unrelated requests. mcp-interop performs its own
-			// requests sequentially, but app-server may serve other internal work.
-			continue
-		}
-		if response.Error != nil {
-			return fmt.Errorf("codex app-server JSON-RPC error %d", response.Error.Code)
-		}
-		if out == nil || len(response.Result) == 0 || string(response.Result) == "null" {
-			return nil
-		}
-		if err := json.Unmarshal(response.Result, out); err != nil {
-			return errors.New("decode codex app-server response")
-		}
-		return nil
+		return message, nil
 	}
 
 	if err := c.scan.Err(); err != nil {
-		return fmt.Errorf("read codex app-server response: %w", err)
+		return rpcMessage{}, fmt.Errorf("read codex app-server response: %w", err)
 	}
-	return errors.New("codex app-server closed before responding")
+	return rpcMessage{}, errors.New("codex app-server closed before responding")
+}
+
+func (c *rpcClient) queueNotification(notification rpcNotification) {
+	if len(c.notifications) >= maxQueuedNotifications {
+		copy(c.notifications, c.notifications[1:])
+		c.notifications[len(c.notifications)-1] = notification
+		return
+	}
+	c.notifications = append(c.notifications, notification)
+}
+
+func decodeNotification(notification rpcNotification, out any) error {
+	if out == nil || len(notification.Params) == 0 || string(notification.Params) == "null" {
+		return nil
+	}
+	if err := json.Unmarshal(notification.Params, out); err != nil {
+		return errors.New("decode codex app-server notification")
+	}
+	return nil
 }
