@@ -53,9 +53,9 @@ func TestRedactSecrets(t *testing.T) {
 }
 
 func TestSanitizeEndpointMasksCredentialQueries(t *testing.T) {
-	input := "https://example.com/mcp?tenant=acme&api_key=very-secret&access_token=token-secret"
+	input := "https://example.com/mcp?tenant=acme&api_key=very-secret&access_token=token-secret&X-Amz-Credential=aws-secret&X-Amz-Signature=signed-secret"
 	got := SanitizeEndpoint(input)
-	for _, secret := range []string{"very-secret", "token-secret"} {
+	for _, secret := range []string{"very-secret", "token-secret", "aws-secret", "signed-secret"} {
 		if strings.Contains(got, secret) {
 			t.Fatalf("endpoint leaked %q: %s", secret, got)
 		}
@@ -65,6 +65,16 @@ func TestSanitizeEndpointMasksCredentialQueries(t *testing.T) {
 	}
 	if !strings.Contains(got, "REDACTED") {
 		t.Fatalf("expected endpoint redaction marker: %s", got)
+	}
+}
+
+func TestSanitizeEndpointDoesNotOverRedactOrdinaryQueries(t *testing.T) {
+	input := "https://example.com/mcp?author=alice&design=compact&tenant=acme"
+	got := SanitizeEndpoint(input)
+	for _, value := range []string{"author=alice", "design=compact", "tenant=acme"} {
+		if !strings.Contains(got, value) {
+			t.Fatalf("ordinary query %q was unexpectedly redacted: %s", value, got)
+		}
 	}
 }
 
