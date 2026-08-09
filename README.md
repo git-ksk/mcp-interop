@@ -12,6 +12,8 @@
 
 > Does this Remote MCP deployment actually connect, authenticate, initialize, and expose tools in the real clients my users run?
 
+It also includes profile-based **preflight diagnostics** for client surfaces that do not yet expose a safe headless real-client automation boundary. Preflight results are deliberately kept separate from live interoperability PASS results.
+
 ## Status
 
 **v0.1.0 is released.** This is the first public version of `mcp-interop`.
@@ -23,6 +25,8 @@ Live adapters currently exist for:
 - **Codex CLI** — live inventory and explicit opt-in OAuth flow.
 - **Cursor CLI (beta)** — live no-auth inventory via dedicated MCP management commands; OAuth completion is still pending maintainer E2E verification.
 - **Antigravity CLI (beta, macOS)** — live no-auth inventory through an isolated no-prompt PTY startup and machine-readable MCP tool cache; automated OAuth completion is intentionally disabled.
+
+The development branch also includes a **ChatGPT OAuth/server preflight profile**. It validates published MCP/OAuth metadata against ChatGPT's documented authentication behavior without claiming that the real ChatGPT client ran.
 
 VS Code remains research-only until a stable no-model server-start/tool-discovery surface is available.
 
@@ -64,6 +68,8 @@ A complete client test has four observable stages:
 A test exits with code `0` only when **all four stages are `pass`**. `fail`, `skip`, and `unknown` are non-zero results because CI should not silently accept an inconclusive interoperability test.
 
 `mcp-interop` does **not** claim that a server is secure, that every tool behaves correctly, or that an AI model will choose the right tool.
+
+A `diagnose` command has a different contract: it produces `PREFLIGHT PASS` / `PREFLIGHT FAIL` from published server/client metadata and never substitutes that result for a real-client interoperability PASS.
 
 ## Current CLI
 
@@ -109,6 +115,31 @@ mcp-interop test https://example.com/mcp --client codex --oauth
 `--oauth` does not silently open a browser. For Codex, `mcp-interop` prints the authorization URL to stderr and waits for the real Codex OAuth callback. Open that URL in a browser to continue. The URL contains short-lived OAuth state and should not be shared.
 
 Cursor and Antigravity OAuth completion are not enabled yet. Their beta adapters return incomplete/inconclusive authentication results rather than starting an unverified credential flow.
+
+### ChatGPT OAuth/server preflight
+
+Check whether a Remote MCP server's published OAuth metadata has a known blocking mismatch with ChatGPT's documented MCP authentication path:
+
+```console
+mcp-interop diagnose https://example.com/mcp --profile chatgpt
+```
+
+The profile follows Protected Resource Metadata and authorization-server discovery, then checks CIMD/DCR registration strategy, token endpoint authentication methods, PKCE S256, and refresh-token related metadata.
+
+A server with `client_id_metadata_document_supported: true` can pass registration preflight without a `registration_endpoint`: ChatGPT can use CIMD and does not require DCR for that path.
+
+If sanitized authorization-server logs expose the exact non-secret ChatGPT `client_id` CIMD URL and `redirect_uri`, they can be checked too:
+
+```console
+mcp-interop diagnose https://example.com/mcp \
+  --profile chatgpt \
+  --client-id 'https://chatgpt.com/oauth/.../client.json' \
+  --redirect-uri 'https://chatgpt.com/connector/oauth/...'
+```
+
+That extended check validates the CIMD document, redirect URI, client/server token auth method intersection, and JWKS when `private_key_jwt` is available.
+
+This command does **not** operate the ChatGPT UI, complete OAuth, or claim a real ChatGPT client PASS. See [ChatGPT connection diagnostics](docs/chatgpt-diagnostics.md) ([日本語](docs/chatgpt-diagnostics.ja.md)).
 
 ## Codex adapter
 
@@ -188,6 +219,7 @@ The Antigravity adapter currently ships a live implementation for macOS only:
 - **Private temporary state.** Session directories are created with owner-only permissions where the OS supports them, and test configuration/credential files use owner-only permissions on POSIX systems where applicable.
 - **Credential redaction.** Bearer/OAuth material and credential-like Remote MCP URL query parameters are redacted from reports.
 - **OAuth is explicit.** Authorization only starts when the caller opts in and the selected adapter has a verified isolated OAuth implementation.
+- **Preflight is not live evidence.** Profile diagnostics may fetch public metadata, but they never promote server metadata compatibility into a real-client `reach/auth/init/tools` PASS.
 - **No hosted service required.** The core tool runs locally and in CI without a project-operated backend.
 
 ## Real-client E2E on macOS
@@ -238,6 +270,8 @@ The runner is expected to have the real Codex, Cursor, and Antigravity CLIs inst
 
 - [Architecture](docs/architecture.md) ([日本語](docs/architecture.ja.md))
 - [Troubleshooting](docs/troubleshooting.md) ([日本語](docs/troubleshooting.ja.md))
+- [Reason codes](docs/reason-codes.md) ([日本語](docs/reason-codes.ja.md))
+- [ChatGPT connection diagnostics](docs/chatgpt-diagnostics.md) ([日本語](docs/chatgpt-diagnostics.ja.md))
 - [Contributing](CONTRIBUTING.md) ([日本語](CONTRIBUTING.ja.md))
 - [Security Policy](SECURITY.md) ([日本語](SECURITY.ja.md))
 - [CHANGELOG](CHANGELOG.md)
@@ -254,12 +288,16 @@ Published release history is summarized in [CHANGELOG.md](CHANGELOG.md).
 
 ### v0.2 — authentication completeness
 
+- [x] Add structured OAuth reason codes for client-observed DCR failures.
+- [x] Add ChatGPT-oriented Protected Resource Metadata / CIMD / DCR / PKCE / token-auth preflight diagnostics while keeping them separate from live-client verdicts.
+- [ ] Correlate additional real-client OAuth failures with the profile diagnostic evidence.
 - [ ] Complete Cursor OAuth token exchange + authenticated tool discovery.
 - [ ] Establish a safe Antigravity OAuth completion boundary before enabling authorization/token exchange.
-- [ ] Improve diagnostic output for `unknown` / incomplete results with structured reason codes and sanitized verbose traces.
+- [ ] Add sanitized verbose traces for remaining `unknown` / incomplete results.
 
 ### v0.3 — client coverage
 
+- [ ] Research a supported headless ChatGPT MCP/app-management surface before any real ChatGPT adapter; do not use brittle DOM scraping as the compatibility contract.
 - [ ] Revisit VS Code when a supported direct lifecycle/tool-discovery surface exists.
 - [ ] Evaluate GitHub Copilot CLI when a stable automatable MCP inventory surface is available.
 - [ ] Add additional OS/client-version evidence for beta adapters where the real client supports it.
