@@ -236,7 +236,7 @@ type ReferencePatternReport struct {
 }
 
 type RuntimeEvidenceReport struct {
-	SchemaVersion         int                     `json:"schema_version"`
+	SchemaVersion        int                     `json:"schema_version"`
 	RegistrationStrategy string                  `json:"registration_strategy,omitempty"`
 	ClientID             string                  `json:"client_id,omitempty"`
 	Status               Status                  `json:"status"`
@@ -261,7 +261,7 @@ func evaluateRuntimeEvidence(report *Report, evidence ChatGPTRuntimeEvidence) {
 
 	strategy := evidence.EffectiveRegistrationStrategy()
 	runtime := &RuntimeEvidenceReport{
-		SchemaVersion:         evidence.SchemaVersion,
+		SchemaVersion:        evidence.SchemaVersion,
 		RegistrationStrategy: strategy,
 		ClientID:             interop.SanitizeEndpoint(evidence.EffectiveClientID()),
 		Status:               StatusPass,
@@ -553,16 +553,17 @@ func expectedChatGPTTokenAuthForStrategy(report *Report, strategy string) string
 }
 
 func expectedChatGPTTokenAuth(report *Report) string {
-	if report.Client == nil {
+	// Multiple authorization servers are intentionally treated as ambiguous.
+	// Until a real flow proves which issuer ChatGPT selected, do not combine
+	// token-auth capabilities from unrelated issuers into one expectation.
+	if report.Client == nil || len(report.AuthorizationServers) != 1 {
 		return "unknown"
 	}
-	serverMethods := make([]string, 0)
-	for _, server := range report.AuthorizationServers {
-		if server.ClientIDMetadataDocumentSupported {
-			serverMethods = append(serverMethods, server.TokenEndpointAuthMethodsSupported...)
-		}
+	server := report.AuthorizationServers[0]
+	if !server.ClientIDMetadataDocumentSupported {
+		return "unknown"
 	}
-	compatible := intersection(report.Client.TokenEndpointAuthMethodsSupported, serverMethods)
+	compatible := intersection(report.Client.TokenEndpointAuthMethodsSupported, server.TokenEndpointAuthMethodsSupported)
 	if contains(compatible, "private_key_jwt") {
 		return "private_key_jwt"
 	}
