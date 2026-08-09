@@ -156,7 +156,7 @@ func TestChatGPTObservedClientMetadataChecksRedirectAndJWKS(t *testing.T) {
 	if !report.Passed() {
 		t.Fatalf("expected observed ChatGPT metadata preflight to pass: %#v", report.Checks)
 	}
-	assertCheck(t, report, "chatgpt_client_metadata", StatusPass, "Fetched")
+	assertCheck(t, report, "chatgpt_client_metadata", StatusPass, "validated")
 	assertCheck(t, report, "chatgpt_redirect_uri", StatusPass, "registered")
 	assertCheck(t, report, "chatgpt_token_endpoint_auth", StatusPass, "private_key_jwt")
 	assertCheck(t, report, "chatgpt_jwks", StatusPass, "1 key")
@@ -278,6 +278,7 @@ func newAuthFixture(t *testing.T, options authFixtureOptions) *httptest.Server {
 	if options.ClientMetadata {
 		mux.HandleFunc("/chatgpt-client.json", func(w http.ResponseWriter, r *http.Request) {
 			writeJSON(t, w, map[string]any{
+				"client_id":                             server.URL + "/chatgpt-client.json",
 				"redirect_uris":                         []string{"https://chatgpt.com/connector/oauth/test-callback"},
 				"token_endpoint_auth_methods_supported": []string{"none", "private_key_jwt"},
 				"jwks_uri":                              server.URL + "/jwks.json",
