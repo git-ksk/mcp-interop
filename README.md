@@ -1,5 +1,11 @@
 # mcp-interop
 
+[![CI](https://github.com/git-ksk/mcp-interop/actions/workflows/ci.yml/badge.svg)](https://github.com/git-ksk/mcp-interop/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/git-ksk/mcp-interop)](https://github.com/git-ksk/mcp-interop/releases/latest)
+[![License](https://img.shields.io/github/license/git-ksk/mcp-interop)](LICENSE)
+
+[English](README.md) | [日本語](README.ja.md)
+
 **Live interoperability testing for Remote MCP servers across real MCP clients.**
 
 `mcp-interop` is an experimental, cross-client test runner for Remote Model Context Protocol (MCP) servers. It is designed to answer a practical question that protocol conformance alone cannot answer:
@@ -228,6 +234,14 @@ self-hosted, macOS, ARM64, mcp-interop-e2e
 
 The runner is expected to have the real Codex, Cursor, and Antigravity CLIs installed. GitHub-hosted CI does **not** install those external clients; normal CI validates the fixture, the harness syntax/build path, adapter regression tests, and release build path without making external client availability a pull-request dependency.
 
+## Documentation
+
+- [Architecture](docs/architecture.md) ([日本語](docs/architecture.ja.md))
+- [Troubleshooting](docs/troubleshooting.md) ([日本語](docs/troubleshooting.ja.md))
+- [Contributing](CONTRIBUTING.md) ([日本語](CONTRIBUTING.ja.md))
+- [Security Policy](SECURITY.md) ([日本語](SECURITY.ja.md))
+- [CHANGELOG](CHANGELOG.md)
+
 ## Release process
 
 Release archives are built by `scripts/build-release.sh`. A `v*` tag triggers the release workflow, which validates the tag, embeds version/commit/build-time metadata, builds six platform/architecture archives, generates `checksums.txt`, verifies the Linux artifact's embedded version, and publishes the files to GitHub Releases.
@@ -273,9 +287,9 @@ Published release history is summarized in [CHANGELOG.md](CHANGELOG.md).
 
 ## Contributing and security
 
-Contributions are welcome; see `CONTRIBUTING.md` for the adapter and test requirements.
+Contributions are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md) or [CONTRIBUTING.ja.md](CONTRIBUTING.ja.md) for the adapter and test requirements.
 
-Please report suspected vulnerabilities privately according to `SECURITY.md` rather than opening a public issue with sensitive details.
+Please report suspected vulnerabilities privately according to [SECURITY.md](SECURITY.md). A Japanese reference translation is available at [SECURITY.ja.md](SECURITY.ja.md); the English policy is canonical.
 
 ## License
 
