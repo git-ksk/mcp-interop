@@ -157,7 +157,7 @@ The Antigravity adapter currently ships a live implementation for macOS only:
 3. starts the installed `agy` process under a PTY without sending TUI input or a model prompt;
 4. observes machine-readable tool schema state under the isolated `~/.gemini/antigravity-cli/mcp/<server>/` cache;
 5. treats valid tool schema files as evidence that the real client reached the server, initialized MCP, and completed tool discovery;
-6. terminates the PTY process group and removes the temporary HOME/workspace.
+6. captures and reaps only descendants of the test PTY wrapper before shared session cleanup, then removes the temporary HOME/workspace.
 
 ### Current Antigravity limitations
 
@@ -176,6 +176,50 @@ The Antigravity adapter currently ships a live implementation for macOS only:
 - **OAuth is explicit.** Authorization only starts when the caller opts in and the selected adapter has a verified isolated OAuth implementation.
 - **No hosted service required.** The core tool runs locally and in CI without a project-operated backend.
 
+## Real-client E2E on macOS
+
+The repository includes a deterministic localhost MCP fixture plus a release-gate runner for the installed real clients:
+
+```console
+bash scripts/e2e-real-clients.sh
+```
+
+By default it tests Codex, Cursor, and Antigravity. A subset can be selected explicitly:
+
+```console
+MCP_INTEROP_CLIENTS=codex,cursor bash scripts/e2e-real-clients.sh
+```
+
+The harness:
+
+- builds and tests the current checkout before E2E;
+- starts a Go fixture bound only to `127.0.0.1` with one deterministic `ping` tool;
+- runs each selected real client against a distinct fixture path;
+- requires the fixture to observe `initialize`, `notifications/initialized`, and `tools/list` for every selected client;
+- fails if any `tools/call` occurs;
+- removes common model/API key environment variables and points normal outbound HTTP(S) proxy variables at an unreachable loopback port while exempting localhost;
+- compares curated user MCP/config/credential metadata before and after the run, including the login Keychain database by default;
+- detects newly leaked `codex`, `cursor-agent`, or `agy` processes without killing processes by name;
+- detects newly leaked `mcp-interop-*` temporary session directories.
+
+The network controls are defense in depth, not a packet-capture proof that a client implementation cannot bypass proxy settings. The core adapter paths used by this harness do not submit model prompts.
+
+For a shared development Mac where unrelated Keychain writes would make the database hash noisy, the Keychain check can be explicitly skipped:
+
+```console
+MCP_INTEROP_SKIP_KEYCHAIN=1 bash scripts/e2e-real-clients.sh
+```
+
+Do not skip that gate for a release-candidate validation unless the equivalent Keychain comparison is performed separately.
+
+A manual GitHub Actions workflow is also included at `.github/workflows/e2e-real-macos.yml`. It intentionally targets a self-hosted runner labeled:
+
+```text
+self-hosted, macOS, ARM64, mcp-interop-e2e
+```
+
+The runner is expected to have the real Codex, Cursor, and Antigravity CLIs installed. GitHub-hosted CI does **not** install those external clients; normal CI validates the fixture, the harness syntax/build path, adapter regression tests, and release build path without making external client availability a pull-request dependency.
+
 ## Release process
 
 Release archives are built by `scripts/build-release.sh`. A `v*` tag triggers the release workflow, which validates the tag, embeds version/commit/build-time metadata, builds six platform/architecture archives, generates `checksums.txt`, verifies the Linux artifact's embedded version, and publishes the files to GitHub Releases.
@@ -193,6 +237,7 @@ Normal pull requests smoke-test the same release build path on Ubuntu before a t
 - [x] Antigravity CLI no-auth live adapter (beta, macOS)
 - [ ] Safe Antigravity OAuth completion boundary
 - [x] Cross-client combined text report
+- [x] Repeatable real-client macOS E2E harness
 - [x] Versioned release build/release automation
 - [ ] Revisit VS Code when a supported direct lifecycle/tool-discovery surface exists
 

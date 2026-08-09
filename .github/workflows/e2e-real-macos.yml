@@ -1,0 +1,45 @@
+name: Real client E2E (macOS)
+
+on:
+  workflow_dispatch:
+    inputs:
+      clients:
+        description: Comma-separated real clients to test
+        required: true
+        default: codex,cursor,antigravity
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  real-client-e2e:
+    name: real clients (self-hosted macOS arm64)
+    runs-on: [self-hosted, macOS, ARM64, mcp-interop-e2e]
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Preflight real clients
+        shell: bash
+        run: |
+          set -eu
+          command -v codex
+          command -v cursor-agent || command -v agent
+          command -v agy
+          codex --version
+          (cursor-agent --version || agent --version)
+          agy --version
+
+      - name: Run isolated real-client E2E
+        shell: bash
+        env:
+          MCP_INTEROP_CLIENTS: ${{ inputs.clients }}
+        run: bash scripts/e2e-real-clients.sh

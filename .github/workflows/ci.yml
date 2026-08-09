@@ -40,6 +40,14 @@ jobs:
       - name: Build
         run: go build ./cmd/mcp-interop
 
+      - name: Real E2E harness checks
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: |
+          bash -n scripts/e2e-real-clients.sh
+          go test ./internal/e2e/fixture
+          go build ./internal/e2e/fixture
+
       - name: Release build smoke
         if: matrix.os == 'ubuntu-latest'
         shell: bash
