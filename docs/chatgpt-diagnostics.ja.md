@@ -62,6 +62,7 @@ mcp-interop diagnose https://example.com/mcp \
 `--client-id`を指定すると、追加で:
 
 - CIMD documentを取得
+- CIMD document自身の`client_id`がHTTPS document URLと完全一致するか確認
 - ChatGPT側とAuthorization Server側のtoken endpoint auth methodを照合
 - `--redirect-uri`指定時はCIMD documentの`redirect_uris`に完全一致するか確認
 - `private_key_jwt`が互換methodならJWKSを取得してkeyが存在するか確認
@@ -90,6 +91,14 @@ WARNはpreflight failureにはしません。たとえば`offline_access`未広�
 
 **`PREFLIGHT PASS`でも、実ChatGPT clientがOAuth/tool discoveryを完遂した証明にはなりません。** 現在確認可能な公開metadata上にknown blocking mismatchが見つからなかった、という意味です。
 
+## tool-level OAuth UIは別の境界
+
+ChatGPTのtool-level linking UIはAuthorization Server Metadataだけでは決まりません。OpenAIの現在の仕様では、各toolの`securitySchemes`などの認証metadataと、認証が必要になったruntime errorの`_meta["mcp/www_authenticate"]`もOAuth linking UIに関係します。
+
+現在の`diagnose --profile chatgpt`は、このpost-discovery/tool-level signalを完全検証したとは主張しません。OAuth-protected serverでそこまで証明するには、authenticatedなChatGPT/tool-discovery pathが必要になるためです。
+
+OAuth metadata preflightがPASSなのにtool linking UI自体が出ない場合は、tool definitionとruntime auth error shapeを別途確認してください。この診断のためだけにResource Serverの保護を弱めてtoolsを匿名公開しないでください。
+
 ## preflight PASSなのにChatGPT接続が失敗する場合
 
 Authorization Server / MCP Resource Serverのlogを使って、実flowがどこまで進んだか確認します。共有するlogは必ずsanitizeしてください。
@@ -103,8 +112,13 @@ Authorization Server / MCP Resource Serverのlogを使って、実flowがどこ�
 5. token responseが受理され、継続接続が必要な構成ではrefresh tokenが発行されているか
 6. その後のMCP requestに`Authorization: Bearer ...`が来て、MCP serverがsignature / issuer / audience(resource) / expiry / scopeを受理しているか
 7. ChatGPTがMCP initialize / tool discoveryまで進んでいるか
+8. tool-specific linkingの場合、tool definitionとruntime auth challengeが documented OAuth linking signalを出しているか
 
 Issueへauthorization code、access/refresh token、cookie、private key、raw client assertion、短時間有効なOAuth `state`を貼らないでください。
+
+## network trust boundary
+
+このdiagnosticは、対象serverが広告したHTTPS OAuth metadata URLを辿ります。意図して検査するRemote MCP deploymentに対してだけ実行してください。redirectやmetadataが予期せず無関係なinfrastructureを指している場合は、安易にallowlistせずsuspicious evidenceとして確認してください。
 
 ## 現在の境界
 
