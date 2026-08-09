@@ -49,6 +49,10 @@ mcp-interop test https://example.com/mcp --client codex --oauth
 
 The authorization URL is printed to stderr and is short-lived. Do not paste it into issue reports because it contains OAuth state.
 
+When Codex fails before an authorization URL is available, inspect the `REASON` column or JSON `reason_code`. For example, `DCR_UNSUPPORTED` means the real Codex client explicitly reported that Dynamic Client Registration is not supported for that OAuth target. `mcp-interop` does not infer this code from a guessed registration URL returning `404`.
+
+See [Reason codes](reason-codes.md) for the stable classification rules.
+
 ### Cursor
 
 Cursor OAuth completion is not enabled in v0.1.x. The beta adapter can test no-auth endpoints, but an OAuth-required target remains incomplete until the authenticated path is verified and shipped.
@@ -118,6 +122,19 @@ mcp-interop test https://example.com/mcp --client codex,cursor,antigravity --jso
 
 Multi-client JSON output is an array. Treat the stage values as the authoritative machine-readable result; do not infer success only from process exit text.
 
+When a stage has a specific classified failure, JSON can also include a stable `reason_code`:
+
+```json
+{
+  "stage": "auth",
+  "status": "fail",
+  "reason_code": "DCR_UNSUPPORTED",
+  "message": "Codex reports that Dynamic Client Registration is not supported for this OAuth target"
+}
+```
+
+Absence of `reason_code` does not imply success; it means the adapter did not have enough specific evidence to assign a stable classification.
+
 ## Real-client E2E harness
 
 Maintainers can run the release-gate harness on macOS:
@@ -138,7 +155,7 @@ Include:
 - operating system and architecture;
 - exact MCP client version;
 - selected adapter;
-- stage results;
+- stage results and any `reason_code`;
 - sanitized error/diagnostic output;
 - whether the server requires OAuth;
 - whether the issue reproduces against a localhost/synthetic fixture if applicable.
