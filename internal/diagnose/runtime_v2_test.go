@@ -38,7 +38,7 @@ func TestRuntimeEvidenceV2OpenAIReferenceHappyPath(t *testing.T) {
 		AuthorizationRequest: &AuthorizationRequestEvidence{
 			ResourceMatches:    boolPtr(true),
 			RedirectURIMatches: boolPtr(true),
-			PKCES256:            boolPtr(true),
+			PKCES256:           boolPtr(true),
 		},
 		TokenRequest: &TokenRequestEvidence{
 			ResourceMatches:            boolPtr(true),
@@ -55,11 +55,11 @@ func TestRuntimeEvidenceV2OpenAIReferenceHappyPath(t *testing.T) {
 			ScopesSufficient: boolPtr(true),
 		},
 		ToolAuth: &ToolAuthEvidence{
-			ChallengeExpected:                   boolPtr(true),
-			OAuth2SecuritySchemePresent:         boolPtr(true),
-			WWWAuthenticatePresent:              boolPtr(true),
-			WWWAuthenticateHasError:             boolPtr(true),
-			WWWAuthenticateHasErrorDescription:  boolPtr(true),
+			ChallengeExpected:                  boolPtr(true),
+			OAuth2SecuritySchemePresent:        boolPtr(true),
+			WWWAuthenticatePresent:             boolPtr(true),
+			WWWAuthenticateHasError:            boolPtr(true),
+			WWWAuthenticateHasErrorDescription: boolPtr(true),
 		},
 	}
 	if err := evidence.Validate(); err != nil {
@@ -153,9 +153,9 @@ func TestRuntimeEvidenceV2DetectsToolOAuthSignalFailures(t *testing.T) {
 			ClientMetadataURL: "https://chatgpt.com/oauth/test/client.json",
 		},
 		ToolAuth: &ToolAuthEvidence{
-			ChallengeExpected:              boolPtr(true),
-			OAuth2SecuritySchemePresent:    boolPtr(false),
-			WWWAuthenticatePresent:         boolPtr(false),
+			ChallengeExpected:           boolPtr(true),
+			OAuth2SecuritySchemePresent: boolPtr(false),
+			WWWAuthenticatePresent:      boolPtr(false),
 		},
 	}
 	evaluateRuntimeEvidence(&report, evidence)
