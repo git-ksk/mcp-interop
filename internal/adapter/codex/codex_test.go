@@ -47,11 +47,90 @@ func TestRPCClientIgnoresNotificationsAndUnrelatedResponses(t *testing.T) {
 	}
 }
 
-func TestRPCClientReturnsOnlyErrorCode(t *testing.T) {
-	input := `{"id":1,"error":{"code":-32601,"message":"secret remote text"}}` + "\n"
+func TestRPCClientRetainsErrorDetailsWithoutExposingThem(t *testing.T) {
+	input := `{"id":1,"error":{"code":-32601,"message":"secret remote text","data":{"detail":"secret data"}}}` + "\n"
 	client := newRPCClient(strings.NewReader(input), &bytes.Buffer{})
-	if err := client.call("missing", map[string]any{}, nil); err == nil || err.Error() != "codex app-server JSON-RPC error -32601" {
+	err := client.call("missing", map[string]any{}, nil)
+	if err == nil || err.Error() != "codex app-server JSON-RPC error -32601" {
 		t.Fatalf("unexpected error: %v", err)
+	}
+	if strings.Contains(err.Error(), "secret") {
+		t.Fatalf("raw app-server error leaked through Error(): %v", err)
+	}
+
+	var rpcErr *rpcCallError
+	if !errors.As(err, &rpcErr) {
+		t.Fatalf("expected typed rpcCallError, got %T", err)
+	}
+	if rpcErr.Message != "secret remote text" || !strings.Contains(string(rpcErr.Data), "secret data") {
+		t.Fatalf("classification details were not retained: %#v", rpcErr)
+	}
+}
+
+func TestClassifyOAuthStartFailure(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want interop.ReasonCode
+	}{
+		{
+			name: "Monokura-like explicit unsupported",
+			err: &rpcCallError{
+				Code:    -32000,
+				Message: "Registration failed: Dynamic registration failed: Registration failed: Dynamic client registration not supported",
+			},
+			want: interop.ReasonDCRUnsupported,
+		},
+		{
+			name: "dynamic registration failure",
+			err: &rpcCallError{
+				Code:    -32000,
+				Message: "OAuth login failed",
+				Data:    json.RawMessage(`{"error":"dynamic client registration failed with status 500"}`),
+			},
+			want: interop.ReasonDCRFailed,
+		},
+		{
+			name: "generic OAuth failure is not overclassified",
+			err: &rpcCallError{
+				Code:    -32000,
+				Message: "OAuth login failed",
+			},
+			want: "",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := classifyOAuthStartFailure(test.err); got != test.want {
+				t.Fatalf("reason = %q, want %q", got, test.want)
+			}
+		})
+	}
+}
+
+func TestLoginOAuthReportsDCRUnsupported(t *testing.T) {
+	input := `{"id":1,"error":{"code":-32000,"message":"Registration failed: Dynamic registration failed: Registration failed: Dynamic client registration not supported"}}` + "\n"
+	rpc := newRPCClient(strings.NewReader(input), &bytes.Buffer{})
+	adapter := New("codex", "codex-cli 0.133.0")
+	result := interop.NewResult(clientID, clientName, "codex-cli 0.133.0", "https://example.com/mcp")
+
+	_, ok, err := adapter.loginOAuth(context.Background(), rpc, &result)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ok {
+		t.Fatal("OAuth login unexpectedly succeeded")
+	}
+	auth, found := result.Get(interop.StageAuth)
+	if !found {
+		t.Fatal("missing auth stage")
+	}
+	if auth.Status != interop.StatusFail || auth.ReasonCode != interop.ReasonDCRUnsupported {
+		t.Fatalf("unexpected auth result: %#v", auth)
+	}
+	if strings.Contains(auth.Message, "Registration failed") {
+		t.Fatalf("raw client error leaked into result message: %q", auth.Message)
 	}
 }
 
