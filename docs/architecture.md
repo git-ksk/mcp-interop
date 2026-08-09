@@ -1,5 +1,7 @@
 # Architecture
 
+[English](architecture.md) | [日本語](architecture.ja.md)
+
 `mcp-interop` is a black-box interoperability runner for Remote MCP deployments. The project deliberately separates protocol-level observation from real-client execution so it does not become another MCP conformance suite.
 
 ## Core model
@@ -11,22 +13,24 @@ Each test produces stage results using four states:
 - `skip` — the stage was not attempted because a prerequisite failed or the adapter does not support it.
 - `unknown` — the available client interface cannot prove the outcome.
 
-The initial stages are:
+The current stages are:
 
-1. `reach` — the remote endpoint is reachable by the adapter.
-2. `auth` — required client authentication completes or an existing client session is accepted.
-3. `init` — the client establishes an MCP session.
-4. `tools` — the client can discover the server's tools.
+1. `reach` — the real client reached enough of the Remote MCP deployment to prove live interaction.
+2. `auth` — required client authentication completed, or live tool discovery proved authentication was not required.
+3. `init` — the real client established an MCP session.
+4. `tools` — the real client discovered the server's tools.
+
+A complete interoperability pass requires all four stages to be `pass`. Inconclusive states intentionally remain non-zero so CI cannot silently treat missing evidence as compatibility.
 
 ## Adapter boundary
 
-Every supported client will have an adapter that owns client-specific behavior. The intended interface is conceptually:
+Every supported client has an adapter that owns client-specific behavior. The conceptual lifecycle is:
 
 ```text
 Detect -> Prepare isolated profile -> Register endpoint -> Authenticate -> Discover -> Cleanup
 ```
 
-Adapters must report observations rather than infer success from configuration alone.
+Adapters report observations from the real installed client rather than infer success from configuration alone.
 
 ## Isolation policy
 
@@ -40,33 +44,45 @@ Preferred order:
 
 Credentials and OAuth tokens created during a test must stay inside the isolated profile where possible. Reports must never include bearer tokens, authorization codes, client secrets, cookies, or raw credential files.
 
-## Initial adapters
+Process ownership follows the same rule: an adapter may reap only processes it can prove belong to the current isolated test session. It must not kill unrelated client processes by executable name.
 
-### Codex CLI — V1
+## Shipped adapters
 
-Target observations:
+### Codex CLI
 
-- client present/version
-- remote MCP registration in an isolated configuration
-- MCP OAuth login when required
-- server initialization/status
-- tool discovery when exposed through a stable client management surface
+The Codex adapter is the most complete implementation in v0.1.0. It uses an isolated `CODEX_HOME`, the real `codex app-server` MCP status surface, and an explicit opt-in OAuth flow. OAuth credentials are forced into file storage inside the temporary home rather than the normal keyring path.
 
-### Cursor CLI — V1
+### Cursor CLI (beta)
 
-Cursor exposes dedicated MCP management commands including login, list, and list-tools. The adapter should rely on those management commands instead of asking the model to call a tool.
+The Cursor adapter uses an isolated temporary `HOME` and workspace plus the real CLI MCP management commands (`mcp enable`, `mcp list`, and `mcp list-tools`). It supports live no-auth interoperability testing without model prompts. OAuth completion remains planned for v0.2 after authenticated token exchange and tool discovery are fully verified.
 
-### Antigravity CLI — V1
+### Antigravity CLI (beta, macOS)
 
-Antigravity supports local and remote MCP configuration and exposes MCP management through its CLI/TUI. The first adapter should remain conservative until a stable non-interactive management path is verified.
+The Antigravity adapter uses an isolated temporary `HOME`, the current `~/.gemini/config/mcp_config.json` format, and a no-input PTY startup. It observes machine-readable tool-cache state produced by the real client and reaps only descendants of the test PTY wrapper before session cleanup. Automated OAuth completion remains disabled until credential isolation from the macOS Keychain can be proven.
 
-### VS Code — V1 beta
+### VS Code (research)
 
-VS Code can install MCP server configuration from its CLI, but end-to-end status/tool discovery is more UI/command-palette oriented. Keep this adapter beta until a reliable black-box automation path is established.
+VS Code can safely register MCP configuration in an isolated user-data directory, but the tested CLI does not expose a supported direct path for MCP server start/status/tool discovery. Registration alone is not treated as interoperability success. The adapter remains research-only until a stable no-model lifecycle surface exists.
 
-### GitHub Copilot CLI — later
+### GitHub Copilot CLI (candidate)
 
-Copilot CLI has explicit MCP add commands for HTTP servers and is a strong follow-up adapter after the first three live adapters are stable.
+GitHub Copilot CLI is a follow-up candidate for v0.3 if a stable automatable MCP inventory/lifecycle surface can provide the same black-box evidence without model prompts.
+
+## Real-client E2E boundary
+
+The repository includes a localhost-only MCP fixture and `scripts/e2e-real-clients.sh` for release-gate testing on a macOS machine with the real Codex, Cursor, and Antigravity clients installed.
+
+The harness requires protocol evidence for:
+
+```text
+initialize
+notifications/initialized
+tools/list
+```
+
+and fails if `tools/call` occurs. It also checks user configuration metadata, the login Keychain database, leaked client processes, and temporary session directories before/after the run.
+
+GitHub-hosted CI does not install external MCP clients. It validates adapter regression tests, fixture behavior, harness syntax/build paths, and release builds. A separate manual workflow targets a self-hosted macOS ARM64 runner for real-client E2E.
 
 ## What this project does not test
 
@@ -79,3 +95,5 @@ A successful interoperability result does not mean:
 - every OAuth identity or scope combination will work.
 
 Those concerns belong to separate security, conformance, or agent-evaluation tools.
+
+For operational failure modes and result interpretation, see [Troubleshooting](troubleshooting.md).
