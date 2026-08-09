@@ -34,7 +34,22 @@ type rpcNotification struct {
 }
 
 type rpcError struct {
-	Code int `json:"code"`
+	Code    int             `json:"code"`
+	Message string          `json:"message"`
+	Data    json.RawMessage `json:"data"`
+}
+
+// rpcCallError retains app-server error details only for in-process
+// classification. Error deliberately omits Message and Data so remote or
+// client-generated text cannot leak through ordinary error reporting.
+type rpcCallError struct {
+	Code    int
+	Message string
+	Data    json.RawMessage
+}
+
+func (e *rpcCallError) Error() string {
+	return fmt.Sprintf("codex app-server JSON-RPC error %d", e.Code)
 }
 
 func newRPCClient(reader io.Reader, writer io.Writer) *rpcClient {
@@ -87,7 +102,11 @@ func (c *rpcClient) call(method string, params any, out any) error {
 			continue
 		}
 		if message.Error != nil {
-			return fmt.Errorf("codex app-server JSON-RPC error %d", message.Error.Code)
+			return &rpcCallError{
+				Code:    message.Error.Code,
+				Message: message.Error.Message,
+				Data:    append(json.RawMessage(nil), message.Error.Data...),
+			}
 		}
 		if out == nil || len(message.Result) == 0 || string(message.Result) == "null" {
 			return nil
