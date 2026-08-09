@@ -55,12 +55,13 @@ root="$HOME/.gemini/antigravity-cli/mcp/mcp-interop-target"
 mkdir -p "$root"
 echo $$ > "$HOME/fake-agy.pid"
 (
-  echo $$ > "$HOME/fake-writer.pid"
   while :; do
     printf '%s\n' "still-writing" > "$root/live-state.tmp"
     sleep 0.05
   done
 ) &
+writer_pid=$!
+echo "$writer_pid" > "$HOME/fake-writer.pid"
 printf '%s\n' '{"name":"ping"}' > "$root/ping.json"
 wait
 `
