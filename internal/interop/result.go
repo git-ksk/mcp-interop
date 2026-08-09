@@ -25,9 +25,10 @@ const (
 
 // StageResult records one observed interoperability stage.
 type StageResult struct {
-	Stage   Stage  `json:"stage"`
-	Status  Status `json:"status"`
-	Message string `json:"message,omitempty"`
+	Stage      Stage      `json:"stage"`
+	Status     Status     `json:"status"`
+	ReasonCode ReasonCode `json:"reason_code,omitempty"`
+	Message    string     `json:"message,omitempty"`
 }
 
 // Result is the deterministic report returned by one real-client adapter.
@@ -55,11 +56,20 @@ func NewResult(clientID, clientName, clientVersion, endpoint string) Result {
 	return result
 }
 
-// Set updates exactly one known stage while preserving report ordering.
+// Set updates exactly one known stage while preserving report ordering. Any
+// previously attached reason code is cleared because the caller is replacing
+// the complete stage observation.
 func (r *Result) Set(stage Stage, status Status, message string) bool {
+	return r.SetWithReason(stage, status, "", message)
+}
+
+// SetWithReason updates one known stage and attaches a stable machine-readable
+// explanation in addition to the human-readable message.
+func (r *Result) SetWithReason(stage Stage, status Status, reasonCode ReasonCode, message string) bool {
 	for i := range r.Stages {
 		if r.Stages[i].Stage == stage {
 			r.Stages[i].Status = status
+			r.Stages[i].ReasonCode = reasonCode
 			r.Stages[i].Message = message
 			return true
 		}
