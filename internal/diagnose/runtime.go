@@ -1,37 +1,223 @@
 package diagnose
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
 	"net/url"
+	"regexp"
+	"strings"
 
 	"github.com/git-ksk/mcp-interop/internal/interop"
 )
 
-// ChatGPTRuntimeEvidence is a deliberately secret-free observation of the
-// OAuth token request. It accepts presence/match booleans, never token values,
-// authorization codes, PKCE verifiers, assertions, cookies, or credentials.
+const runtimeEvidenceSchemaV2 = 2
+
+var oauthErrorPattern = regexp.MustCompile(`^[A-Za-z0-9._-]{1,64}$`)
+
+// ChatGPTRuntimeEvidence is a deliberately secret-free observation of a
+// ChatGPT OAuth/MCP flow. Schema v2 separates registration, authorization,
+// token, resource-server, and tool-level signals. Legacy v1 fields remain
+// accepted so existing evidence files keep working.
 //
-// client_assertion_present is the minimum runtime signal needed to compare a
-// metadata-selected private_key_jwt flow with an observed unauthenticated token
-// request. Other observations are optional and are reported as unknown when
-// they were not captured by the server's sanitized logging.
+// Only presence/match booleans and a sanitized OAuth error code are accepted.
+// Tokens, authorization codes, PKCE verifier values, client assertions,
+// cookies, credentials, and arbitrary fields are rejected by the CLI decoder.
 type ChatGPTRuntimeEvidence struct {
-	ClientID                   string `json:"client_id"`
+	SchemaVersion int `json:"schema_version,omitempty"`
+
+	Registration         *RegistrationEvidence         `json:"registration,omitempty"`
+	AuthorizationRequest *AuthorizationRequestEvidence `json:"authorization_request,omitempty"`
+	TokenRequest         *TokenRequestEvidence         `json:"token_request,omitempty"`
+	ResourceRequest      *ResourceRequestEvidence      `json:"resource_request,omitempty"`
+	ToolAuth             *ToolAuthEvidence             `json:"tool_auth,omitempty"`
+
+	// Legacy schema v1. These fields are intentionally retained for backwards
+	// compatibility and are normalized into the v2 sections during decoding.
+	ClientID                   string `json:"client_id,omitempty"`
 	ResourceMatches            *bool  `json:"resource_matches,omitempty"`
 	CodeVerifierPresent        *bool  `json:"code_verifier_present,omitempty"`
-	ClientAssertionPresent     *bool  `json:"client_assertion_present"`
+	ClientAssertionPresent     *bool  `json:"client_assertion_present,omitempty"`
 	ClientAssertionTypePresent *bool  `json:"client_assertion_type_present,omitempty"`
 }
 
-func (e ChatGPTRuntimeEvidence) Validate() error {
-	clientURL, err := url.Parse(e.ClientID)
-	if err != nil || clientURL.Scheme != "https" || clientURL.Host == "" || clientURL.RawQuery != "" || clientURL.Fragment != "" {
-		return errors.New("client_id must be a stable HTTPS CIMD URL without query or fragment")
+type RegistrationEvidence struct {
+	Strategy          string `json:"strategy"`
+	ClientMetadataURL string `json:"client_metadata_url,omitempty"`
+}
+
+type AuthorizationRequestEvidence struct {
+	ResourceMatches    *bool `json:"resource_matches,omitempty"`
+	RedirectURIMatches *bool `json:"redirect_uri_matches,omitempty"`
+	PKCES256            *bool `json:"pkce_s256,omitempty"`
+}
+
+type TokenRequestEvidence struct {
+	ResourceMatches            *bool  `json:"resource_matches,omitempty"`
+	CodeVerifierPresent        *bool  `json:"code_verifier_present,omitempty"`
+	ClientAssertionPresent     *bool  `json:"client_assertion_present,omitempty"`
+	ClientAssertionTypePresent *bool  `json:"client_assertion_type_present,omitempty"`
+	OAuthError                 string `json:"oauth_error,omitempty"`
+}
+
+type ResourceRequestEvidence struct {
+	BearerPresent     *bool `json:"bearer_present,omitempty"`
+	SignatureValid    *bool `json:"signature_valid,omitempty"`
+	IssuerMatches     *bool `json:"issuer_matches,omitempty"`
+	AudienceMatches   *bool `json:"audience_matches,omitempty"`
+	ExpiryValid       *bool `json:"expiry_valid,omitempty"`
+	ScopesSufficient  *bool `json:"scopes_sufficient,omitempty"`
+}
+
+type ToolAuthEvidence struct {
+	ChallengeExpected                *bool `json:"challenge_expected,omitempty"`
+	OAuth2SecuritySchemePresent      *bool `json:"oauth2_security_scheme_present,omitempty"`
+	WWWAuthenticatePresent           *bool `json:"www_authenticate_present,omitempty"`
+	WWWAuthenticateHasError          *bool `json:"www_authenticate_has_error,omitempty"`
+	WWWAuthenticateHasErrorDescription *bool `json:"www_authenticate_has_error_description,omitempty"`
+}
+
+type runtimeEvidenceWire ChatGPTRuntimeEvidence
+
+func (e *ChatGPTRuntimeEvidence) UnmarshalJSON(data []byte) error {
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	var wire runtimeEvidenceWire
+	if err := decoder.Decode(&wire); err != nil {
+		return err
 	}
-	if e.ClientAssertionPresent == nil {
-		return errors.New("client_assertion_present is required")
+	if err := ensureJSONEOF(decoder); err != nil {
+		return err
+	}
+
+	value := ChatGPTRuntimeEvidence(wire)
+	hasV2 := value.Registration != nil || value.AuthorizationRequest != nil || value.TokenRequest != nil || value.ResourceRequest != nil || value.ToolAuth != nil
+	hasLegacy := value.ClientID != "" || value.ResourceMatches != nil || value.CodeVerifierPresent != nil || value.ClientAssertionPresent != nil || value.ClientAssertionTypePresent != nil
+
+	if value.SchemaVersion != 0 && value.SchemaVersion != 1 && value.SchemaVersion != runtimeEvidenceSchemaV2 {
+		return fmt.Errorf("unsupported runtime evidence schema_version %d", value.SchemaVersion)
+	}
+	if hasV2 && value.SchemaVersion == 1 {
+		return errors.New("schema_version 1 cannot contain v2 runtime evidence sections")
+	}
+	if hasV2 && hasLegacy {
+		return errors.New("runtime evidence cannot mix legacy v1 fields with v2 sections")
+	}
+	if value.SchemaVersion == runtimeEvidenceSchemaV2 && hasLegacy {
+		return errors.New("schema_version 2 cannot contain legacy v1 runtime evidence fields")
+	}
+
+	if hasV2 || value.SchemaVersion == runtimeEvidenceSchemaV2 {
+		value.SchemaVersion = runtimeEvidenceSchemaV2
+	} else {
+		value.SchemaVersion = 1
+		value.normalizeLegacy()
+	}
+	*e = value
+	return nil
+}
+
+func ensureJSONEOF(decoder *json.Decoder) error {
+	var extra any
+	if err := decoder.Decode(&extra); err != io.EOF {
+		if err == nil {
+			return errors.New("runtime evidence must contain exactly one JSON object")
+		}
+		return err
 	}
 	return nil
+}
+
+func (e *ChatGPTRuntimeEvidence) normalizeLegacy() {
+	if e.ClientID != "" {
+		e.Registration = &RegistrationEvidence{Strategy: "cimd", ClientMetadataURL: e.ClientID}
+	}
+	if e.ResourceMatches != nil || e.CodeVerifierPresent != nil || e.ClientAssertionPresent != nil || e.ClientAssertionTypePresent != nil {
+		e.TokenRequest = &TokenRequestEvidence{
+			ResourceMatches:            e.ResourceMatches,
+			CodeVerifierPresent:        e.CodeVerifierPresent,
+			ClientAssertionPresent:     e.ClientAssertionPresent,
+			ClientAssertionTypePresent: e.ClientAssertionTypePresent,
+		}
+	}
+}
+
+func (e ChatGPTRuntimeEvidence) Validate() error {
+	if e.SchemaVersion == 0 {
+		if e.Registration != nil || e.AuthorizationRequest != nil || e.TokenRequest != nil || e.ResourceRequest != nil || e.ToolAuth != nil {
+			e.SchemaVersion = runtimeEvidenceSchemaV2
+		} else {
+			e.SchemaVersion = 1
+		}
+	}
+	if e.SchemaVersion != 1 && e.SchemaVersion != runtimeEvidenceSchemaV2 {
+		return fmt.Errorf("unsupported runtime evidence schema_version %d", e.SchemaVersion)
+	}
+	if e.SchemaVersion == 1 {
+		if e.ClientID == "" {
+			return errors.New("client_id is required for legacy runtime evidence")
+		}
+		if err := validateStableHTTPSURL(e.ClientID, "client_id"); err != nil {
+			return err
+		}
+		if e.ClientAssertionPresent == nil {
+			return errors.New("client_assertion_present is required for legacy runtime evidence")
+		}
+		return nil
+	}
+
+	if e.Registration == nil && e.AuthorizationRequest == nil && e.TokenRequest == nil && e.ResourceRequest == nil && e.ToolAuth == nil {
+		return errors.New("schema_version 2 runtime evidence must contain at least one evidence section")
+	}
+	if e.Registration != nil {
+		strategy := strings.ToLower(strings.TrimSpace(e.Registration.Strategy))
+		switch strategy {
+		case "cimd":
+			if e.Registration.ClientMetadataURL == "" {
+				return errors.New("registration.client_metadata_url is required when strategy is cimd")
+			}
+			if err := validateStableHTTPSURL(e.Registration.ClientMetadataURL, "registration.client_metadata_url"); err != nil {
+				return err
+			}
+		case "dcr", "predefined":
+			if e.Registration.ClientMetadataURL != "" {
+				return errors.New("registration.client_metadata_url is only valid when strategy is cimd")
+			}
+		default:
+			return errors.New("registration.strategy must be one of cimd, dcr, or predefined")
+		}
+	}
+	if e.TokenRequest != nil && e.TokenRequest.OAuthError != "" && !oauthErrorPattern.MatchString(e.TokenRequest.OAuthError) {
+		return errors.New("token_request.oauth_error must be a short OAuth error code without whitespace")
+	}
+	return nil
+}
+
+func validateStableHTTPSURL(raw, field string) error {
+	parsed, err := url.Parse(raw)
+	if err != nil || parsed.Scheme != "https" || parsed.Host == "" || parsed.RawQuery != "" || parsed.Fragment != "" {
+		return fmt.Errorf("%s must be a stable HTTPS URL without query or fragment", field)
+	}
+	return nil
+}
+
+func (e ChatGPTRuntimeEvidence) EffectiveClientID() string {
+	if e.Registration != nil && strings.EqualFold(e.Registration.Strategy, "cimd") {
+		return e.Registration.ClientMetadataURL
+	}
+	return e.ClientID
+}
+
+func (e ChatGPTRuntimeEvidence) EffectiveRegistrationStrategy() string {
+	if e.Registration != nil {
+		return strings.ToLower(strings.TrimSpace(e.Registration.Strategy))
+	}
+	if e.ClientID != "" {
+		return "cimd"
+	}
+	return "unknown"
 }
 
 type RuntimeCheck struct {
@@ -43,11 +229,20 @@ type RuntimeCheck struct {
 	Message    string             `json:"message"`
 }
 
+type ReferencePatternReport struct {
+	Status Status         `json:"status"`
+	Source string         `json:"source"`
+	Checks []RuntimeCheck `json:"checks"`
+}
+
 type RuntimeEvidenceReport struct {
-	ClientID   string             `json:"client_id"`
-	Status     Status             `json:"status"`
-	ReasonCode interop.ReasonCode `json:"reason_code,omitempty"`
-	Checks     []RuntimeCheck     `json:"checks"`
+	SchemaVersion        int                     `json:"schema_version"`
+	RegistrationStrategy string                  `json:"registration_strategy,omitempty"`
+	ClientID             string                  `json:"client_id,omitempty"`
+	Status               Status                  `json:"status"`
+	ReasonCode           interop.ReasonCode      `json:"reason_code,omitempty"`
+	Checks               []RuntimeCheck          `json:"checks"`
+	OpenAIReference      *ReferencePatternReport `json:"openai_reference_pattern,omitempty"`
 }
 
 func (r RuntimeEvidenceReport) Passed() bool {
@@ -55,75 +250,91 @@ func (r RuntimeEvidenceReport) Passed() bool {
 }
 
 func evaluateRuntimeEvidence(report *Report, evidence ChatGPTRuntimeEvidence) {
+	if evidence.SchemaVersion == 0 {
+		if evidence.Registration != nil || evidence.AuthorizationRequest != nil || evidence.TokenRequest != nil || evidence.ResourceRequest != nil || evidence.ToolAuth != nil {
+			evidence.SchemaVersion = runtimeEvidenceSchemaV2
+		} else {
+			evidence.SchemaVersion = 1
+			evidence.normalizeLegacy()
+		}
+	}
+
+	strategy := evidence.EffectiveRegistrationStrategy()
 	runtime := &RuntimeEvidenceReport{
-		ClientID: interop.SanitizeEndpoint(evidence.ClientID),
-		Status:   StatusPass,
+		SchemaVersion:        evidence.SchemaVersion,
+		RegistrationStrategy: strategy,
+		ClientID:             interop.SanitizeEndpoint(evidence.EffectiveClientID()),
+		Status:               StatusPass,
 	}
 
-	registrationObserved := "unknown"
-	registrationStatus := StatusWarn
-	if report.Client != nil && report.Client.ClientID == sanitizePublicURL(evidence.ClientID) {
-		registrationObserved = "CIMD"
-		registrationStatus = StatusPass
-	}
-	runtime.add(RuntimeCheck{
+	evaluateRegistration(report, runtime, evidence)
+	evaluateAuthorizationRequest(runtime, evidence.AuthorizationRequest)
+	evaluateTokenRequest(report, runtime, evidence)
+	evaluateResourceRequest(runtime, evidence.ResourceRequest)
+	evaluateToolAuth(runtime, evidence.ToolAuth)
+	runtime.OpenAIReference = buildOpenAIReferencePattern(runtime)
+	report.RuntimeEvidence = runtime
+}
+
+func evaluateRegistration(report *Report, runtime *RuntimeEvidenceReport, evidence ChatGPTRuntimeEvidence) {
+	strategy := evidence.EffectiveRegistrationStrategy()
+	check := RuntimeCheck{
 		ID:       "registration_strategy",
-		Status:   registrationStatus,
-		Expected: "CIMD",
-		Observed: registrationObserved,
-		Message:  "Observed client_id is correlated with the fetched ChatGPT CIMD document when available",
-	})
-
-	if evidence.ResourceMatches == nil {
-		runtime.add(RuntimeCheck{
-			ID:       "resource",
-			Status:   StatusWarn,
-			Expected: "canonical URL match",
-			Observed: "unknown",
-			Message:  "resource match was not included in the supplied sanitized runtime evidence",
-		})
-	} else {
-		resourceObserved := "mismatch"
-		resourceStatus := StatusFail
-		if *evidence.ResourceMatches {
-			resourceObserved = "canonical URL match"
-			resourceStatus = StatusPass
-		}
-		runtime.add(RuntimeCheck{
-			ID:       "resource",
-			Status:   resourceStatus,
-			Expected: "canonical URL match",
-			Observed: resourceObserved,
-			Message:  "Sanitized token-request evidence reports whether resource matched the canonical MCP resource",
-		})
+		Expected: "supported by discovered authorization metadata",
+		Observed: strategy,
+		Message:  "Correlates the explicitly observed registration strategy with discovered authorization-server capabilities",
 	}
-
-	if evidence.CodeVerifierPresent == nil {
-		runtime.add(RuntimeCheck{
-			ID:       "pkce_verifier",
-			Status:   StatusWarn,
-			Expected: "present",
-			Observed: "unknown",
-			Message:  "code_verifier presence was not included in the supplied sanitized runtime evidence",
-		})
-	} else {
-		verifierObserved := "absent"
-		verifierStatus := StatusFail
-		if *evidence.CodeVerifierPresent {
-			verifierObserved = "present"
-			verifierStatus = StatusPass
+	switch strategy {
+	case "cimd":
+		if !serverSupportsCIMD(report) {
+			check.Status = StatusFail
+			check.ReasonCode = interop.ReasonRegistrationStrategyUnsupported
+		} else if report.Client == nil {
+			check.Status = StatusWarn
+			check.Message = "CIMD is advertised, but the exact observed client metadata document was not fetched"
+		} else if report.Client.ClientID != sanitizePublicURL(evidence.EffectiveClientID()) {
+			check.Status = StatusWarn
+			check.Message = "CIMD is advertised, but the fetched client metadata identity did not correlate with the supplied runtime evidence"
+		} else {
+			check.Status = StatusPass
 		}
-		runtime.add(RuntimeCheck{
-			ID:       "pkce_verifier",
-			Status:   verifierStatus,
-			Expected: "present",
-			Observed: verifierObserved,
-			Message:  "Only code_verifier presence is observed; the verifier value is never ingested",
-		})
+	case "dcr":
+		if serverSupportsDCR(report) {
+			check.Status = StatusPass
+		} else {
+			check.Status = StatusFail
+			check.ReasonCode = interop.ReasonRegistrationStrategyUnsupported
+		}
+	case "predefined":
+		check.Status = StatusWarn
+		check.Message = "Predefined client registration cannot be proven from public authorization-server metadata alone"
+	default:
+		check.Status = StatusWarn
+		check.Observed = "unknown"
+		check.Message = "Registration strategy was not included in the supplied sanitized runtime evidence"
 	}
+	runtime.add(check)
+}
 
-	expectedAuth := expectedChatGPTTokenAuth(report)
-	observedAuth, conclusive := observedTokenAuth(evidence)
+func evaluateAuthorizationRequest(runtime *RuntimeEvidenceReport, evidence *AuthorizationRequestEvidence) {
+	if evidence == nil {
+		return
+	}
+	runtime.add(matchCheck("authorization_resource", "canonical URL match", evidence.ResourceMatches, interop.ReasonResourceMismatch, "Authorization-request resource must match the canonical MCP protected resource"))
+	runtime.add(matchCheck("authorization_redirect_uri", "registered redirect URI match", evidence.RedirectURIMatches, interop.ReasonRedirectURIMismatch, "Observed redirect URI should match the client metadata / connection configuration"))
+	runtime.add(presenceCheck("authorization_pkce_s256", "S256", evidence.PKCES256, interop.ReasonPKCES256Missing, "Observed authorization request should use PKCE S256"))
+}
+
+func evaluateTokenRequest(report *Report, runtime *RuntimeEvidenceReport, evidence ChatGPTRuntimeEvidence) {
+	token := evidence.TokenRequest
+	if token == nil {
+		return
+	}
+	runtime.add(matchCheck("token_resource", "canonical URL match", token.ResourceMatches, interop.ReasonResourceMismatch, "Token-request resource should match the canonical MCP protected resource"))
+	runtime.add(presenceCheck("token_pkce_verifier", "present", token.CodeVerifierPresent, interop.ReasonPKCEVerifierMissing, "Only code_verifier presence is observed; the verifier value is never ingested"))
+
+	expectedAuth := expectedChatGPTTokenAuthForStrategy(report, evidence.EffectiveRegistrationStrategy())
+	observedAuth, conclusive := observedTokenAuth(token)
 	authCheck := RuntimeCheck{
 		ID:       "token_auth_method",
 		Expected: expectedAuth,
@@ -138,20 +349,207 @@ func evaluateRuntimeEvidence(report *Report, evidence ChatGPTRuntimeEvidence) {
 	default:
 		authCheck.Status = StatusFail
 		authCheck.ReasonCode = interop.ReasonTokenAuthMethodMismatch
-		runtime.ReasonCode = interop.ReasonTokenAuthMethodMismatch
 	}
 	runtime.add(authCheck)
 
-	report.RuntimeEvidence = runtime
+	if token.OAuthError != "" {
+		reason := interop.ReasonTokenRequestRejected
+		if token.OAuthError == "invalid_client" {
+			reason = interop.ReasonClientAuthRejected
+		}
+		runtime.add(RuntimeCheck{
+			ID:         "token_endpoint_result",
+			Status:     StatusFail,
+			Expected:   "token issued",
+			Observed:   token.OAuthError,
+			ReasonCode: reason,
+			Message:    "Authorization server returned the supplied sanitized OAuth error code",
+		})
+	}
 }
 
-func (r *RuntimeEvidenceReport) add(check RuntimeCheck) {
+func evaluateResourceRequest(runtime *RuntimeEvidenceReport, evidence *ResourceRequestEvidence) {
+	if evidence == nil {
+		return
+	}
+	runtime.add(presenceCheck("resource_bearer", "present", evidence.BearerPresent, interop.ReasonAccessTokenNotAttached, "ChatGPT attaches the access token to subsequent MCP requests as a bearer token"))
+	if evidence.BearerPresent != nil && !*evidence.BearerPresent {
+		return
+	}
+	runtime.add(validityCheck("resource_token_signature", evidence.SignatureValid, interop.ReasonTokenSignatureInvalid, "Resource server should verify the bearer token signature"))
+	runtime.add(matchCheck("resource_token_issuer", "configured issuer match", evidence.IssuerMatches, interop.ReasonTokenIssuerMismatch, "Resource server should verify the token issuer"))
+	runtime.add(matchCheck("resource_token_audience", "protected resource match", evidence.AudienceMatches, interop.ReasonTokenAudienceMismatch, "Resource server should verify token audience/resource binding"))
+	runtime.add(validityCheck("resource_token_expiry", evidence.ExpiryValid, interop.ReasonTokenExpired, "Resource server should reject expired bearer tokens"))
+	runtime.add(presenceCheck("resource_token_scopes", "sufficient", evidence.ScopesSufficient, interop.ReasonInsufficientScope, "Resource server should enforce scopes required for the MCP operation"))
+}
+
+func evaluateToolAuth(runtime *RuntimeEvidenceReport, evidence *ToolAuthEvidence) {
+	if evidence == nil {
+		return
+	}
+	challengeExpected := evidence.ChallengeExpected != nil && *evidence.ChallengeExpected
+
+	metadata := RuntimeCheck{
+		ID:       "tool_oauth_security_scheme",
+		Expected: "oauth2 securitySchemes metadata when tool-level OAuth is required",
+		Observed: boolObservation(evidence.OAuth2SecuritySchemePresent),
+		Message:  "ChatGPT tool-level OAuth linking uses per-tool securitySchemes metadata",
+	}
+	switch {
+	case evidence.OAuth2SecuritySchemePresent == nil:
+		metadata.Status = StatusWarn
+	case *evidence.OAuth2SecuritySchemePresent:
+		metadata.Status = StatusPass
+	case challengeExpected:
+		metadata.Status = StatusFail
+		metadata.ReasonCode = interop.ReasonToolOAuthMetadataMissing
+	default:
+		metadata.Status = StatusWarn
+	}
+	runtime.add(metadata)
+
+	challenge := RuntimeCheck{
+		ID:       "tool_oauth_www_authenticate",
+		Expected: "mcp/www_authenticate challenge when reauthorization is required",
+		Observed: boolObservation(evidence.WWWAuthenticatePresent),
+		Message:  "Runtime tool errors use _meta[mcp/www_authenticate] to trigger ChatGPT's tool-level OAuth UI",
+	}
+	switch {
+	case evidence.WWWAuthenticatePresent == nil:
+		challenge.Status = StatusWarn
+	case *evidence.WWWAuthenticatePresent:
+		challenge.Status = StatusPass
+	case challengeExpected:
+		challenge.Status = StatusFail
+		challenge.ReasonCode = interop.ReasonToolOAuthChallengeMissing
+	default:
+		challenge.Status = StatusWarn
+	}
+	runtime.add(challenge)
+
+	if evidence.WWWAuthenticatePresent != nil && *evidence.WWWAuthenticatePresent {
+		validateToolChallenge(runtime, evidence.WWWAuthenticateHasError, "tool_oauth_challenge_error", "error parameter")
+		validateToolChallenge(runtime, evidence.WWWAuthenticateHasErrorDescription, "tool_oauth_challenge_error_description", "error_description parameter")
+	}
+}
+
+func validateToolChallenge(runtime *RuntimeEvidenceReport, value *bool, id, expected string) {
+	check := RuntimeCheck{
+		ID:       id,
+		Expected: expected + " present",
+		Observed: boolObservation(value),
+		Message:  "ChatGPT expects the tool-level WWW-Authenticate payload to carry a useful OAuth error and description",
+	}
+	switch {
+	case value == nil:
+		check.Status = StatusWarn
+	case *value:
+		check.Status = StatusPass
+	default:
+		check.Status = StatusFail
+		check.ReasonCode = interop.ReasonToolOAuthChallengeInvalid
+	}
+	runtime.add(check)
+}
+
+func buildOpenAIReferencePattern(runtime *RuntimeEvidenceReport) *ReferencePatternReport {
+	reference := &ReferencePatternReport{
+		Status: StatusPass,
+		Source: "OpenAI authenticated MCP reference pattern",
+	}
+	reference.add(referenceCheck(runtime, "registration_strategy", "registration"))
+	reference.add(firstReferenceCheck(runtime, []string{"authorization_pkce_s256", "token_pkce_verifier"}, "pkce"))
+	reference.add(referenceCheck(runtime, "token_auth_method", "token_auth"))
+	reference.add(referenceCheck(runtime, "resource_bearer", "bearer_delivery"))
+	reference.add(aggregateReferenceChecks(runtime, []string{"resource_token_signature", "resource_token_issuer", "resource_token_audience", "resource_token_expiry", "resource_token_scopes"}, "resource_server_verification"))
+	reference.add(aggregateReferenceChecks(runtime, []string{"tool_oauth_security_scheme", "tool_oauth_www_authenticate", "tool_oauth_challenge_error", "tool_oauth_challenge_error_description"}, "tool_oauth_signals"))
+	return reference
+}
+
+func referenceCheck(runtime *RuntimeEvidenceReport, id, outputID string) RuntimeCheck {
+	for _, check := range runtime.Checks {
+		if check.ID == id {
+			check.ID = outputID
+			return check
+		}
+	}
+	return RuntimeCheck{ID: outputID, Status: StatusWarn, Expected: "observed evidence", Observed: "unknown", Message: "No sanitized runtime observation was supplied for this OpenAI reference-pattern boundary"}
+}
+
+func firstReferenceCheck(runtime *RuntimeEvidenceReport, ids []string, outputID string) RuntimeCheck {
+	for _, id := range ids {
+		for _, check := range runtime.Checks {
+			if check.ID == id {
+				check.ID = outputID
+				return check
+			}
+		}
+	}
+	return RuntimeCheck{ID: outputID, Status: StatusWarn, Expected: "observed evidence", Observed: "unknown", Message: "No sanitized runtime observation was supplied for this OpenAI reference-pattern boundary"}
+}
+
+func aggregateReferenceChecks(runtime *RuntimeEvidenceReport, ids []string, outputID string) RuntimeCheck {
+	result := RuntimeCheck{ID: outputID, Status: StatusWarn, Expected: "all applicable checks pass", Observed: "unknown", Message: "No sanitized runtime observation was supplied for this OpenAI reference-pattern boundary"}
+	found := 0
+	passed := 0
+	for _, id := range ids {
+		for _, check := range runtime.Checks {
+			if check.ID != id {
+				continue
+			}
+			found++
+			if check.Status == StatusFail {
+				result.Status = StatusFail
+				result.Observed = "failed"
+				result.ReasonCode = check.ReasonCode
+				result.Message = "At least one applicable OpenAI reference-pattern check failed"
+				return result
+			}
+			if check.Status == StatusPass {
+				passed++
+			}
+		}
+	}
+	if found > 0 && passed == found {
+		result.Status = StatusPass
+		result.Observed = "passed"
+		result.Message = "All supplied observations for this OpenAI reference-pattern boundary passed"
+	} else if found > 0 {
+		result.Observed = "partial"
+		result.Message = "Some observations for this OpenAI reference-pattern boundary remain unknown"
+	}
+	return result
+}
+
+func (r *ReferencePatternReport) add(check RuntimeCheck) {
 	r.Checks = append(r.Checks, check)
 	if check.Status == StatusFail {
 		r.Status = StatusFail
 	} else if check.Status == StatusWarn && r.Status == StatusPass {
 		r.Status = StatusWarn
 	}
+}
+
+func (r *RuntimeEvidenceReport) add(check RuntimeCheck) {
+	if check.ID == "" {
+		return
+	}
+	r.Checks = append(r.Checks, check)
+	if check.Status == StatusFail {
+		r.Status = StatusFail
+		if r.ReasonCode == "" && check.ReasonCode != "" {
+			r.ReasonCode = check.ReasonCode
+		}
+	} else if check.Status == StatusWarn && r.Status == StatusPass {
+		r.Status = StatusWarn
+	}
+}
+
+func expectedChatGPTTokenAuthForStrategy(report *Report, strategy string) string {
+	if strategy != "cimd" {
+		return "unknown"
+	}
+	return expectedChatGPTTokenAuth(report)
 }
 
 func expectedChatGPTTokenAuth(report *Report) string {
@@ -174,7 +572,10 @@ func expectedChatGPTTokenAuth(report *Report) string {
 	return "unknown"
 }
 
-func observedTokenAuth(evidence ChatGPTRuntimeEvidence) (string, bool) {
+func observedTokenAuth(evidence *TokenRequestEvidence) (string, bool) {
+	if evidence == nil || evidence.ClientAssertionPresent == nil {
+		return "unknown", false
+	}
 	if !*evidence.ClientAssertionPresent {
 		return "none", true
 	}
@@ -185,4 +586,80 @@ func observedTokenAuth(evidence ChatGPTRuntimeEvidence) (string, bool) {
 		return "private_key_jwt", true
 	}
 	return "malformed", true
+}
+
+func serverSupportsCIMD(report *Report) bool {
+	for _, server := range report.AuthorizationServers {
+		if server.ClientIDMetadataDocumentSupported {
+			return true
+		}
+	}
+	return false
+}
+
+func serverSupportsDCR(report *Report) bool {
+	for _, server := range report.AuthorizationServers {
+		if server.RegistrationEndpoint != "" {
+			return true
+		}
+	}
+	return false
+}
+
+func matchCheck(id, expected string, value *bool, reason interop.ReasonCode, message string) RuntimeCheck {
+	check := RuntimeCheck{ID: id, Expected: expected, Observed: boolObservation(value), Message: message}
+	switch {
+	case value == nil:
+		check.Status = StatusWarn
+	case *value:
+		check.Status = StatusPass
+		check.Observed = expected
+	default:
+		check.Status = StatusFail
+		check.Observed = "mismatch"
+		check.ReasonCode = reason
+	}
+	return check
+}
+
+func presenceCheck(id, expected string, value *bool, reason interop.ReasonCode, message string) RuntimeCheck {
+	check := RuntimeCheck{ID: id, Expected: expected, Observed: boolObservation(value), Message: message}
+	switch {
+	case value == nil:
+		check.Status = StatusWarn
+	case *value:
+		check.Status = StatusPass
+		check.Observed = expected
+	default:
+		check.Status = StatusFail
+		check.Observed = "absent"
+		check.ReasonCode = reason
+	}
+	return check
+}
+
+func validityCheck(id string, value *bool, reason interop.ReasonCode, message string) RuntimeCheck {
+	check := RuntimeCheck{ID: id, Expected: "valid", Observed: boolObservation(value), Message: message}
+	switch {
+	case value == nil:
+		check.Status = StatusWarn
+	case *value:
+		check.Status = StatusPass
+		check.Observed = "valid"
+	default:
+		check.Status = StatusFail
+		check.Observed = "invalid"
+		check.ReasonCode = reason
+	}
+	return check
+}
+
+func boolObservation(value *bool) string {
+	if value == nil {
+		return "unknown"
+	}
+	if *value {
+		return "true"
+	}
+	return "false"
 }
