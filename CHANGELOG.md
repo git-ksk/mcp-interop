@@ -8,14 +8,16 @@ All notable project changes will be summarized here. GitHub Releases remain the 
 
 - Optional machine-readable `reason_code` on stage results without changing the existing `reach` / `auth` / `init` / `tools` status contract.
 - Initial Codex OAuth diagnostics for `DCR_UNSUPPORTED` and `DCR_FAILED`, classified from explicit real-client error evidence without exposing raw app-server error text.
-- English and Japanese reason-code documentation and troubleshooting guidance.
+- Profile-based `mcp-interop diagnose <url> --profile chatgpt` preflight diagnostics for Protected Resource Metadata, authorization-server discovery, CIMD/DCR registration compatibility, ChatGPT token endpoint auth methods, PKCE S256, refresh-token advisory evidence, and optional observed ChatGPT CIMD/redirect/JWKS validation.
+- English and Japanese reason-code, ChatGPT diagnostic, and troubleshooting documentation.
 
 ### Planned
 
-- Correlate client-observed OAuth failures with MCP Protected Resource Metadata and authorization-server metadata, including CIMD and DCR capability advertising, without guessing registration URLs.
+- Correlate additional real-client OAuth failures with the new metadata diagnostic evidence while keeping server preflight separate from real-client interoperability verdicts.
 - Complete Cursor OAuth through authenticated tool discovery.
 - Establish a safe Antigravity OAuth completion boundary before enabling automated authorization/token exchange.
 - Continue improving diagnostic output for inconclusive client results with additional conservative reason codes and sanitized traces.
+- Research a supported ChatGPT real-client automation surface without browser DOM scraping before adding any ChatGPT live adapter.
 - Revisit additional real MCP clients when they expose a supported, automatable lifecycle/tool-discovery surface.
 
 ## v0.1.0 — 2026-08-09

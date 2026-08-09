@@ -2,7 +2,7 @@
 
 [English](troubleshooting.md) | [日本語](troubleshooting.ja.md)
 
-This guide covers common failure modes when running `mcp-interop` against real MCP clients.
+This guide covers common failure modes when running `mcp-interop` against real MCP clients and profile-based preflight diagnostics.
 
 ## Start with client detection
 
@@ -17,13 +17,15 @@ If a client is not detected, first confirm the executable is available in the cu
 
 ## Exit code is non-zero even though nothing obviously failed
 
-A test exits `0` only when all four stages are `pass`:
+A live test exits `0` only when all four stages are `pass`:
 
 ```text
 reach / auth / init / tools
 ```
 
 `fail`, `skip`, and `unknown` all produce a non-zero result. This is intentional: CI should not accept an inconclusive interoperability result as success.
+
+A `diagnose` command uses a separate preflight contract: blocking diagnostic failures return non-zero, while non-blocking warnings can still produce `PREFLIGHT PASS`. A preflight pass is not a real-client interoperability pass.
 
 ## What `unknown` means
 
@@ -60,6 +62,43 @@ Cursor OAuth completion is not enabled in v0.1.x. The beta adapter can test no-a
 ### Antigravity
 
 Automated OAuth completion is intentionally disabled in v0.1.x. OAuth discovery has been observed, but completion remains blocked until credential storage can be proven isolated from the normal macOS Keychain.
+
+## ChatGPT custom MCP app fails to connect
+
+Start with the ChatGPT preflight profile:
+
+```console
+mcp-interop diagnose https://example.com/mcp --profile chatgpt
+```
+
+A blocking failure should identify a public metadata mismatch such as missing Protected Resource Metadata, no usable authorization server, neither CIMD nor DCR, incompatible CIMD token endpoint auth methods, or advertised PKCE methods that omit `S256`.
+
+A CIMD-capable server is **not** considered incompatible merely because it has no `registration_endpoint`; ChatGPT can use the CIMD registration path.
+
+If the first run reports `PREFLIGHT PASS` but the ChatGPT connection still fails, inspect sanitized authorization-server logs. If the actual ChatGPT authorization request exposes the non-secret `client_id` CIMD URL and `redirect_uri`, run:
+
+```console
+mcp-interop diagnose https://example.com/mcp \
+  --profile chatgpt \
+  --client-id 'https://chatgpt.com/oauth/.../client.json' \
+  --redirect-uri 'https://chatgpt.com/connector/oauth/...'
+```
+
+This verifies the exact CIMD document, redirect URI registration, token endpoint auth method intersection, and JWKS reachability when `private_key_jwt` is available.
+
+If that also passes, the remaining failure is likely in a runtime boundary that public metadata cannot prove. Check sanitized server logs for this sequence:
+
+1. authorization request with expected `client_id`, exact `redirect_uri`, PKCE challenge, scopes, and protected-resource `resource`;
+2. CIMD fetch/validation by the authorization server;
+3. `private_key_jwt` assertion validation against the ChatGPT JWKS if that method is used;
+4. token request with PKCE `code_verifier` and consistent `resource`;
+5. accepted token response and refresh-token behavior where required;
+6. subsequent MCP request carrying a bearer access token accepted by the resource server;
+7. MCP initialization and tool discovery.
+
+`PREFLIGHT PASS` never means the real ChatGPT client completed those runtime steps. See [ChatGPT connection diagnostics](chatgpt-diagnostics.md) for the detailed boundary.
+
+Never share OAuth `state`, authorization codes, access/refresh tokens, cookies, private keys, or raw client assertions.
 
 ## Cursor callback-port conflict
 
@@ -135,6 +174,14 @@ When a stage has a specific classified failure, JSON can also include a stable `
 
 Absence of `reason_code` does not imply success; it means the adapter did not have enough specific evidence to assign a stable classification.
 
+For preflight JSON, use:
+
+```console
+mcp-interop diagnose https://example.com/mcp --profile chatgpt --json
+```
+
+The diagnostic `checks` array contains `status`, `blocking`, and a sanitized message. Treat it as preflight evidence only.
+
 ## Real-client E2E harness
 
 Maintainers can run the release-gate harness on macOS:
@@ -153,11 +200,11 @@ Include:
 
 - `mcp-interop version` output;
 - operating system and architecture;
-- exact MCP client version;
-- selected adapter;
-- stage results and any `reason_code`;
+- exact MCP client version when a live adapter is involved;
+- selected adapter or diagnostic profile;
+- stage results and any `reason_code`, or preflight checks;
 - sanitized error/diagnostic output;
 - whether the server requires OAuth;
 - whether the issue reproduces against a localhost/synthetic fixture if applicable.
 
-Never include bearer tokens, OAuth codes, client secrets, cookies, or credential files.
+Never include bearer tokens, OAuth codes, client secrets, cookies, credential files, OAuth `state`, private keys, or raw client assertions.
