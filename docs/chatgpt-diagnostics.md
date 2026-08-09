@@ -67,6 +67,26 @@ When `--client-id` is supplied, the diagnostic also:
 
 This is particularly useful when OAuth reaches the authorization endpoint but fails before or during token exchange.
 
+## Correlating secret-free Runtime Evidence
+
+A passing preflight does not prove that the live ChatGPT token request followed the published metadata. If the Authorization Server records sanitized presence/match signals, `--runtime-evidence` can correlate them as a second evidence layer.
+
+```json
+{
+  "client_id": "https://chatgpt.com/oauth/.../client.json",
+  "resource_matches": true,
+  "client_assertion_present": false
+}
+```
+
+```console
+mcp-interop diagnose https://example.com/mcp --profile chatgpt --runtime-evidence runtime-evidence.json
+```
+
+Accepted fields are deliberately narrow: `client_id`, `client_assertion_present`, and optional `resource_matches`, `code_verifier_present`, and `client_assertion_type_present`. Only presence/match observations are accepted. Unknown fields are rejected, so access/refresh tokens, authorization codes, PKCE verifier values, raw client assertions, client secrets, cookies, and OAuth state are not evidence inputs.
+
+Runtime Evidence does not rewrite the Preflight verdict. If client and server metadata select `private_key_jwt` while the observed token request has `client_assertion_present=false`, the report can show `PREFLIGHT PASS` together with Runtime Evidence `FAIL / TOKEN_AUTH_METHOD_MISMATCH`. Unobserved fields remain `WARN / unknown`; they are never inferred.
+
 ## Reading the result
 
 Text output is explicitly labeled either:

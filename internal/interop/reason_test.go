@@ -42,3 +42,9 @@ func TestSetClearsPreviousReasonCode(t *testing.T) {
 		t.Fatalf("stale reason code remained after replacement: %q", auth.ReasonCode)
 	}
 }
+
+func TestTokenAuthMethodMismatchReasonCodeIsStable(t *testing.T) {
+	if ReasonTokenAuthMethodMismatch != "TOKEN_AUTH_METHOD_MISMATCH" {
+		t.Fatalf("unexpected reason code: %s", ReasonTokenAuthMethodMismatch)
+	}
+}

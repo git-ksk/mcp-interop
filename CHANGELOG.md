@@ -9,11 +9,12 @@ All notable project changes will be summarized here. GitHub Releases remain the 
 - Optional machine-readable `reason_code` on stage results without changing the existing `reach` / `auth` / `init` / `tools` status contract.
 - Initial Codex OAuth diagnostics for `DCR_UNSUPPORTED` and `DCR_FAILED`, classified from explicit real-client error evidence without exposing raw app-server error text.
 - Profile-based `mcp-interop diagnose <url> --profile chatgpt` preflight diagnostics for Protected Resource Metadata, authorization-server discovery, CIMD/DCR registration compatibility, ChatGPT token endpoint auth methods, PKCE S256, refresh-token advisory evidence, and optional observed ChatGPT CIMD/redirect/JWKS validation.
+- Optional secret-free ChatGPT runtime evidence correlation via `--runtime-evidence`, including layered preflight/runtime verdicts and `TOKEN_AUTH_METHOD_MISMATCH` when published metadata selects `private_key_jwt` but the observed token request contains no client assertion.
 - English and Japanese reason-code, ChatGPT diagnostic, and troubleshooting documentation.
 
 ### Planned
 
-- Correlate additional real-client OAuth failures with the new metadata diagnostic evidence while keeping server preflight separate from real-client interoperability verdicts.
+- Correlate additional real-client OAuth failures with metadata/runtime diagnostic evidence while keeping server preflight, observed runtime evidence, and real-client interoperability verdicts separate.
 - Complete Cursor OAuth through authenticated tool discovery.
 - Establish a safe Antigravity OAuth completion boundary before enabling automated authorization/token exchange.
 - Continue improving diagnostic output for inconclusive client results with additional conservative reason codes and sanitized traces.

@@ -34,6 +34,12 @@ JSON:
 
 推測した`/register`や`/oauth/register`が`404`になっただけでは、**`DCR_UNSUPPORTED`とは判定しません。**
 
+### `TOKEN_AUTH_METHOD_MISMATCH`
+
+明示的に渡されたsecret-free Runtime Evidenceが、公開client/server metadataから選択されるtoken endpoint auth methodと一致しない場合です。たとえば双方が`private_key_jwt`を共有しているのに、観測token requestで`client_assertion_present=false`ならこのcodeを返します。
+
+これはPreflight failureではありません。`PREFLIGHT PASS`とRuntime Evidence `FAIL`は同時に成立できます。raw assertionやtoken request bodyは入力・保存しません。
+
 ### `DCR_FAILED`
 
 実クライアントがDynamic Client Registrationを試み、そのregistration attemptが「unsupported以外の理由」で失敗したと明示的に報告した場合です。

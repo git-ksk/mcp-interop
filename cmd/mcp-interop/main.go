@@ -22,7 +22,7 @@ const usageText = `mcp-interop - live interoperability testing for Remote MCP se
 Usage:
   mcp-interop clients [--json]
   mcp-interop test <url> [--client codex,cursor,antigravity] [--oauth] [--json]
-  mcp-interop diagnose <url> [--profile chatgpt] [--client-id <url>] [--redirect-uri <url>] [--json]
+  mcp-interop diagnose <url> [--profile chatgpt] [--client-id <url>] [--redirect-uri <url>] [--runtime-evidence <file|->] [--json]
   mcp-interop version
   mcp-interop help
 

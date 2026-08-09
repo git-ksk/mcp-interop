@@ -141,6 +141,30 @@ That extended check validates the CIMD document, redirect URI, client/server tok
 
 This command does **not** operate the ChatGPT UI, complete OAuth, or claim a real ChatGPT client PASS. See [ChatGPT connection diagnostics](docs/chatgpt-diagnostics.md) ([日本語](docs/chatgpt-diagnostics.ja.md)).
 
+### Secret-free ChatGPT Runtime Evidence
+
+When sanitized Authorization Server logs can observe token-request **presence/match signals rather than values**, `diagnose` can correlate those observations as a separate Runtime Evidence layer:
+
+```console
+mcp-interop diagnose https://example.com/mcp \
+  --profile chatgpt \
+  --runtime-evidence runtime-evidence.json
+```
+
+Minimal evidence:
+
+```json
+{
+  "client_id": "https://chatgpt.com/oauth/.../client.json",
+  "resource_matches": true,
+  "client_assertion_present": false
+}
+```
+
+`code_verifier_present` and `client_assertion_type_present` are optional booleans. Missing observations remain `WARN / unknown`; they are never inferred. Unknown JSON fields are rejected, so tokens, authorization codes, PKCE verifier values, raw client assertions, cookies, and credentials are not accepted.
+
+Preflight, Runtime Evidence, and real-client interoperability remain separate evidence layers. A server can therefore show `PREFLIGHT PASS` and Runtime Evidence `FAIL` with `TOKEN_AUTH_METHOD_MISMATCH`.
+
 ## Codex adapter
 
 The Codex adapter:

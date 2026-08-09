@@ -71,6 +71,26 @@ mcp-interop diagnose https://example.com/mcp \
 
 OAuthがauthorization endpointまでは進むが、その後token exchange前後で失敗する場合に特に有効です。
 
+## secret-free Runtime Evidenceを相関する
+
+PreflightがPASSしても実ChatGPT token requestがmetadataどおりとは限りません。Authorization Server側でsanitizedなpresence/match signalを取得できる場合、`--runtime-evidence`で第2層として相関できます。
+
+```json
+{
+  "client_id": "https://chatgpt.com/oauth/.../client.json",
+  "resource_matches": true,
+  "client_assertion_present": false
+}
+```
+
+```console
+mcp-interop diagnose https://example.com/mcp --profile chatgpt --runtime-evidence runtime-evidence.json
+```
+
+受け付けるfieldは`client_id`、`client_assertion_present`、任意の`resource_matches`、`code_verifier_present`、`client_assertion_type_present`だけです。値そのものは受け取りません。未知fieldは拒否されるため、access/refresh token、authorization code、PKCE verifier値、raw client assertion、client secret、cookie、OAuth stateは入力対象ではありません。
+
+Runtime EvidenceはPreflight verdictを書き換えません。client/server双方が`private_key_jwt`を共有しているのに実token requestで`client_assertion_present=false`なら、`PREFLIGHT PASS`とRuntime Evidence `FAIL / TOKEN_AUTH_METHOD_MISMATCH`を同時に表示できます。未観測fieldは推測せず`WARN / unknown`です。
+
 ## 結果の読み方
 
 text outputは必ず:

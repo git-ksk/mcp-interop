@@ -32,6 +32,12 @@ JSON:
 
 The initial Codex classifier recognizes explicit client errors equivalent to `Dynamic client registration not supported`. A guessed `/register` or `/oauth/register` returning `404` is **not** sufficient by itself.
 
+### `TOKEN_AUTH_METHOD_MISMATCH`
+
+Emitted when explicitly supplied, secret-free Runtime Evidence disagrees with the token endpoint auth method selected from published client/server metadata. For example, if both sides share `private_key_jwt` but the observed token request has `client_assertion_present=false`, this reason code is reported.
+
+This is not a Preflight failure: `PREFLIGHT PASS` and Runtime Evidence `FAIL` can coexist. Raw assertions and token request bodies are never accepted or stored.
+
 ### `DCR_FAILED`
 
 The real client explicitly reports that it attempted Dynamic Client Registration and that the registration attempt failed for a reason other than unsupported.

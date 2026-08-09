@@ -64,9 +64,10 @@ type Report struct {
 	AuthorizationServers         []AuthorizationServer  `json:"authorization_servers,omitempty"`
 	Client                       *ChatGPTClientEvidence `json:"client,omitempty"`
 	Checks                       []Check                `json:"checks"`
+	RuntimeEvidence              *RuntimeEvidenceReport `json:"runtime_evidence,omitempty"`
 }
 
-func (r Report) Passed() bool {
+func (r Report) PreflightPassed() bool {
 	for _, check := range r.Checks {
 		if check.Blocking && check.Status == StatusFail {
 			return false
@@ -75,10 +76,18 @@ func (r Report) Passed() bool {
 	return true
 }
 
+func (r Report) Passed() bool {
+	if !r.PreflightPassed() {
+		return false
+	}
+	return r.RuntimeEvidence == nil || r.RuntimeEvidence.Passed()
+}
+
 type ChatGPTOptions struct {
-	HTTPClient  *http.Client
-	ClientID    string
-	RedirectURI string
+	HTTPClient      *http.Client
+	ClientID        string
+	RedirectURI     string
+	RuntimeEvidence *ChatGPTRuntimeEvidence
 }
 
 type protectedResourceMetadata struct {
@@ -188,12 +197,23 @@ func ChatGPT(ctx context.Context, endpoint string, options ChatGPTOptions) (Repo
 
 	evaluateServerCapabilities(&report)
 
-	if options.ClientID != "" {
-		evaluateChatGPTClientMetadata(ctx, client, &report, options.ClientID, options.RedirectURI)
+	clientID := options.ClientID
+	if clientID == "" && options.RuntimeEvidence != nil {
+		clientID = options.RuntimeEvidence.ClientID
+	}
+	if clientID != "" {
+		evaluateChatGPTClientMetadata(ctx, client, &report, clientID, options.RedirectURI)
 	} else if options.RedirectURI != "" {
 		report.add("chatgpt_client_metadata", StatusFail, true, "--redirect-uri requires --client-id so the advertised redirect URI can be verified")
 	} else {
 		report.add("chatgpt_client_metadata", StatusWarn, false, "No observed ChatGPT client_id was supplied; server-side preflight is complete, but the exact ChatGPT CIMD document/JWKS/redirect URI was not verified")
+	}
+
+	if options.RuntimeEvidence != nil {
+		if err := options.RuntimeEvidence.Validate(); err != nil {
+			return report, fmt.Errorf("invalid ChatGPT runtime evidence: %w", err)
+		}
+		evaluateRuntimeEvidence(&report, *options.RuntimeEvidence)
 	}
 
 	return report, nil

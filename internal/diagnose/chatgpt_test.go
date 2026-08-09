@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/git-ksk/mcp-interop/internal/interop"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -316,4 +317,83 @@ func assertCheck(t *testing.T, report Report, id string, status Status, messageC
 		return
 	}
 	t.Fatalf("missing check %s: %#v", id, report.Checks)
+}
+
+func TestChatGPTRuntimeEvidenceDetectsTokenAuthMethodMismatch(t *testing.T) {
+	fixture := newAuthFixture(t, authFixtureOptions{
+		CIMD:             true,
+		TokenAuthMethods: []string{"private_key_jwt"},
+		PKCEMethods:      []string{"S256"},
+		ClientMetadata:   true,
+	})
+	defer fixture.Close()
+
+	yes := true
+	no := false
+	report, err := ChatGPT(context.Background(), fixture.URL+"/mcp", ChatGPTOptions{
+		HTTPClient: fixture.Client(),
+		RuntimeEvidence: &ChatGPTRuntimeEvidence{
+			ClientID:                   fixture.URL + "/chatgpt-client.json",
+			ResourceMatches:            &yes,
+			CodeVerifierPresent:        &yes,
+			ClientAssertionPresent:     &no,
+			ClientAssertionTypePresent: &no,
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !report.PreflightPassed() {
+		t.Fatalf("expected preflight to remain PASS: %#v", report.Checks)
+	}
+	if report.Passed() {
+		t.Fatal("expected runtime mismatch to fail the combined diagnostic")
+	}
+	if report.RuntimeEvidence == nil || report.RuntimeEvidence.ReasonCode != interop.ReasonTokenAuthMethodMismatch {
+		t.Fatalf("unexpected runtime evidence: %#v", report.RuntimeEvidence)
+	}
+	assertRuntimeCheck(t, *report.RuntimeEvidence, "token_auth_method", StatusFail, "private_key_jwt", "none")
+}
+
+func TestChatGPTRuntimeEvidencePassesWhenPrivateKeyJWTIsObserved(t *testing.T) {
+	fixture := newAuthFixture(t, authFixtureOptions{
+		CIMD:             true,
+		TokenAuthMethods: []string{"private_key_jwt"},
+		PKCEMethods:      []string{"S256"},
+		ClientMetadata:   true,
+	})
+	defer fixture.Close()
+
+	yes := true
+	report, err := ChatGPT(context.Background(), fixture.URL+"/mcp", ChatGPTOptions{
+		HTTPClient: fixture.Client(),
+		RuntimeEvidence: &ChatGPTRuntimeEvidence{
+			ClientID:                   fixture.URL + "/chatgpt-client.json",
+			ResourceMatches:            &yes,
+			CodeVerifierPresent:        &yes,
+			ClientAssertionPresent:     &yes,
+			ClientAssertionTypePresent: &yes,
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !report.Passed() {
+		t.Fatalf("expected runtime evidence to pass: %#v", report.RuntimeEvidence)
+	}
+	assertRuntimeCheck(t, *report.RuntimeEvidence, "token_auth_method", StatusPass, "private_key_jwt", "private_key_jwt")
+}
+
+func assertRuntimeCheck(t *testing.T, report RuntimeEvidenceReport, id string, status Status, expected, observed string) {
+	t.Helper()
+	for _, check := range report.Checks {
+		if check.ID != id {
+			continue
+		}
+		if check.Status != status || check.Expected != expected || check.Observed != observed {
+			t.Fatalf("unexpected runtime check %s: %#v", id, check)
+		}
+		return
+	}
+	t.Fatalf("missing runtime check %s: %#v", id, report.Checks)
 }

@@ -161,7 +161,27 @@ mcp-interop diagnose https://example.com/mcp \
 
 この拡張診断では、CIMD document、redirect URI、client/server間のtoken endpoint auth method、`private_key_jwt`利用時のJWKS到達性まで確認します。
 
-**このcommandはChatGPT UIを操作せず、OAuthを完遂せず、実ChatGPT client PASSを主張しません。** 詳細は[ChatGPT接続診断](docs/chatgpt-diagnostics.ja.md)を参照してください。
+Authorization Serverのsanitized logからtoken requestの**値ではなくpresence/matchだけ**を観測できる場合は、Runtime Evidenceも相関できます。
+
+```console
+mcp-interop diagnose https://example.com/mcp \
+  --profile chatgpt \
+  --runtime-evidence runtime-evidence.json
+```
+
+`runtime-evidence.json`の最小形:
+
+```json
+{
+  "client_id": "https://chatgpt.com/oauth/.../client.json",
+  "resource_matches": true,
+  "client_assertion_present": false
+}
+```
+
+`code_verifier_present`と`client_assertion_type_present`もbooleanで任意指定できます。未観測なら推測せず`WARN / unknown`になります。未知fieldは拒否するため、token、authorization code、PKCE verifier、raw client assertion、cookieなどを入力しないでください。
+
+**このcommandはChatGPT UIを操作せず、OAuthを完遂せず、実ChatGPT client PASSを主張しません。** Preflight、Runtime Evidence、real-client interoperabilityは別の証拠層です。詳細は[ChatGPT接続診断](docs/chatgpt-diagnostics.ja.md)を参照してください。
 
 ## Codex adapter
 

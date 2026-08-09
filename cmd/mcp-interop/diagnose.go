@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -13,12 +14,13 @@ import (
 )
 
 type diagnoseOptions struct {
-	endpoint    string
-	profile     string
-	clientID    string
-	redirectURI string
-	json        bool
-	showHelp    bool
+	endpoint        string
+	profile         string
+	clientID        string
+	redirectURI     string
+	runtimeEvidence string
+	json            bool
+	showHelp        bool
 }
 
 func runDiagnose(ctx context.Context, args []string) int {
@@ -32,9 +34,24 @@ func runDiagnose(ctx context.Context, args []string) int {
 		return 0
 	}
 
+	var runtimeEvidence *diagnosepkg.ChatGPTRuntimeEvidence
+	if options.runtimeEvidence != "" {
+		loaded, loadErr := readRuntimeEvidence(options.runtimeEvidence)
+		if loadErr != nil {
+			fmt.Fprintf(os.Stderr, "runtime evidence error: %v\n", loadErr)
+			return 2
+		}
+		runtimeEvidence = &loaded
+		if options.clientID != "" && options.clientID != loaded.ClientID {
+			fmt.Fprintln(os.Stderr, "runtime evidence client_id does not match --client-id")
+			return 2
+		}
+	}
+
 	report, err := diagnosepkg.ChatGPT(ctx, options.endpoint, diagnosepkg.ChatGPTOptions{
-		ClientID:    options.clientID,
-		RedirectURI: options.redirectURI,
+		ClientID:        options.clientID,
+		RedirectURI:     options.redirectURI,
+		RuntimeEvidence: runtimeEvidence,
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "diagnose error: %v\n", err)
@@ -92,6 +109,14 @@ func parseDiagnoseOptions(args []string) (diagnoseOptions, error) {
 			options.redirectURI = strings.TrimSpace(args[i])
 		case strings.HasPrefix(arg, "--redirect-uri="):
 			options.redirectURI = strings.TrimSpace(strings.TrimPrefix(arg, "--redirect-uri="))
+		case arg == "--runtime-evidence":
+			if i+1 >= len(args) {
+				return options, fmt.Errorf("--runtime-evidence requires a file path or - for stdin")
+			}
+			i++
+			options.runtimeEvidence = strings.TrimSpace(args[i])
+		case strings.HasPrefix(arg, "--runtime-evidence="):
+			options.runtimeEvidence = strings.TrimSpace(strings.TrimPrefix(arg, "--runtime-evidence="))
 		case strings.HasPrefix(arg, "-"):
 			return options, fmt.Errorf("unknown diagnose option %q", arg)
 		default:
@@ -120,7 +145,7 @@ func parseDiagnoseOptions(args []string) (diagnoseOptions, error) {
 func writeDiagnoseReport(output io.Writer, report diagnosepkg.Report) error {
 	writer := tabwriter.NewWriter(output, 0, 4, 2, ' ', 0)
 	verdict := "PREFLIGHT PASS"
-	if !report.Passed() {
+	if !report.PreflightPassed() {
 		verdict = "PREFLIGHT FAIL"
 	}
 	fmt.Fprintf(writer, "PROFILE\t%s\n", report.Profile)
@@ -134,22 +159,83 @@ func writeDiagnoseReport(output io.Writer, report diagnosepkg.Report) error {
 		}
 		fmt.Fprintf(writer, "%s\t%s\t%s\t%s\n", check.ID, strings.ToUpper(string(check.Status)), required, check.Message)
 	}
+	if report.RuntimeEvidence != nil {
+		fmt.Fprintln(writer)
+		fmt.Fprintln(writer, "RUNTIME EVIDENCE")
+		runtimeVerdict := "PASS"
+		if report.RuntimeEvidence.Status == diagnosepkg.StatusWarn {
+			runtimeVerdict = "WARN"
+		} else if report.RuntimeEvidence.Status == diagnosepkg.StatusFail {
+			runtimeVerdict = "FAIL"
+		}
+		fmt.Fprintf(writer, "VERDICT\t%s\n", runtimeVerdict)
+		if report.RuntimeEvidence.ReasonCode != "" {
+			fmt.Fprintf(writer, "REASON\t%s\n", report.RuntimeEvidence.ReasonCode)
+		}
+		fmt.Fprintln(writer, "CHECK\tSTATUS\tEXPECTED\tOBSERVED\tDETAIL")
+		for _, check := range report.RuntimeEvidence.Checks {
+			detail := check.Message
+			if check.ReasonCode != "" {
+				detail = string(check.ReasonCode) + ": " + detail
+			}
+			fmt.Fprintf(writer, "%s\t%s\t%s\t%s\t%s\n", check.ID, strings.ToUpper(string(check.Status)), check.Expected, check.Observed, detail)
+		}
+	}
 	fmt.Fprintln(writer)
-	fmt.Fprintln(writer, "NOTE\tThis is ChatGPT OAuth/server preflight evidence, not a real ChatGPT client interoperability PASS.")
+	fmt.Fprintln(writer, "NOTE\tThis is not a real ChatGPT client interoperability PASS. Preflight checks public OAuth/server compatibility; optional runtime evidence uses only sanitized presence/match observations.")
 	return writer.Flush()
+}
+
+func readRuntimeEvidence(path string) (diagnosepkg.ChatGPTRuntimeEvidence, error) {
+	const maxBytes = 16 << 10
+	var input io.Reader
+	var file *os.File
+	if path == "-" {
+		input = os.Stdin
+	} else {
+		opened, err := os.Open(path)
+		if err != nil {
+			return diagnosepkg.ChatGPTRuntimeEvidence{}, err
+		}
+		file = opened
+		defer file.Close()
+		input = file
+	}
+	data, err := io.ReadAll(io.LimitReader(input, maxBytes+1))
+	if err != nil {
+		return diagnosepkg.ChatGPTRuntimeEvidence{}, err
+	}
+	if len(data) > maxBytes {
+		return diagnosepkg.ChatGPTRuntimeEvidence{}, fmt.Errorf("runtime evidence exceeds %d bytes", maxBytes)
+	}
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	var evidence diagnosepkg.ChatGPTRuntimeEvidence
+	if err := decoder.Decode(&evidence); err != nil {
+		return evidence, fmt.Errorf("decode sanitized runtime evidence: %w", err)
+	}
+	if err := evidence.Validate(); err != nil {
+		return evidence, err
+	}
+	if decoder.Decode(&struct{}{}) != io.EOF {
+		return evidence, fmt.Errorf("runtime evidence must contain exactly one JSON object")
+	}
+	return evidence, nil
 }
 
 const diagnoseUsageText = `mcp-interop diagnose - profile-based Remote MCP connection diagnostics
 
 Usage:
-  mcp-interop diagnose <url> [--profile chatgpt] [--client-id <https-url>] [--redirect-uri <https-url>] [--json]
+  mcp-interop diagnose <url> [--profile chatgpt] [--client-id <https-url>] [--redirect-uri <https-url>] [--runtime-evidence <file|->] [--json]
 
 Options:
-  --profile       Diagnostic compatibility profile. Currently: chatgpt (default).
-  --client-id     Optional observed ChatGPT client_id CIMD URL from a sanitized authorization request.
-  --redirect-uri  Optional observed ChatGPT redirect_uri; requires --client-id.
-  --json          Print machine-readable JSON.
+  --profile           Diagnostic compatibility profile. Currently: chatgpt (default).
+  --client-id         Optional observed ChatGPT client_id CIMD URL from a sanitized authorization request.
+  --redirect-uri      Optional observed ChatGPT redirect_uri; requires --client-id.
+  --runtime-evidence  JSON file (or - for stdin) containing only secret-free runtime presence/match observations.
+  --json              Print machine-readable JSON.
 
-This command performs server/OAuth preflight checks. It does not invoke the real
-ChatGPT MCP client and therefore never reports a real-client interoperability PASS.
+This command performs server/OAuth preflight checks and can correlate explicitly
+supplied secret-free runtime evidence. It does not invoke the real ChatGPT MCP
+client and therefore never reports a real-client interoperability PASS.
 `
