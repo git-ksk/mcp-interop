@@ -60,6 +60,7 @@ mcp-interop diagnose https://example.com/mcp \
 When `--client-id` is supplied, the diagnostic also:
 
 - fetches the CIMD document;
+- verifies the CIMD document's `client_id` exactly matches its HTTPS document URL;
 - compares client and authorization-server token endpoint authentication methods;
 - verifies the observed redirect URI is listed in the CIMD document when `--redirect-uri` is supplied;
 - fetches/checks the advertised JWKS when `private_key_jwt` is a compatible method.
@@ -84,6 +85,14 @@ A warning does not make the preflight fail. For example, absence of `offline_acc
 
 Even a complete `PREFLIGHT PASS` does **not** prove that the real ChatGPT client completed OAuth or tool discovery. It means the public server/client metadata visible to the diagnostic contains no currently known blocking mismatch for the selected profile.
 
+## Tool-level OAuth UI is a separate boundary
+
+ChatGPT's tool-level linking UI is not determined by authorization-server metadata alone. OpenAI's current documentation also requires tool authentication metadata (notably each tool's `securitySchemes`) and runtime authentication challenges carrying `_meta["mcp/www_authenticate"]` when a tool needs linking.
+
+The current `diagnose --profile chatgpt` command does **not** claim to validate those post-discovery/tool-level signals, because doing so completely on an OAuth-protected server would require an authenticated ChatGPT/tool-discovery path.
+
+If OAuth metadata preflight passes but ChatGPT never offers linking for a tool, inspect the server's tool definitions and runtime auth error shape separately. Do not weaken the resource server just to make tools anonymously discoverable for this diagnostic.
+
 ## If preflight passes but ChatGPT still fails
 
 Use authorization-server and MCP resource-server logs to identify the next boundary. Keep all shared output sanitized.
@@ -97,8 +106,13 @@ Check whether the actual ChatGPT flow reaches these points:
 5. The token response is accepted and, for durable connectivity, a refresh token is issued when your policy expects one.
 6. A subsequent MCP request arrives with `Authorization: Bearer ...` and the MCP server accepts its signature, issuer, audience/resource, expiry, and scopes.
 7. ChatGPT proceeds to MCP initialization/tool discovery.
+8. If linking is tool-specific, the tool definition and runtime auth challenge expose the documented OAuth linking signals.
 
 Do not paste authorization codes, access/refresh tokens, cookies, private keys, raw client assertions, or short-lived OAuth `state` into an issue.
+
+## Network trust boundary
+
+The diagnostic follows HTTPS OAuth metadata URLs advertised by the target server. Run it only against a Remote MCP deployment you intentionally chose to inspect. Redirects or metadata that unexpectedly point to unrelated infrastructure should be treated as suspicious evidence and investigated rather than allowlisted blindly.
 
 ## Current boundary
 
