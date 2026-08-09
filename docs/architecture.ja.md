@@ -70,7 +70,7 @@ model promptなしで同等のblack-box evidenceを得られる安定したMCP i
 
 ## Real-client E2E境界
 
-repoにはlocalhost限定のMCP fixtureと、macOSで実Codex/Cursor/Antigravityを検証する` scripts/e2e-real-clients.sh `があります。
+repoにはlocalhost限定のMCP fixtureと、macOSで実Codex/Cursor/Antigravityを検証する`scripts/e2e-real-clients.sh`があります。
 
 harnessは各clientについて最低限、次のprotocol evidenceを要求します。
 
