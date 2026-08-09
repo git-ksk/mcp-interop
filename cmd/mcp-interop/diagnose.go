@@ -42,9 +42,13 @@ func runDiagnose(ctx context.Context, args []string) int {
 			return 2
 		}
 		runtimeEvidence = &loaded
-		if options.clientID != "" && options.clientID != loaded.ClientID {
-			fmt.Fprintln(os.Stderr, "runtime evidence client_id does not match --client-id")
+		observedClientID := loaded.EffectiveClientID()
+		if options.clientID != "" && observedClientID != "" && options.clientID != observedClientID {
+			fmt.Fprintln(os.Stderr, "runtime evidence client metadata URL does not match --client-id")
 			return 2
+		}
+		if options.clientID == "" && observedClientID != "" {
+			options.clientID = observedClientID
 		}
 	}
 
@@ -136,8 +140,8 @@ func parseDiagnoseOptions(args []string) (diagnoseOptions, error) {
 	if options.profile != "chatgpt" {
 		return options, fmt.Errorf("unsupported diagnose profile %q (currently only chatgpt is available)", options.profile)
 	}
-	if options.redirectURI != "" && options.clientID == "" {
-		return options, fmt.Errorf("--redirect-uri requires --client-id")
+	if options.redirectURI != "" && options.clientID == "" && options.runtimeEvidence == "" {
+		return options, fmt.Errorf("--redirect-uri requires --client-id or a CIMD runtime-evidence registration")
 	}
 	return options, nil
 }
@@ -162,11 +166,10 @@ func writeDiagnoseReport(output io.Writer, report diagnosepkg.Report) error {
 	if report.RuntimeEvidence != nil {
 		fmt.Fprintln(writer)
 		fmt.Fprintln(writer, "RUNTIME EVIDENCE")
-		runtimeVerdict := "PASS"
-		if report.RuntimeEvidence.Status == diagnosepkg.StatusWarn {
-			runtimeVerdict = "WARN"
-		} else if report.RuntimeEvidence.Status == diagnosepkg.StatusFail {
-			runtimeVerdict = "FAIL"
+		runtimeVerdict := diagnosticStatusLabel(report.RuntimeEvidence.Status)
+		fmt.Fprintf(writer, "SCHEMA\tv%d\n", report.RuntimeEvidence.SchemaVersion)
+		if report.RuntimeEvidence.RegistrationStrategy != "" {
+			fmt.Fprintf(writer, "REGISTRATION\t%s\n", report.RuntimeEvidence.RegistrationStrategy)
 		}
 		fmt.Fprintf(writer, "VERDICT\t%s\n", runtimeVerdict)
 		if report.RuntimeEvidence.ReasonCode != "" {
@@ -174,16 +177,42 @@ func writeDiagnoseReport(output io.Writer, report diagnosepkg.Report) error {
 		}
 		fmt.Fprintln(writer, "CHECK\tSTATUS\tEXPECTED\tOBSERVED\tDETAIL")
 		for _, check := range report.RuntimeEvidence.Checks {
-			detail := check.Message
-			if check.ReasonCode != "" {
-				detail = string(check.ReasonCode) + ": " + detail
+			writeRuntimeCheck(writer, check)
+		}
+
+		if report.RuntimeEvidence.OpenAIReference != nil {
+			fmt.Fprintln(writer)
+			fmt.Fprintln(writer, "OPENAI REFERENCE PATTERN")
+			fmt.Fprintf(writer, "SOURCE\t%s\n", report.RuntimeEvidence.OpenAIReference.Source)
+			fmt.Fprintf(writer, "VERDICT\t%s\n", diagnosticStatusLabel(report.RuntimeEvidence.OpenAIReference.Status))
+			fmt.Fprintln(writer, "CHECK\tSTATUS\tEXPECTED\tOBSERVED\tDETAIL")
+			for _, check := range report.RuntimeEvidence.OpenAIReference.Checks {
+				writeRuntimeCheck(writer, check)
 			}
-			fmt.Fprintf(writer, "%s\t%s\t%s\t%s\t%s\n", check.ID, strings.ToUpper(string(check.Status)), check.Expected, check.Observed, detail)
 		}
 	}
 	fmt.Fprintln(writer)
-	fmt.Fprintln(writer, "NOTE\tThis is not a real ChatGPT client interoperability PASS. Preflight checks public OAuth/server compatibility; optional runtime evidence uses only sanitized presence/match observations.")
+	fmt.Fprintln(writer, "NOTE\tThis is not a real ChatGPT client interoperability PASS. Preflight checks public OAuth/server compatibility; optional runtime/reference diagnostics use only sanitized presence/match observations.")
 	return writer.Flush()
+}
+
+func diagnosticStatusLabel(status diagnosepkg.Status) string {
+	switch status {
+	case diagnosepkg.StatusFail:
+		return "FAIL"
+	case diagnosepkg.StatusWarn:
+		return "WARN"
+	default:
+		return "PASS"
+	}
+}
+
+func writeRuntimeCheck(writer *tabwriter.Writer, check diagnosepkg.RuntimeCheck) {
+	detail := check.Message
+	if check.ReasonCode != "" {
+		detail = string(check.ReasonCode) + ": " + detail
+	}
+	fmt.Fprintf(writer, "%s\t%s\t%s\t%s\t%s\n", check.ID, strings.ToUpper(string(check.Status)), check.Expected, check.Observed, detail)
 }
 
 func readRuntimeEvidence(path string) (diagnosepkg.ChatGPTRuntimeEvidence, error) {
@@ -231,11 +260,12 @@ Usage:
 Options:
   --profile           Diagnostic compatibility profile. Currently: chatgpt (default).
   --client-id         Optional observed ChatGPT client_id CIMD URL from a sanitized authorization request.
-  --redirect-uri      Optional observed ChatGPT redirect_uri; requires --client-id.
-  --runtime-evidence  JSON file (or - for stdin) containing only secret-free runtime presence/match observations.
+  --redirect-uri      Optional observed ChatGPT redirect_uri; can also be paired with a CIMD registration in runtime evidence.
+  --runtime-evidence  JSON file (or - for stdin) containing only secret-free runtime presence/match observations. Legacy v1 and structured v2 schemas are accepted.
   --json              Print machine-readable JSON.
 
 This command performs server/OAuth preflight checks and can correlate explicitly
-supplied secret-free runtime evidence. It does not invoke the real ChatGPT MCP
-client and therefore never reports a real-client interoperability PASS.
+supplied secret-free runtime evidence against the documented ChatGPT flow and an
+OpenAI authenticated-MCP reference pattern. It does not invoke the real ChatGPT
+MCP client and therefore never reports a real-client interoperability PASS.
 `

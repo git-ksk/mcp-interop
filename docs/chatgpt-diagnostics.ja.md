@@ -2,55 +2,50 @@
 
 [English](chatgpt-diagnostics.md) | [日本語](chatgpt-diagnostics.ja.md)
 
-`mcp-interop diagnose --profile chatgpt`は、Remote MCP serverが公開しているOAuth metadataを確認し、ChatGPTの現在のMCP認証仕様と既知のblocking mismatchがないかを事前診断します。
+`mcp-interop diagnose --profile chatgpt`は、Remote MCP deploymentをChatGPTの公開OAuth/MCP仕様と照合し、さらに明示的に渡されたsecret-freeなruntime observationを相関できます。
 
-これは**preflight diagnostic**であり、ChatGPT live adapterではありません。ChatGPT appの作成、**Scan Tools**操作、ChatGPT内でのOAuth完遂は行わず、real-clientの`reach/auth/init/tools` PASSも主張しません。
+これは**ChatGPT live adapterではありません**。ChatGPT appの作成、**Scan Tools**、ChatGPT内OAuthの完遂、real-clientの`reach/auth/init/tools` PASSは主張しません。
 
-## 基本的な使い方
+## 証拠レイヤー
+
+診断結果は次を分離します。
+
+1. **Preflight** — 公開されているRemote MCP / OAuth metadataの互換性
+2. **Runtime Evidence** — Authorization Server / MCP Resource Serverで観測したsecret-freeなpresence/match情報
+3. **OpenAI Reference Pattern** — OpenAIの認証ドキュメントと`openai-mcpkit`のauthenticated MCP scaffoldを基準にしたruntime evidenceの相関
+
+将来のreal ChatGPT adapterは別レイヤーです。supportedでautomatableなChatGPT product surfaceが確認できるまで追加しません。
+
+## 基本
 
 ```console
 mcp-interop diagnose https://example.com/mcp --profile chatgpt
 ```
 
-JSON出力:
+JSON:
 
 ```console
 mcp-interop diagnose https://example.com/mcp --profile chatgpt --json
 ```
 
-現在のChatGPT profileでは主に次を確認します。
+Preflightでは主に次を確認します。
 
-- Remote MCP endpointがHTTPSか
-- `WWW-Authenticate`または標準well-known locationからOAuth 2.0 Protected Resource Metadataを発見できるか
-- `authorization_servers`が広告されているか
-- OAuth Authorization Server Metadata / OpenID Connect discoveryと`issuer`整合
+- HTTPS Remote MCP endpoint
+- `WWW-Authenticate`または標準well-known locationからProtected Resource Metadataを発見できるか
+- `authorization_servers`
+- Authorization Server Metadata / OpenID Connect discoveryと`issuer`整合
 - `authorization_endpoint` / `token_endpoint`
-- client registration方式
-  - Client ID Metadata Documents (CIMD)
-  - またはDynamic Client Registration (DCR) fallback
-- CIMD時のtoken endpoint authenticationがChatGPT対応の`none`または`private_key_jwt`か
-- PKCE `S256`広告
-- refresh token継続性の参考として`offline_access`広告
-- Protected Resource Metadataの`resource`と入力したMCP endpointの関係
+- CIMD / DCR広告
+- CIMD時の`none` / `private_key_jwt`互換性
+- PKCE `S256`
+- `offline_access`
+- Protected Resource Metadataの`resource`整合
 
-たとえばAuthorization Server Metadataが:
+CIMDが利用できるなら、`registration_endpoint`が無くてもChatGPT registration preflightはPASSできます。ChatGPTはCIMDを優先しますが、DCRも選択・fallback可能な方式です。
 
-```json
-{
-  "client_id_metadata_document_supported": true,
-  "token_endpoint_auth_methods_supported": ["none", "private_key_jwt"]
-}
-```
+## 実ChatGPT CIMD metadataを照合
 
-なら、`registration_endpoint`が無くてもChatGPTのregistration preflightはPASSできます。ChatGPTはCIMDを利用でき、このpathではDCRは必須ではありません。
-
-## 実際のChatGPT client metadataまで照合する
-
-Authorization Serverのlogで、ChatGPTから来たauthorization requestを**secret除去済みで**確認できる場合、`client_id`と`redirect_uri`は有用な非secret evidenceです。
-
-`code`、`state`、token、cookie、client assertionなどは渡さないでください。
-
-観測した値をそのまま指定します。
+sanitized authorization requestから非secretな`client_id` metadata URLと`redirect_uri`が分かる場合:
 
 ```console
 mcp-interop diagnose https://example.com/mcp \
@@ -59,95 +54,203 @@ mcp-interop diagnose https://example.com/mcp \
   --redirect-uri 'https://chatgpt.com/connector/oauth/...'
 ```
 
-`--client-id`を指定すると、追加で:
+追加で:
 
-- CIMD documentを取得
-- CIMD document自身の`client_id`がHTTPS document URLと完全一致するか確認
-- ChatGPT側とAuthorization Server側のtoken endpoint auth methodを照合
-- `--redirect-uri`指定時はCIMD documentの`redirect_uris`に完全一致するか確認
-- `private_key_jwt`が互換methodならJWKSを取得してkeyが存在するか確認
+- CIMD document取得
+- documentの`client_id`とstable HTTPS URLの一致
+- client/server token endpoint auth method intersection
+- redirect URI一致
+- `private_key_jwt`利用時のJWKS到達性
 
-まで行います。
+を確認します。
 
-OAuthがauthorization endpointまでは進むが、その後token exchange前後で失敗する場合に特に有効です。
+authorization code、OAuth state、token、cookie、client assertionは渡さないでください。
 
-## secret-free Runtime Evidenceを相関する
+## Runtime Evidence v2
 
-PreflightがPASSしても実ChatGPT token requestがmetadataどおりとは限りません。Authorization Server側でsanitizedなpresence/match signalを取得できる場合、`--runtime-evidence`で第2層として相関できます。
+v2ではregistration、authorization request、token request、resource-server verification、tool-level OAuth signalを分離します。
+
+```json
+{
+  "schema_version": 2,
+  "registration": {
+    "strategy": "cimd",
+    "client_metadata_url": "https://chatgpt.com/oauth/.../client.json"
+  },
+  "authorization_request": {
+    "resource_matches": true,
+    "redirect_uri_matches": true,
+    "pkce_s256": true
+  },
+  "token_request": {
+    "resource_matches": true,
+    "code_verifier_present": true,
+    "client_assertion_present": false,
+    "client_assertion_type_present": false,
+    "oauth_error": "invalid_client"
+  },
+  "resource_request": {
+    "bearer_present": false
+  },
+  "tool_auth": {
+    "challenge_expected": true,
+    "oauth2_security_scheme_present": true,
+    "www_authenticate_present": true,
+    "www_authenticate_has_error": true,
+    "www_authenticate_has_error_description": true
+  }
+}
+```
+
+実行:
+
+```console
+mcp-interop diagnose https://example.com/mcp \
+  --profile chatgpt \
+  --runtime-evidence runtime-evidence.json
+```
+
+`registration.strategy`は次を受け付けます。
+
+- `cimd`
+- `dcr`
+- `predefined`
+
+ここを明示する理由は、registration方式ごとにtoken endpoint authenticationの推論可能範囲が違うためです。CIMDではChatGPT CIMDとAS metadataを比較して、双方が`private_key_jwt`を広告していればそれをexpectedとして扱えます。一方DCR/predefinedでは、registered clientの実metadataが分からない限りtoken auth methodを勝手に推測しません。
+
+### legacy v1互換
+
+従来のcompact JSONも引き続き読めます。
 
 ```json
 {
   "client_id": "https://chatgpt.com/oauth/.../client.json",
   "resource_matches": true,
+  "code_verifier_present": true,
   "client_assertion_present": false
 }
 ```
 
-```console
-mcp-interop diagnose https://example.com/mcp --profile chatgpt --runtime-evidence runtime-evidence.json
+内部ではlegacy v1のCIMD/token-request evidenceとして正規化します。新規連携はv2推奨です。
+
+### Secret boundary
+
+入力できるのはboolean、stable CIMD metadata URL、registration strategy、短いOAuth error codeだけです。未知fieldは拒否します。
+
+次は絶対に入れないでください。
+
+- access / refresh token
+- authorization code / OAuth `state`
+- PKCE verifier/challengeの値
+- raw client assertion / private key
+- client secret
+- cookie / credential file
+
+## Runtimeで見られる境界
+
+### Authorization request
+
+- canonical `resource`一致
+- redirect URI一致
+- PKCE S256
+
+### Token request
+
+- canonical `resource`一致
+- `code_verifier`存在
+- token endpoint auth method
+- `invalid_client`などsanitized OAuth error
+
+CIMDでChatGPTとAS双方が`private_key_jwt`対応なのに`client_assertion_present=false`なら:
+
+```text
+TOKEN_AUTH_METHOD_MISMATCH
 ```
 
-受け付けるfieldは`client_id`、`client_assertion_present`、任意の`resource_matches`、`code_verifier_present`、`client_assertion_type_present`だけです。値そのものは受け取りません。未知fieldは拒否されるため、access/refresh token、authorization code、PKCE verifier値、raw client assertion、client secret、cookie、OAuth stateは入力対象ではありません。
+を返せます。
 
-Runtime EvidenceはPreflight verdictを書き換えません。client/server双方が`private_key_jwt`を共有しているのに実token requestで`client_assertion_present=false`なら、`PREFLIGHT PASS`とRuntime Evidence `FAIL / TOKEN_AUTH_METHOD_MISMATCH`を同時に表示できます。未観測fieldは推測せず`WARN / unknown`です。
+### MCP Resource request
 
-## 結果の読み方
+token exchange後について、Resource Server側で次のboolean observationを渡せます。
 
-text outputは必ず:
+- Bearer token到着
+- signature validation
+- issuer一致
+- audience/resource一致
+- expiry
+- required scopes
+
+これはOpenAI認証ドキュメントでresource serverに求められているtoken verificationと、公式authenticated Python MCP scaffoldのJWT verification patternに対応します。
+
+### Tool-level OAuth signal
+
+OpenAIの現在の仕様ではChatGPTのtool-level OAuth linking UIに、少なくとも次の2側面があります。
+
+- tool metadataの`securitySchemes`に`oauth2`
+- 認証/再認証が必要なruntime errorの`_meta["mcp/www_authenticate"]`
+
+`tool_auth`ではpresence/shapeだけを渡します。**この証拠を取るためにmcp-interopが勝手にtoolをcallすることはありません。**
+
+`challenge_expected=true`なのにoauth2 schemeやruntime challengeが明示的に欠けていれば分類できます。観測していない場合はFAILを推測せず`WARN / unknown`です。
+
+## OpenAI Reference Pattern
+
+Runtime Evidenceを渡すとtext outputに:
+
+```text
+OPENAI REFERENCE PATTERN
+```
+
+が追加されます。
+
+主に次をまとめます。
+
+- registration
+- PKCE
+- token endpoint auth
+- bearer delivery
+- resource-server token verification
+- tool-level OAuth signal
+
+基準はOpenAIの現在のauthentication docsと、`openai/openai-mcpkit/python-authenticated-mcp-server-scaffold`が示すauthenticated MCP構成です。
+
+ただしこれは**Auth0固有設定を全MCPの必須条件にする機能ではありません**。scaffold内のprovider-specific運用手順はprotocol requirementとして扱いません。
+
+## Result semantics
+
+たとえば:
 
 ```text
 PREFLIGHT PASS
 ```
 
-または:
+でも、同時に:
 
 ```text
-PREFLIGHT FAIL
+RUNTIME EVIDENCE
+VERDICT  FAIL
+REASON   TOKEN_AUTH_METHOD_MISMATCH
 ```
 
-と表示します。
+になれます。
 
-WARNはpreflight failureにはしません。たとえば`offline_access`未広告は、初回OAuth自体は成功してもrefresh tokenが取得できず、access token失効後にChatGPTが再認証を必要とする可能性があるためのadvisoryです。
+Runtime EvidenceでconclusiveなFAILがあればCLI exit codeはnon-zeroです。未観測signalは原則`WARN / unknown`です。
 
-**`PREFLIGHT PASS`でも、実ChatGPT clientがOAuth/tool discoveryを完遂した証明にはなりません。** 現在確認可能な公開metadata上にknown blocking mismatchが見つからなかった、という意味です。
+**Preflight PASS + Runtime Evidence PASSでも、実ChatGPT productがOAuth、MCP initialize、tool discoveryを完遂した証明にはなりません。**
 
-## tool-level OAuth UIは別の境界
+## mTLS boundary
 
-ChatGPTのtool-level linking UIはAuthorization Server Metadataだけでは決まりません。OpenAIの現在の仕様では、各toolの`securitySchemes`などの認証metadataと、認証が必要になったruntime errorの`_meta["mcp/www_authenticate"]`もOAuth linking UIに関係します。
+OpenAIは現在、ChatGPTがMCP serverへTLS接続する際にOpenAI-managed client certificateを提示すると説明しています。これはtransport-levelのclient identificationに使えますが、end user認証/authorizationには引き続きOAuthを使います。
 
-現在の`diagnose --profile chatgpt`は、このpost-discovery/tool-level signalを完全検証したとは主張しません。OAuth-protected serverでそこまで証明するには、authenticatedなChatGPT/tool-discovery pathが必要になるためです。
+Runtime Evidence v2ではmTLS certificate observationのreason-code化はまだ行いません。mTLS observationが無いだけでFAILにはしません。
 
-OAuth metadata preflightがPASSなのにtool linking UI自体が出ない場合は、tool definitionとruntime auth error shapeを別途確認してください。この診断のためだけにResource Serverの保護を弱めてtoolsを匿名公開しないでください。
+## real-client boundary
 
-## preflight PASSなのにChatGPT接続が失敗する場合
+現在もCodex app-serverやCursor MCP management commandに相当するsupported headless ChatGPT app-management surfaceは確認できていません。browser DOM automation/private UI internalsはstable real-client adapterの依存にしません。
 
-Authorization Server / MCP Resource Serverのlogを使って、実flowがどこまで進んだか確認します。共有するlogは必ずsanitizeしてください。
+公式/reference source:
 
-確認ポイント:
-
-1. authorization requestに期待する`client_id`、正確な`redirect_uri`、PKCE challenge、scope、`resource`が来ているか
-2. CIMDの場合、Authorization ServerがChatGPTのclient metadata documentを取得・検証できているか
-3. `private_key_jwt`の場合、token requestのclient assertionをChatGPT JWKSで検証できているか。またAS側が要求する`iss` / `sub` / `aud` / `exp` / `jti`条件を満たしているか
-4. token exchangeにPKCE `code_verifier`と同じprotected-resource `resource`値が来ているか
-5. token responseが受理され、継続接続が必要な構成ではrefresh tokenが発行されているか
-6. その後のMCP requestに`Authorization: Bearer ...`が来て、MCP serverがsignature / issuer / audience(resource) / expiry / scopeを受理しているか
-7. ChatGPTがMCP initialize / tool discoveryまで進んでいるか
-8. tool-specific linkingの場合、tool definitionとruntime auth challengeが documented OAuth linking signalを出しているか
-
-Issueへauthorization code、access/refresh token、cookie、private key、raw client assertion、短時間有効なOAuth `state`を貼らないでください。
-
-## network trust boundary
-
-このdiagnosticは、対象serverが広告したHTTPS OAuth metadata URLを辿ります。意図して検査するRemote MCP deploymentに対してだけ実行してください。redirectやmetadataが予期せず無関係なinfrastructureを指している場合は、安易にallowlistせずsuspicious evidenceとして確認してください。
-
-## 現在の境界
-
-現状の`mcp-interop`には、Codex app-serverやCursorのMCP management commandに相当する、supportedなheadless ChatGPT app-management surfaceがありません。
-
-そのため、ブラウザDOM automationで無理に「ChatGPT対応」を名乗らず、true real-client automationはresearch targetのまま維持します。
-
-このprofileの基準にしている公式資料:
-
-- OpenAI plugin authentication: `https://developers.openai.com/plugins/build/auth`
+- OpenAI authentication: `https://developers.openai.com/plugins/build/auth`
 - OpenAI ChatGPT developer mode / MCP apps: `https://help.openai.com/en/articles/12584461-developer-mode-and-full-mcp-connectors-in-chatgpt`
+- OpenAI authenticated Python MCP scaffold: `https://github.com/openai/openai-mcpkit/tree/main/python-authenticated-mcp-server-scaffold`
 - MCP authorization specification: `https://modelcontextprotocol.io/specification/draft/basic/authorization`
