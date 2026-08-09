@@ -57,13 +57,13 @@ type ChatGPTClientEvidence struct {
 }
 
 type Report struct {
-	Profile                      string                `json:"profile"`
-	Endpoint                     string                `json:"endpoint"`
-	ProtectedResourceMetadataURL string                `json:"protected_resource_metadata_url,omitempty"`
-	Resource                     string                `json:"resource,omitempty"`
-	AuthorizationServers         []AuthorizationServer `json:"authorization_servers,omitempty"`
+	Profile                      string                 `json:"profile"`
+	Endpoint                     string                 `json:"endpoint"`
+	ProtectedResourceMetadataURL string                 `json:"protected_resource_metadata_url,omitempty"`
+	Resource                     string                 `json:"resource,omitempty"`
+	AuthorizationServers         []AuthorizationServer  `json:"authorization_servers,omitempty"`
 	Client                       *ChatGPTClientEvidence `json:"client,omitempty"`
-	Checks                       []Check               `json:"checks"`
+	Checks                       []Check                `json:"checks"`
 }
 
 func (r Report) Passed() bool {
@@ -99,6 +99,7 @@ type authorizationServerMetadata struct {
 }
 
 type clientMetadata struct {
+	ClientID                          string          `json:"client_id"`
 	RedirectURIs                      []string        `json:"redirect_uris"`
 	TokenEndpointAuthMethodsSupported []string        `json:"token_endpoint_auth_methods_supported"`
 	TokenEndpointAuthMethod           string          `json:"token_endpoint_auth_method"`
@@ -170,22 +171,18 @@ func ChatGPT(ctx context.Context, endpoint string, options ChatGPTOptions) (Repo
 	for _, issuer := range prm.AuthorizationServers {
 		server, err := discoverAuthorizationServer(ctx, client, issuer)
 		if err != nil {
-			report.add("authorization_server_metadata", StatusFail, true, "Authorization server metadata could not be discovered for an advertised issuer: "+safeError(err))
+			report.add("authorization_server_candidate", StatusWarn, false, "One advertised authorization server could not be discovered: "+safeError(err))
 			continue
 		}
 		report.AuthorizationServers = append(report.AuthorizationServers, server)
 	}
 
 	if len(report.AuthorizationServers) == 0 {
-		if !hasCheck(report.Checks, "authorization_server_metadata", StatusFail) {
-			report.add("authorization_server_metadata", StatusFail, true, "No usable authorization server metadata was discovered")
-		}
+		report.add("authorization_server_metadata", StatusFail, true, "No usable authorization server metadata was discovered")
 		return report, nil
 	}
-	if !hasCheck(report.Checks, "authorization_server_metadata", StatusFail) {
-		report.add("authorization_server_metadata", StatusPass, true, fmt.Sprintf("Discovered metadata for %d authorization server(s)", len(report.AuthorizationServers)))
-	}
-	if len(report.AuthorizationServers) > 1 {
+	report.add("authorization_server_metadata", StatusPass, true, fmt.Sprintf("Discovered metadata for %d authorization server(s)", len(report.AuthorizationServers)))
+	if len(prm.AuthorizationServers) > 1 {
 		report.add("authorization_server_selection", StatusWarn, false, "Multiple authorization servers are advertised; this preflight does not claim which issuer ChatGPT will select")
 	}
 
@@ -203,10 +200,9 @@ func ChatGPT(ctx context.Context, endpoint string, options ChatGPTOptions) (Repo
 }
 
 func evaluateServerCapabilities(report *Report) {
-	compatibleRegistration := false
 	cimdAvailable := false
 	dcrAvailable := false
-	compatibleTokenAuth := false
+	compatibleCIMDTokenAuth := false
 	pkceExplicitPass := false
 	pkceExplicitFail := false
 	offlineAccess := false
@@ -218,14 +214,12 @@ func evaluateServerCapabilities(report *Report) {
 		}
 		if server.ClientIDMetadataDocumentSupported {
 			cimdAvailable = true
-			compatibleRegistration = true
 			if intersects(server.TokenEndpointAuthMethodsSupported, []string{"none", "private_key_jwt"}) {
-				compatibleTokenAuth = true
+				compatibleCIMDTokenAuth = true
 			}
 		}
 		if server.RegistrationEndpoint != "" {
 			dcrAvailable = true
-			compatibleRegistration = true
 		}
 		if contains(server.CodeChallengeMethodsSupported, "S256") {
 			pkceExplicitPass = true
@@ -254,13 +248,14 @@ func evaluateServerCapabilities(report *Report) {
 		report.add("client_registration", StatusFail, true, "Neither Client ID Metadata Documents nor a Dynamic Client Registration endpoint is advertised")
 	}
 
-	if cimdAvailable {
-		if compatibleTokenAuth {
-			report.add("token_endpoint_auth", StatusPass, true, "CIMD-capable authorization server advertises a ChatGPT-compatible token endpoint auth method (none or private_key_jwt)")
-		} else {
-			report.add("token_endpoint_auth", StatusFail, true, "CIMD is advertised, but no ChatGPT-compatible token endpoint auth method (none or private_key_jwt) is advertised")
-		}
-	} else {
+	switch {
+	case compatibleCIMDTokenAuth:
+		report.add("token_endpoint_auth", StatusPass, true, "CIMD-capable authorization server advertises a ChatGPT-compatible token endpoint auth method (none or private_key_jwt)")
+	case cimdAvailable && dcrAvailable:
+		report.add("token_endpoint_auth", StatusWarn, false, "CIMD metadata does not advertise a ChatGPT-compatible token endpoint auth method, but a DCR fallback is advertised")
+	case cimdAvailable:
+		report.add("token_endpoint_auth", StatusFail, true, "CIMD is advertised, but no ChatGPT-compatible token endpoint auth method (none or private_key_jwt) is advertised")
+	default:
 		report.add("token_endpoint_auth", StatusWarn, false, "CIMD is not advertised; token endpoint auth compatibility depends on the DCR/pre-registered client metadata")
 	}
 
@@ -277,8 +272,6 @@ func evaluateServerCapabilities(report *Report) {
 	} else {
 		report.add("offline_access", StatusWarn, false, "offline_access is not advertised; initial OAuth may work, but long-lived ChatGPT access can fail if refresh tokens are not issued")
 	}
-
-	_ = compatibleRegistration
 }
 
 func evaluateChatGPTClientMetadata(ctx context.Context, client *http.Client, report *Report, clientID, redirectURI string) {
@@ -293,6 +286,15 @@ func evaluateChatGPTClientMetadata(ctx context.Context, client *http.Client, rep
 		report.add("chatgpt_client_metadata", StatusFail, true, "Observed ChatGPT client_id metadata could not be fetched: "+safeError(err))
 		return
 	}
+	if metadata.ClientID == "" || metadata.ClientID != clientID {
+		report.add("chatgpt_client_metadata", StatusFail, true, "CIMD document client_id is missing or does not exactly match the metadata document URL")
+		return
+	}
+	if len(metadata.RedirectURIs) == 0 {
+		report.add("chatgpt_client_metadata", StatusFail, true, "CIMD document does not advertise redirect_uris")
+		return
+	}
+
 	methods := append([]string(nil), metadata.TokenEndpointAuthMethodsSupported...)
 	if len(methods) == 0 && metadata.TokenEndpointAuthMethod != "" {
 		methods = []string{metadata.TokenEndpointAuthMethod}
@@ -305,7 +307,7 @@ func evaluateChatGPTClientMetadata(ctx context.Context, client *http.Client, rep
 		JWKSURI:                           sanitizePublicURL(metadata.JWKSURI),
 	}
 	report.Client = evidence
-	report.add("chatgpt_client_metadata", StatusPass, true, "Fetched the observed ChatGPT CIMD client metadata document")
+	report.add("chatgpt_client_metadata", StatusPass, true, "Fetched and validated the observed ChatGPT CIMD client metadata document")
 
 	if redirectURI != "" {
 		if contains(metadata.RedirectURIs, redirectURI) {
@@ -445,8 +447,8 @@ func authorizationServerCandidates(issuer *url.URL) []string {
 
 func fetchJSON(ctx context.Context, client *http.Client, rawURL string, out any) error {
 	u, err := url.Parse(rawURL)
-	if err != nil || u.Scheme != "https" || u.Host == "" {
-		return errors.New("metadata URL must use HTTPS")
+	if err != nil || u.Scheme != "https" || u.Host == "" || u.User != nil || u.Fragment != "" {
+		return errors.New("metadata URL must be an HTTPS URL without user info or fragment")
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
@@ -500,15 +502,6 @@ func safeError(err error) string {
 		return ""
 	}
 	return interop.Redact(err.Error())
-}
-
-func hasCheck(checks []Check, id string, status Status) bool {
-	for _, check := range checks {
-		if check.ID == id && check.Status == status {
-			return true
-		}
-	}
-	return false
 }
 
 func contains(values []string, want string) bool {
