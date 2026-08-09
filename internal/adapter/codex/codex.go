@@ -198,7 +198,24 @@ func (a *Adapter) loginOAuth(ctx context.Context, rpc *rpcClient, result *intero
 		"timeoutSecs": int64(a.oauthTimeout.Seconds()),
 	}, &login); err != nil {
 		result.Set(interop.StageReach, interop.StatusUnknown, "Codex discovered an OAuth-protected target")
-		result.Set(interop.StageAuth, interop.StatusFail, "Codex could not start its MCP OAuth login flow")
+		switch classifyOAuthStartFailure(err) {
+		case interop.ReasonDCRUnsupported:
+			result.SetWithReason(
+				interop.StageAuth,
+				interop.StatusFail,
+				interop.ReasonDCRUnsupported,
+				"Codex reports that Dynamic Client Registration is not supported for this OAuth target",
+			)
+		case interop.ReasonDCRFailed:
+			result.SetWithReason(
+				interop.StageAuth,
+				interop.StatusFail,
+				interop.ReasonDCRFailed,
+				"Codex attempted Dynamic Client Registration but client registration failed",
+			)
+		default:
+			result.Set(interop.StageAuth, interop.StatusFail, "Codex could not start its MCP OAuth login flow")
+		}
 		result.Set(interop.StageInit, interop.StatusSkip, "authentication did not complete")
 		result.Set(interop.StageTools, interop.StatusSkip, "authentication did not complete")
 		return serverStatus{}, false, nil
@@ -243,6 +260,24 @@ func (a *Adapter) loginOAuth(ctx context.Context, rpc *rpcClient, result *intero
 		return serverStatus{}, false, nil
 	}
 	return status, true, nil
+}
+
+func classifyOAuthStartFailure(err error) interop.ReasonCode {
+	var rpcErr *rpcCallError
+	if !errors.As(err, &rpcErr) {
+		return ""
+	}
+
+	text := strings.ToLower(rpcErr.Message + "\n" + string(rpcErr.Data))
+	if strings.Contains(text, "dynamic client registration not supported") ||
+		(strings.Contains(text, "dynamic") && strings.Contains(text, "registration") && strings.Contains(text, "not supported")) {
+		return interop.ReasonDCRUnsupported
+	}
+	if strings.Contains(text, "dynamic") && strings.Contains(text, "registration") &&
+		(strings.Contains(text, "failed") || strings.Contains(text, "failure") || strings.Contains(text, "error")) {
+		return interop.ReasonDCRFailed
+	}
+	return ""
 }
 
 func queryStatus(rpc *rpcClient) (serverStatus, bool, error) {

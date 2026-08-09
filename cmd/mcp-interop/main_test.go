@@ -92,6 +92,30 @@ func TestWriteTestResultsIncludesCrossClientSummary(t *testing.T) {
 	}
 }
 
+func TestWriteTestResultsIncludesReasonCode(t *testing.T) {
+	result := interop.NewResult("codex", "Codex CLI", "codex-test", "https://example.com/mcp")
+	result.Set(interop.StageReach, interop.StatusUnknown, "OAuth target discovered")
+	result.SetWithReason(
+		interop.StageAuth,
+		interop.StatusFail,
+		interop.ReasonDCRUnsupported,
+		"Codex reports that Dynamic Client Registration is not supported for this OAuth target",
+	)
+	result.Set(interop.StageInit, interop.StatusSkip, "authentication did not complete")
+	result.Set(interop.StageTools, interop.StatusSkip, "authentication did not complete")
+
+	var output bytes.Buffer
+	if err := writeTestResults(&output, []interop.Result{result}); err != nil {
+		t.Fatal(err)
+	}
+	text := output.String()
+	for _, want := range []string{"REASON", "DCR_UNSUPPORTED"} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("reason output missing %q:\n%s", want, text)
+		}
+	}
+}
+
 func TestWriteTestResultsSingleClientDoesNotPrintSummary(t *testing.T) {
 	result := interop.NewResult("codex", "Codex CLI", "codex-test", "https://example.com/mcp")
 	for _, stage := range interop.OrderedStages {

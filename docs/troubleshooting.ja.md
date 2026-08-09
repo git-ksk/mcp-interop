@@ -51,6 +51,12 @@ mcp-interop test https://example.com/mcp --client codex --oauth
 
 authorization URLはstderrへ表示されます。短時間有効なOAuth stateを含むため、Issueなどへ貼らないでください。
 
+authorization URLが得られる前にCodex OAuthが失敗した場合は、text outputの`REASON`列またはJSONの`reason_code`を確認してください。
+
+たとえば`DCR_UNSUPPORTED`は、実Codex clientが対象OAuth flowについてDynamic Client Registration非対応を明示的に報告したことを意味します。推測したregistration URLが`404`になっただけでは、このreason codeを付けません。
+
+stableな判定ルールは[Reason code](reason-codes.ja.md)を参照してください。
+
 ### Cursor
 
 v0.1.xではCursor OAuth完遂は未対応です。beta adapterでno-auth endpointは検証できますが、OAuth-required targetはauthenticated pathが正式実装されるまでincompleteになります。
@@ -122,6 +128,19 @@ mcp-interop test https://example.com/mcp --client codex,cursor,antigravity --jso
 
 multi-client JSONはarrayです。machine-readableな判定ではstage valueを正として扱い、表示テキストだけから成功を推測しないでください。
 
+特定のfailureを安全に分類できたstageでは、stableな`reason_code`も含まれます。
+
+```json
+{
+  "stage": "auth",
+  "status": "fail",
+  "reason_code": "DCR_UNSUPPORTED",
+  "message": "Codex reports that Dynamic Client Registration is not supported for this OAuth target"
+}
+```
+
+`reason_code`が無いからといって成功という意味ではありません。adapterがstableな分類を付けるだけの具体的証拠を持っていないことを意味します。
+
 ## Real-client E2E harness
 
 maintainer向けrelease gateはmacOSで次を実行できます。
@@ -144,7 +163,7 @@ release candidate検証では、greenにするためだけに安全性gateを無
 - OS / architecture
 - MCP clientの正確なversion
 - 使用adapter
-- stage result
+- stage resultと`reason_code`（存在する場合）
 - secretを除去したerror/diagnostic output
 - serverがOAuthを必要とするか
 - 必要に応じてlocalhost/synthetic fixtureでも再現するか
