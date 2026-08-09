@@ -51,7 +51,7 @@ type RegistrationEvidence struct {
 type AuthorizationRequestEvidence struct {
 	ResourceMatches    *bool `json:"resource_matches,omitempty"`
 	RedirectURIMatches *bool `json:"redirect_uri_matches,omitempty"`
-	PKCES256            *bool `json:"pkce_s256,omitempty"`
+	PKCES256           *bool `json:"pkce_s256,omitempty"`
 }
 
 type TokenRequestEvidence struct {
@@ -63,19 +63,19 @@ type TokenRequestEvidence struct {
 }
 
 type ResourceRequestEvidence struct {
-	BearerPresent     *bool `json:"bearer_present,omitempty"`
-	SignatureValid    *bool `json:"signature_valid,omitempty"`
-	IssuerMatches     *bool `json:"issuer_matches,omitempty"`
-	AudienceMatches   *bool `json:"audience_matches,omitempty"`
-	ExpiryValid       *bool `json:"expiry_valid,omitempty"`
-	ScopesSufficient  *bool `json:"scopes_sufficient,omitempty"`
+	BearerPresent    *bool `json:"bearer_present,omitempty"`
+	SignatureValid   *bool `json:"signature_valid,omitempty"`
+	IssuerMatches    *bool `json:"issuer_matches,omitempty"`
+	AudienceMatches  *bool `json:"audience_matches,omitempty"`
+	ExpiryValid      *bool `json:"expiry_valid,omitempty"`
+	ScopesSufficient *bool `json:"scopes_sufficient,omitempty"`
 }
 
 type ToolAuthEvidence struct {
-	ChallengeExpected                *bool `json:"challenge_expected,omitempty"`
-	OAuth2SecuritySchemePresent      *bool `json:"oauth2_security_scheme_present,omitempty"`
-	WWWAuthenticatePresent           *bool `json:"www_authenticate_present,omitempty"`
-	WWWAuthenticateHasError          *bool `json:"www_authenticate_has_error,omitempty"`
+	ChallengeExpected                  *bool `json:"challenge_expected,omitempty"`
+	OAuth2SecuritySchemePresent        *bool `json:"oauth2_security_scheme_present,omitempty"`
+	WWWAuthenticatePresent             *bool `json:"www_authenticate_present,omitempty"`
+	WWWAuthenticateHasError            *bool `json:"www_authenticate_has_error,omitempty"`
 	WWWAuthenticateHasErrorDescription *bool `json:"www_authenticate_has_error_description,omitempty"`
 }
 
@@ -236,7 +236,7 @@ type ReferencePatternReport struct {
 }
 
 type RuntimeEvidenceReport struct {
-	SchemaVersion        int                     `json:"schema_version"`
+	SchemaVersion         int                     `json:"schema_version"`
 	RegistrationStrategy string                  `json:"registration_strategy,omitempty"`
 	ClientID             string                  `json:"client_id,omitempty"`
 	Status               Status                  `json:"status"`
@@ -261,7 +261,7 @@ func evaluateRuntimeEvidence(report *Report, evidence ChatGPTRuntimeEvidence) {
 
 	strategy := evidence.EffectiveRegistrationStrategy()
 	runtime := &RuntimeEvidenceReport{
-		SchemaVersion:        evidence.SchemaVersion,
+		SchemaVersion:         evidence.SchemaVersion,
 		RegistrationStrategy: strategy,
 		ClientID:             interop.SanitizeEndpoint(evidence.EffectiveClientID()),
 		Status:               StatusPass,
