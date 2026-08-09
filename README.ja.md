@@ -14,6 +14,8 @@
 
 > このRemote MCP deploymentは、ユーザーが実際に使っているclientから接続・認証・初期化でき、toolsを発見できるか？
 
+また、安全にheadless automationできる実client surfaceがまだ無い対象向けに、client profileベースの**preflight診断**も提供します。preflightの結果をlive interoperability PASSとして扱うことはありません。
+
 ## Status
 
 **v0.1.0を公開済みです。**
@@ -25,6 +27,8 @@ Release: [v0.1.0](https://github.com/git-ksk/mcp-interop/releases/tag/v0.1.0)
 - **Codex CLI** — live inventory + 明示的opt-in OAuth
 - **Cursor CLI (beta)** — dedicated MCP management commandを使うno-auth live inventory。OAuth完遂は未対応
 - **Antigravity CLI (beta, macOS)** — isolated no-prompt PTY startupとmachine-readable MCP tool cacheを使うno-auth live inventory。OAuth完遂は意図的に無効
+
+開発branchには、**ChatGPT OAuth/server preflight profile**もあります。ChatGPTの公開された認証仕様に対してMCP/OAuth metadataを診断しますが、実ChatGPT clientを動かしたとは主張しません。
 
 VS Codeは、stableなno-model server-start/tool-discovery surfaceが確認できるまでresearch-onlyです。
 
@@ -56,7 +60,7 @@ mcp-interop --version
 
 ## 何を証明するテストか
 
-1 clientの完全なtestは4 stageです。
+1 clientの完全なlive testは4 stageです。
 
 1. `reach` — 実clientがRemote MCPへ到達し、live interactionを確認できた
 2. `auth` — 必要なclient authenticationが完了した、またはlive tool discoveryにより認証不要を確認できた
@@ -66,6 +70,8 @@ mcp-interop --version
 exit code `0`になるのは、**4 stageすべてが`pass`の場合だけ**です。
 
 `fail`、`skip`、`unknown`はすべてnon-zeroです。証拠不足のinterop結果をCIが成功扱いしないための仕様です。
+
+`diagnose` commandは別contractです。公開metadataから`PREFLIGHT PASS` / `PREFLIGHT FAIL`を返しますが、real-clientの`reach/auth/init/tools` PASSの代用にはしません。
 
 `mcp-interop`は次を保証しません。
 
@@ -83,7 +89,7 @@ mcp-interop clients
 mcp-interop clients --json
 ```
 
-1 clientをtest:
+1 clientをlive test:
 
 ```console
 mcp-interop test https://example.com/mcp --client codex
@@ -122,6 +128,40 @@ mcp-interop test https://example.com/mcp --client codex --oauth
 URLには短時間有効なOAuth stateが含まれるため、Issueやlog共有時に貼らないでください。
 
 Cursor / AntigravityのOAuth完遂はv0.1.xでは未対応です。
+
+## ChatGPT OAuth/server preflight
+
+Remote MCP serverが公開しているOAuth metadataに、ChatGPTの現在の認証pathと既知のblocking mismatchがないか確認します。
+
+```console
+mcp-interop diagnose https://example.com/mcp --profile chatgpt
+```
+
+このprofileはProtected Resource MetadataとAuthorization Server Metadataを辿り、主に次を確認します。
+
+- HTTPS endpoint
+- `authorization_servers`
+- `authorization_endpoint` / `token_endpoint`
+- Client ID Metadata Documents (CIMD) / Dynamic Client Registration (DCR)
+- CIMD時の`none` / `private_key_jwt` token endpoint auth互換性
+- PKCE `S256`
+- `offline_access`などrefresh token継続性の参考情報
+- protected-resource `resource`の整合性
+
+`client_id_metadata_document_supported: true`が広告されているserverは、`registration_endpoint`が無くてもChatGPT registration preflightをPASSできます。ChatGPTはCIMD pathを利用でき、DCRを必須としないためです。
+
+Authorization Serverのsanitized logから、実ChatGPT authorization requestの非secretな`client_id`と`redirect_uri`を確認できる場合は、さらにexactな照合ができます。
+
+```console
+mcp-interop diagnose https://example.com/mcp \
+  --profile chatgpt \
+  --client-id 'https://chatgpt.com/oauth/.../client.json' \
+  --redirect-uri 'https://chatgpt.com/connector/oauth/...'
+```
+
+この拡張診断では、CIMD document、redirect URI、client/server間のtoken endpoint auth method、`private_key_jwt`利用時のJWKS到達性まで確認します。
+
+**このcommandはChatGPT UIを操作せず、OAuthを完遂せず、実ChatGPT client PASSを主張しません。** 詳細は[ChatGPT接続診断](docs/chatgpt-diagnostics.ja.md)を参照してください。
 
 ## Codex adapter
 
@@ -198,6 +238,7 @@ Antigravity adapterは:
 - **temporary stateをprivateにする。** POSIXではowner-only permissionを使用
 - **secret redaction。** Bearer/OAuth materialやcredential-like URL parameterをreportから除去
 - **OAuthは明示的。** verified isolated implementationがあるadapterでopt-inされた場合のみ開始
+- **preflightはlive evidenceではない。** profile diagnosticでpublic metadata互換性を確認しても、実clientの`reach/auth/init/tools` PASSへ昇格させない
 - **hosted backend不要。** core toolはlocal/CIで動作
 
 ## Real-client E2E on macOS
@@ -235,6 +276,8 @@ harnessは:
 
 - [Architecture](docs/architecture.ja.md)
 - [Troubleshooting](docs/troubleshooting.ja.md)
+- [Reason code](docs/reason-codes.ja.md)
+- [ChatGPT接続診断](docs/chatgpt-diagnostics.ja.md)
 - [Contributing](CONTRIBUTING.ja.md)
 - [Security Policy](SECURITY.ja.md)
 - [CHANGELOG](CHANGELOG.md) — release historyのcanonical版は英語
@@ -243,12 +286,16 @@ harnessは:
 
 ### v0.2 — authentication completeness
 
+- [x] clientが観測したDCR failure向けstructured OAuth reason code
+- [x] ChatGPT向けPRM / CIMD / DCR / PKCE / token-auth preflight診断。live-client verdictとは分離
+- [ ] profile診断evidenceと追加のreal-client OAuth failureを相関
 - [ ] Cursor OAuth token exchange + authenticated tool discovery
 - [ ] Antigravity OAuthを安全に完遂できるcredential isolation boundaryの確立
-- [ ] `unknown` / incomplete result向けstructured reason codeとsanitized verbose trace
+- [ ] 残る`unknown` / incomplete result向けsanitized verbose trace
 
 ### v0.3 — client coverage
 
+- [ ] real ChatGPT adapterを追加する前にsupportedなheadless ChatGPT MCP/app-management surfaceを調査。brittleなDOM scrapingはinterop contractに使わない
 - [ ] supported direct lifecycle/tool-discovery surfaceが利用可能になったらVS Codeを再検討
 - [ ] stable automatable MCP inventory surfaceが確認できたらGitHub Copilot CLIを評価
 - [ ] beta adapterのOS/client-version evidenceを拡充
