@@ -2,7 +2,7 @@
 
 [English](troubleshooting.md) | [日本語](troubleshooting.ja.md)
 
-このページでは、`mcp-interop`を実際のMCPクライアントに対して実行したときに起こりやすい問題と、結果の読み方をまとめます。
+このページでは、`mcp-interop`を実際のMCP clientに対して実行したときの問題と、profileベースpreflight診断の読み方をまとめます。
 
 ## まずclient detectionを確認する
 
@@ -17,15 +17,15 @@ clientが検出されない場合は、まず対象実行ファイルが現在�
 
 ## 明確なFAILがないのにexit codeがnon-zeroになる
 
-テストがexit code `0`になるのは、次の4ステージが**すべて`pass`**の場合だけです。
+live testがexit code `0`になるのは、次の4ステージが**すべて`pass`**の場合だけです。
 
 ```text
 reach / auth / init / tools
 ```
 
-`fail`だけでなく、`skip`と`unknown`もnon-zeroです。
+`fail`だけでなく、`skip`と`unknown`もnon-zeroです。証拠不足のinterop結果をCIが成功として扱わないためです。
 
-これは意図した仕様です。証拠不足の相互運用結果をCIが成功として扱わないためです。
+`diagnose` commandは別のpreflight contractを使います。blockingな診断FAILはnon-zeroですが、non-blocking WARNだけなら`PREFLIGHT PASS`になり得ます。preflight PASSはreal-client interoperability PASSではありません。
 
 ## `unknown`とは
 
@@ -64,6 +64,43 @@ v0.1.xではCursor OAuth完遂は未対応です。beta adapterでno-auth endpoi
 ### Antigravity
 
 v0.1.xでは自動OAuth完遂を意図的に無効化しています。OAuth discoveryまでは観測済みですが、通常のmacOS Keychainからcredentialを安全に隔離できることが証明されるまでauthorization/token exchangeは実行しません。
+
+## ChatGPT custom MCP appが接続できない
+
+まずChatGPT preflight profileを実行します。
+
+```console
+mcp-interop diagnose https://example.com/mcp --profile chatgpt
+```
+
+blocking FAILが出た場合、Protected Resource Metadataを発見できない、usableなAuthorization Server Metadataがない、CIMD/DCRの両方が無い、CIMD token endpoint auth methodがChatGPTと非互換、広告されたPKCE methodに`S256`が無い、といったpublic metadata上の問題を切り分けられます。
+
+CIMD対応serverは、`registration_endpoint`が無いだけでは非互換扱いしません。ChatGPTはCIMD registration pathを利用できます。
+
+最初の診断が`PREFLIGHT PASS`なのにChatGPT接続が失敗する場合は、Authorization Serverのsanitized logを確認します。実際のChatGPT authorization requestに非secretな`client_id` CIMD URLと`redirect_uri`があれば、次を実行します。
+
+```console
+mcp-interop diagnose https://example.com/mcp \
+  --profile chatgpt \
+  --client-id 'https://chatgpt.com/oauth/.../client.json' \
+  --redirect-uri 'https://chatgpt.com/connector/oauth/...'
+```
+
+これにより、実ChatGPT CIMD document、redirect URI登録、client/server間のtoken endpoint auth method、`private_key_jwt`利用時のJWKS到達性まで照合します。
+
+ここまでPASSしても失敗する場合、public metadataだけでは証明できないruntime boundaryをserver logで確認します。
+
+1. authorization requestに期待する`client_id`、完全一致の`redirect_uri`、PKCE challenge、scope、protected-resource `resource`が来ているか
+2. CIMD documentをAuthorization Serverが取得・検証できているか
+3. `private_key_jwt`ならclient assertionをChatGPT JWKSで検証できているか
+4. token requestにPKCE `code_verifier`と一貫した`resource`が来ているか
+5. token responseが受理され、必要な構成ではrefresh tokenを取得できているか
+6. 続くMCP requestのBearer access tokenをResource Serverが受理しているか
+7. MCP initialize / tool discoveryまで進んでいるか
+
+`PREFLIGHT PASS`は、実ChatGPT clientがこのruntime flowを完遂したことを意味しません。詳細は[ChatGPT接続診断](chatgpt-diagnostics.ja.md)を参照してください。
+
+OAuth `state`、authorization code、access/refresh token、cookie、private key、raw client assertionは共有しないでください。
 
 ## CursorのOAuth callback port conflict
 
@@ -122,6 +159,8 @@ public Issueへcredential値やraw credential fileを貼らないでください
 
 ## JSON output
 
+live multi-client test:
+
 ```console
 mcp-interop test https://example.com/mcp --client codex,cursor,antigravity --json
 ```
@@ -140,6 +179,14 @@ multi-client JSONはarrayです。machine-readableな判定ではstage valueを�
 ```
 
 `reason_code`が無いからといって成功という意味ではありません。adapterがstableな分類を付けるだけの具体的証拠を持っていないことを意味します。
+
+preflight JSON:
+
+```console
+mcp-interop diagnose https://example.com/mcp --profile chatgpt --json
+```
+
+`checks` arrayの`status`、`blocking`、sanitized messageをpreflight evidenceとして扱ってください。
 
 ## Real-client E2E harness
 
@@ -161,11 +208,11 @@ release candidate検証では、greenにするためだけに安全性gateを無
 
 - `mcp-interop version`
 - OS / architecture
-- MCP clientの正確なversion
-- 使用adapter
-- stage resultと`reason_code`（存在する場合）
+- live adapterの場合はMCP clientの正確なversion
+- 使用adapterまたはdiagnostic profile
+- stage resultと`reason_code`、またはpreflight checks
 - secretを除去したerror/diagnostic output
 - serverがOAuthを必要とするか
 - 必要に応じてlocalhost/synthetic fixtureでも再現するか
 
-Bearer token、OAuth code、client secret、cookie、credential fileは絶対に含めないでください。
+Bearer token、OAuth code、client secret、cookie、credential file、OAuth `state`、private key、raw client assertionは絶対に含めないでください。
