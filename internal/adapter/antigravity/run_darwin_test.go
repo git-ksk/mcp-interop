@@ -109,24 +109,80 @@ sleep 10
 	}
 
 	adapter := New(script, "agy-test")
-	adapter.timeout = 300 * time.Millisecond
+	adapter.timeout = 5 * time.Second
 	session, err := interop.NewSession()
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer session.Cleanup()
 
-	result, err := adapter.Run(context.Background(), interop.Target{Endpoint: "https://example.com/mcp"}, session)
-	if err != nil {
-		t.Fatal(err)
-	}
-	assertStage(t, result, interop.StageReach, interop.StatusUnknown)
-	assertStage(t, result, interop.StageAuth, interop.StatusUnknown)
-	assertStage(t, result, interop.StageInit, interop.StatusUnknown)
-	assertStage(t, result, interop.StageTools, interop.StatusUnknown)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	pid := readPIDFile(t, filepath.Join(session.Root(), "antigravity-home", "fake-agy.pid"))
+	type runOutcome struct {
+		result interop.Result
+		err    error
+	}
+	done := make(chan runOutcome, 1)
+	go func() {
+		result, runErr := adapter.Run(ctx, interop.Target{Endpoint: "https://example.com/mcp"}, session)
+		done <- runOutcome{result: result, err: runErr}
+	}()
+
+	pidPath := filepath.Join(session.Root(), "antigravity-home", "fake-agy.pid")
+	pid, err := waitForPIDFile(pidPath, 3*time.Second)
+	if err != nil {
+		cancel()
+		select {
+		case <-done:
+		case <-time.After(3 * time.Second):
+		}
+		t.Fatalf("wait for fake Antigravity child readiness: %v", err)
+	}
+
+	// Trigger the inconclusive path only after the fake client has definitely
+	// started. This keeps the test focused on cancellation/cleanup semantics
+	// instead of racing a fixed timeout against macOS PTY process startup.
+	cancel()
+
+	var outcome runOutcome
+	select {
+	case outcome = <-done:
+	case <-time.After(3 * time.Second):
+		t.Fatal("Antigravity adapter did not return after context cancellation")
+	}
+	if outcome.err != nil {
+		t.Fatal(outcome.err)
+	}
+	assertStage(t, outcome.result, interop.StageReach, interop.StatusUnknown)
+	assertStage(t, outcome.result, interop.StageAuth, interop.StatusUnknown)
+	assertStage(t, outcome.result, interop.StageInit, interop.StatusUnknown)
+	assertStage(t, outcome.result, interop.StageTools, interop.StatusUnknown)
 	assertProcessGone(t, pid)
+}
+
+func waitForPIDFile(path string, timeout time.Duration) (int, error) {
+	deadline := time.Now().Add(timeout)
+	var lastErr error
+	for time.Now().Before(deadline) {
+		data, err := os.ReadFile(path)
+		if err == nil {
+			pid, parseErr := strconv.Atoi(strings.TrimSpace(string(data)))
+			if parseErr == nil && pid > 0 {
+				return pid, nil
+			}
+			lastErr = parseErr
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return 0, err
+		} else {
+			lastErr = err
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if lastErr == nil {
+		lastErr = os.ErrNotExist
+	}
+	return 0, lastErr
 }
 
 func readPIDFile(t *testing.T, path string) int {
