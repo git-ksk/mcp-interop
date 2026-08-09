@@ -367,13 +367,17 @@ func writeTestResults(output io.Writer, results []interop.Result) error {
 		fmt.Fprintf(writer, "CLIENT\t%s\n", result.ClientName)
 		fmt.Fprintf(writer, "VERSION\t%s\n", version)
 		fmt.Fprintf(writer, "ENDPOINT\t%s\n\n", result.Endpoint)
-		fmt.Fprintln(writer, "STAGE\tSTATUS\tDETAIL")
+		fmt.Fprintln(writer, "STAGE\tSTATUS\tREASON\tDETAIL")
 		for _, stage := range result.Stages {
+			reason := string(stage.ReasonCode)
+			if reason == "" {
+				reason = "-"
+			}
 			message := stage.Message
 			if message == "" {
 				message = "-"
 			}
-			fmt.Fprintf(writer, "%s\t%s\t%s\n", stage.Stage, strings.ToUpper(string(stage.Status)), message)
+			fmt.Fprintf(writer, "%s\t%s\t%s\t%s\n", stage.Stage, strings.ToUpper(string(stage.Status)), reason, message)
 		}
 	}
 	return writer.Flush()
