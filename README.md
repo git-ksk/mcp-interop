@@ -8,7 +8,9 @@
 
 ## Status
 
-Pre-v0.1 development.
+**v0.1.0 is released.** This is the first public version of `mcp-interop`.
+
+Release: [v0.1.0](https://github.com/git-ksk/mcp-interop/releases/tag/v0.1.0)
 
 Live adapters currently exist for:
 
@@ -22,7 +24,13 @@ GitHub Copilot CLI is a follow-up candidate. Claude Code support is intentionall
 
 ## Install
 
-With Go 1.24 or newer:
+With Go 1.24 or newer, install the current stable release explicitly:
+
+```console
+go install github.com/git-ksk/mcp-interop/cmd/mcp-interop@v0.1.0
+```
+
+To track the newest published module version instead:
 
 ```console
 go install github.com/git-ksk/mcp-interop/cmd/mcp-interop@latest
@@ -36,7 +44,7 @@ mcp-interop version
 mcp-interop --version
 ```
 
-Tagged releases are configured to publish checksummed archives for macOS, Linux, and Windows on both amd64 and arm64. The first `v0.1.0` tag has not been published yet.
+The [v0.1.0 GitHub Release](https://github.com/git-ksk/mcp-interop/releases/tag/v0.1.0) also provides checksummed archives for macOS, Linux, and Windows on both amd64 and arm64.
 
 ## What a test proves
 
@@ -226,22 +234,35 @@ Release archives are built by `scripts/build-release.sh`. A `v*` tag triggers th
 
 Normal pull requests smoke-test the same release build path on Ubuntu before a tag is ever created.
 
-## V1 roadmap
+Published release history is summarized in [CHANGELOG.md](CHANGELOG.md).
 
-- [x] Shared `pass` / `fail` / `skip` / `unknown` result model
-- [x] Isolated test-session lifecycle and secret redaction
-- [x] Codex CLI live inventory adapter
-- [x] Codex OAuth live flow
-- [x] Cursor CLI no-auth live adapter (beta)
-- [ ] Cursor OAuth completion + authenticated tool discovery
-- [x] Antigravity CLI no-auth live adapter (beta, macOS)
-- [ ] Safe Antigravity OAuth completion boundary
-- [x] Cross-client combined text report
-- [x] Repeatable real-client macOS E2E harness
-- [x] Versioned release build/release automation
-- [ ] Revisit VS Code when a supported direct lifecycle/tool-discovery surface exists
+## Roadmap
 
-## Non-goals for V1
+### v0.2 — authentication completeness
+
+- [ ] Complete Cursor OAuth token exchange + authenticated tool discovery.
+- [ ] Establish a safe Antigravity OAuth completion boundary before enabling authorization/token exchange.
+- [ ] Improve diagnostic output for `unknown` / incomplete results with structured reason codes and sanitized verbose traces.
+
+### v0.3 — client coverage
+
+- [ ] Revisit VS Code when a supported direct lifecycle/tool-discovery surface exists.
+- [ ] Evaluate GitHub Copilot CLI when a stable automatable MCP inventory surface is available.
+- [ ] Add additional OS/client-version evidence for beta adapters where the real client supports it.
+
+### Shipped in v0.1.0
+
+- [x] Shared `pass` / `fail` / `skip` / `unknown` result model.
+- [x] Isolated test-session lifecycle and secret redaction.
+- [x] Codex CLI live inventory adapter.
+- [x] Codex OAuth live flow.
+- [x] Cursor CLI no-auth live adapter (beta).
+- [x] Antigravity CLI no-auth live adapter (beta, macOS).
+- [x] Cross-client combined text report.
+- [x] Repeatable real-client macOS E2E harness.
+- [x] Versioned release build/release automation.
+
+## Current non-goals
 
 - MCP security scanning
 - Tool quality or LLM-selection benchmarking
