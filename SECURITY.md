@@ -1,5 +1,9 @@
 # Security Policy
 
+[English](SECURITY.md) | [日本語](SECURITY.ja.md)
+
+The English version of this policy is the canonical security-reporting policy for this repository.
+
 ## Reporting a vulnerability
 
 Please **do not open a public issue** for a suspected security vulnerability.
@@ -26,6 +30,8 @@ Security reports are especially useful for issues involving:
 
 ## Supported versions
 
-Until the first tagged release, security fixes are applied to the latest `main` branch only.
+Security fixes are developed against the latest `main` branch.
 
-After releases begin, this document will be updated with the supported release policy.
+For the current `v0.x` series, maintainers will assess whether a reported vulnerability requires a patched tagged release based on severity, exploitability, and whether released users are affected. The latest published release is the primary supported release line; older `v0.x` releases may not receive backports.
+
+If a vulnerability affects a released artifact, the advisory or release notes will identify the fixed version when a patched release is published.

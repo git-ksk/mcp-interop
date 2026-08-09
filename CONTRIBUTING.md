@@ -1,5 +1,7 @@
 # Contributing to mcp-interop
 
+[English](CONTRIBUTING.md) | [日本語](CONTRIBUTING.ja.md)
+
 Thanks for helping improve real-client MCP interoperability testing.
 
 ## Before opening a pull request
