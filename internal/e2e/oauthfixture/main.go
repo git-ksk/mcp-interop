@@ -275,10 +275,6 @@ func (s *server) token(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) mcp(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "POST required", http.StatusMethodNotAllowed)
-		return
-	}
 	token := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
 	s.mu.Lock()
 	_, authorized := s.tokens[token]
@@ -286,6 +282,10 @@ func (s *server) mcp(w http.ResponseWriter, r *http.Request) {
 	if token == "" || !authorized {
 		w.Header().Set("WWW-Authenticate", `Bearer resource_metadata="`+s.baseURL+`/.well-known/oauth-protected-resource"`)
 		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	if r.Method != http.MethodPost {
+		http.Error(w, "POST required", http.StatusMethodNotAllowed)
 		return
 	}
 	var request rpcRequest
