@@ -35,10 +35,10 @@ type StageResult struct {
 // evidence attached to a real-client auth failure. Nil booleans mean the
 // capability could not be proven for one unambiguous authorization server.
 type AuthCapabilities struct {
-	CIMDAdvertised            *bool `json:"cimd_advertised,omitempty"`
-	DCRAdvertised             *bool `json:"dcr_advertised,omitempty"`
-	AuthorizationServerCount  int   `json:"authorization_server_count,omitempty"`
-	SelectionAmbiguous        bool  `json:"selection_ambiguous,omitempty"`
+	CIMDAdvertised           *bool `json:"cimd_advertised,omitempty"`
+	DCRAdvertised            *bool `json:"dcr_advertised,omitempty"`
+	AuthorizationServerCount int   `json:"authorization_server_count,omitempty"`
+	SelectionAmbiguous       bool  `json:"selection_ambiguous,omitempty"`
 }
 
 // Diagnostic adds supporting evidence without changing the four-stage real-
