@@ -134,7 +134,6 @@ func TestAdapterCompletesOAuthThenAuthenticatedToolDiscovery(t *testing.T) {
 		},
 	}}
 	baseRunner := runner
-	// Switch list/list-tools behavior after the OAuth handler is invoked.
 	oauthRunner := &fakeOAuthRunner{authorizationURL: "http://127.0.0.1:9999/authorize?state=s&redirect_uri=http%3A%2F%2F127.0.0.1%3A54321%2Fcallback&code_challenge=c"}
 	authorize := func(_ context.Context, _ string) error {
 		callCount++
@@ -178,7 +177,7 @@ func TestAdapterCompletesOAuthThenAuthenticatedToolDiscovery(t *testing.T) {
 
 func TestAdapterReportsCallbackPortConflict(t *testing.T) {
 	runner := &fakeRunner{results: map[string]commandResult{
-		"mcp list": {stdout: testServerName + " authentication required\n"},
+		"mcp list":                         {stdout: testServerName + " authentication required\n"},
 		"mcp list-tools " + testServerName: {stderr: "Authentication required", err: errors.New("auth required")},
 	}}
 	oauthRunner := &fakeOAuthRunner{result: commandResult{stderr: "OAuth callback: listen tcp 127.0.0.1:49231: bind: address already in use", err: errors.New("exit 1")}}
@@ -279,8 +278,8 @@ func TestAuthorizationURLFromTextUsesDynamicRedirect(t *testing.T) {
 
 func TestClassifyOAuthFailure(t *testing.T) {
 	cases := map[string]interop.ReasonCode{
-		"EADDRINUSE callback server":                       interop.ReasonOAuthCallbackPortConflict,
-		"Dynamic client registration not supported":       interop.ReasonDCRUnsupported,
+		"EADDRINUSE callback server":                        interop.ReasonOAuthCallbackPortConflict,
+		"Dynamic client registration not supported":        interop.ReasonDCRUnsupported,
 		"Dynamic client registration failed with HTTP 500": interop.ReasonDCRFailed,
 	}
 	for input, want := range cases {
