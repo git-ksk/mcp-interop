@@ -62,15 +62,15 @@ func WithOAuthTimeout(timeout time.Duration) Option {
 // The current live implementation is intentionally macOS-only because that is
 // the platform where the PTY/cache and OAuth-isolation behavior is verified.
 type Adapter struct {
-	executable       string
-	version          string
-	timeout          time.Duration
-	oauthTimeout     time.Duration
-	oauthEnabled     bool
-	oauthInput       io.Reader
-	oauthOutput      io.Writer
-	managerOpenWait  time.Duration
-	authSelectWait   time.Duration
+	executable      string
+	version         string
+	timeout         time.Duration
+	oauthTimeout    time.Duration
+	oauthEnabled    bool
+	oauthInput      io.Reader
+	oauthOutput     io.Writer
+	managerOpenWait time.Duration
+	authSelectWait  time.Duration
 }
 
 func New(executable, version string, options ...Option) *Adapter {
