@@ -16,6 +16,13 @@
 
 将来のreal ChatGPT adapterは別レイヤーです。supportedでautomatableなChatGPT product surfaceが確認できるまで追加しません。
 
+`mcp-interop`はproduct interoperability診断であり、genericなMCP conformance suiteではありません。境界は次のように考えます。
+
+- **MCP conformance** = implementation × specification
+- **mcp-interop** = deployment × client product × client version
+
+そのためOpenAI Reference Patternのproduct依存前提は、Runtime Evidence schemaやMCP specification自体とは別にversion管理します。
+
 ## 基本
 
 ```console
@@ -185,6 +192,46 @@ mcp-interop evidence merge authorization.json resource.json tool.json -o runtime
 - client secret
 - cookie / credential file
 
+## 実ChatGPT manual dogfood workflow
+
+ChatGPT UI automationへ依存せず、実際のChatGPT productからRuntime Evidenceを得たい場合は次の手順を使います。real-client操作だけmanualで行い、その後のevidence処理はdeterministicかつsecret-freeに保ちます。
+
+1. 先にpublic preflightを実行します。
+
+   ```console
+   mcp-interop diagnose https://example.com/mcp --profile chatgpt
+   ```
+
+2. 同じRemote MCP deploymentへ、実ChatGPT productの通常のsupported connection flowから接続します。
+3. 軽いread-only toolを2回呼びます。customer dataの露出を避け、可能な限り小さいrequestを使います。
+4. 既存のpersistent dataを変更しない、明示的にsafeなwrite-authorized pathを1回だけ呼びます。専用no-op、dry-run、validation-only、またはstate-preservingなwrite fixtureを優先します。OAuth検証だけのためにproduction recordを更新・削除しません。
+5. server-sideでsecret-free Runtime Evidence fragmentを取得します。`mcp-interop`が受け付けるschema fieldだけを記録し、raw HTTP header、request body、credential、application固有identifierをevidence fileへコピーしません。
+6. fragmentをmerge → validate → summaryします。
+
+   ```console
+   mcp-interop evidence merge authorization.json resource.json tool.json -o runtime-evidence.json
+   mcp-interop evidence validate runtime-evidence.json
+   mcp-interop evidence summary runtime-evidence.json
+   ```
+
+7. 同じdeploymentのpreflightとsanitized observationを相関します。
+
+   ```console
+   mcp-interop diagnose https://example.com/mcp \
+     --profile chatgpt \
+     --runtime-evidence runtime-evidence.json
+   ```
+
+8. public Preflight、Runtime Evidence、versioned OpenAI Reference Patternを別々に確認します。manualなChatGPT操作により「実product session由来のevidence」であることは確認できますが、それをgeneric MCP conformanceへ読み替えません。
+
+### Dogfood privacy boundary
+
+Runtime Evidence schemaに存在しないidentifierやcredentialは保存・公開しません。unique user/resource/operation/request identifierやraw OAuth/session artifactは除外し、server logに含まれる場合もevidence workflowへ入れる前に許可されたboolean / short error codeへ変換します。
+
+Monokuraはこのworkflowのreal-world validation対象として利用実績があります。公開docsには「product-levelでこの手順を実施した」という事実だけを残し、unique user/resource/operation identifierやcredentialは例へ含めません。
+
+現時点では、このmanual workflowをChatGPT DOM automationより優先します。UI/DOM依存はproduct changeで壊れやすく、credential isolationが難しく、CI再現性が低く、private implementationへ依存しやすいためです。
+
 ## Runtimeで見られる境界
 
 ### Authorization request
@@ -257,6 +304,18 @@ OPENAI REFERENCE PATTERN
 - tool-level OAuth signal
 
 基準はOpenAIの現在のauthentication docsと、`openai/openai-mcpkit/python-authenticated-mcp-server-scaffold`が示すauthenticated MCP構成です。
+
+OpenAI Reference Pattern結果はself-versionedです。現在のprofile metadataは次です。
+
+```text
+PROFILE_REVISION  2026-08-10.1
+OBSERVED_DATE     2026-08-10
+SOURCE            OpenAI authenticated MCP reference pattern
+```
+
+JSONでは同じ情報を`runtime_evidence.openai_reference_pattern`配下の`profile_revision`、`observed_date`、`source`へ出します。`profile_revision`はmcp-interopが持つChatGPT/OpenAI interoperability前提のversionであり、**MCP specification versionでもRuntime Evidence schema versionでもありません**。`observed_date`は、そのprofile revisionについてOpenAIのproduct guidanceを最後に確認した日です。product guidanceが実質的に変われば、Runtime Evidence schema v3を変更しない場合でもreference profile revision/dateを更新します。
+
+このprofile metadata追加は、受け付けるRuntime Evidence v1/v2/v3 input contractを変更しません。diagnostic interpretation layer自体をversion管理するための情報です。
 
 ただしこれは**Auth0固有設定を全MCPの必須条件にする機能ではありません**。scaffold内のprovider-specific運用手順はprotocol requirementとして扱いません。
 

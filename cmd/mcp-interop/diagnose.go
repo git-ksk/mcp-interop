@@ -190,6 +190,8 @@ func writeDiagnoseReport(output io.Writer, report diagnosepkg.Report) error {
 		if report.RuntimeEvidence.OpenAIReference != nil {
 			fmt.Fprintln(writer)
 			fmt.Fprintln(writer, "OPENAI REFERENCE PATTERN")
+			fmt.Fprintf(writer, "PROFILE_REVISION\t%s\n", report.RuntimeEvidence.OpenAIReference.ProfileRevision)
+			fmt.Fprintf(writer, "OBSERVED_DATE\t%s\n", report.RuntimeEvidence.OpenAIReference.ObservedDate)
 			fmt.Fprintf(writer, "SOURCE\t%s\n", report.RuntimeEvidence.OpenAIReference.Source)
 			fmt.Fprintf(writer, "VERDICT\t%s\n", diagnosticStatusLabel(report.RuntimeEvidence.OpenAIReference.Status))
 			fmt.Fprintln(writer, "CHECK\tSTATUS\tEXPECTED\tOBSERVED\tDETAIL")

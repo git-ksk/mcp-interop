@@ -65,8 +65,10 @@ func TestWriteDiagnoseReportShowsReferencePatternLayer(t *testing.T) {
 				ID: "token_auth_method", Status: diagnosepkg.StatusFail, Expected: "private_key_jwt", Observed: "none", ReasonCode: interop.ReasonTokenAuthMethodMismatch, Message: "mismatch",
 			}},
 			OpenAIReference: &diagnosepkg.ReferencePatternReport{
-				Status: diagnosepkg.StatusFail,
-				Source: "OpenAI authenticated MCP reference pattern",
+				Status:          diagnosepkg.StatusFail,
+				ProfileRevision: "2026-08-10.1",
+				ObservedDate:    "2026-08-10",
+				Source:          "OpenAI authenticated MCP reference pattern",
 				Checks: []diagnosepkg.RuntimeCheck{{
 					ID: "token_auth", Status: diagnosepkg.StatusFail, Expected: "private_key_jwt", Observed: "none", ReasonCode: interop.ReasonTokenAuthMethodMismatch, Message: "mismatch",
 				}},
@@ -78,7 +80,7 @@ func TestWriteDiagnoseReportShowsReferencePatternLayer(t *testing.T) {
 		t.Fatal(err)
 	}
 	text := output.String()
-	for _, expected := range []string{"PREFLIGHT PASS", "RUNTIME EVIDENCE", "SCHEMA", "v2", "TOKEN_AUTH_METHOD_MISMATCH", "OPENAI REFERENCE PATTERN"} {
+	for _, expected := range []string{"PREFLIGHT PASS", "RUNTIME EVIDENCE", "SCHEMA", "v2", "TOKEN_AUTH_METHOD_MISMATCH", "OPENAI REFERENCE PATTERN", "PROFILE_REVISION", "2026-08-10.1", "OBSERVED_DATE", "2026-08-10"} {
 		if !strings.Contains(text, expected) {
 			t.Fatalf("output missing %q:\n%s", expected, text)
 		}
