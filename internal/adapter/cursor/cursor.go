@@ -348,6 +348,8 @@ func requiresOAuth(output string) bool {
 		"requires authentication",
 		"requires oauth",
 		"oauth required",
+		"unauthorized",
+		"401",
 	} {
 		if strings.Contains(lower, marker) {
 			return true
