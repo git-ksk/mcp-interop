@@ -4,6 +4,8 @@ All notable project changes will be summarized here. GitHub Releases remain the 
 
 ## Unreleased
 
+## v0.3.0 — 2026-08-10
+
 ### Fixed
 
 - OpenAI Reference Pattern tool OAuth aggregation now reports partial evidence as WARN instead of N/A when static tool metadata was not observed.
@@ -69,4 +71,4 @@ First public release of `mcp-interop`.
 - Cursor OAuth completion and authenticated tool discovery are not enabled yet.
 - Antigravity OAuth completion is intentionally disabled until credential storage can be proven safely isolated from the macOS Keychain.
 - The Antigravity live adapter is currently macOS-only.
-- VS Code remains research-only pending a supported direct lifecycle/tool-discovery surface.
+- VS Code remains research-only pending a supported direct lifecycle/tool-discovery automation surface.
