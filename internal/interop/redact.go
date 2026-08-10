@@ -72,5 +72,8 @@ func RedactResult(result Result) Result {
 	for i := range result.Stages {
 		result.Stages[i].Message = Redact(result.Stages[i].Message)
 	}
+	for i := range result.Diagnostics {
+		result.Diagnostics[i].Message = Redact(result.Diagnostics[i].Message)
+	}
 	return result
 }
