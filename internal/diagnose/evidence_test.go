@@ -104,3 +104,17 @@ func TestSummarizeRuntimeEvidenceReportsStructureOnly(t *testing.T) {
 		}
 	}
 }
+
+func TestRuntimeEvidenceRejectsCredentialUserInfoInMetadataURL(t *testing.T) {
+	evidence := ChatGPTRuntimeEvidence{
+		SchemaVersion: 3,
+		Registration: &RegistrationEvidence{
+			Strategy:          "cimd",
+			ClientMetadataURL: "https://user:password@example.com/client.json",
+		},
+	}
+	err := evidence.Validate()
+	if err == nil || !strings.Contains(err.Error(), "without userinfo") {
+		t.Fatalf("expected userinfo rejection, got %v", err)
+	}
+}

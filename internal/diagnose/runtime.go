@@ -255,8 +255,8 @@ func (e ChatGPTRuntimeEvidence) Validate() error {
 
 func validateStableHTTPSURL(raw, field string) error {
 	parsed, err := url.Parse(raw)
-	if err != nil || parsed.Scheme != "https" || parsed.Host == "" || parsed.RawQuery != "" || parsed.Fragment != "" {
-		return fmt.Errorf("%s must be a stable HTTPS URL without query or fragment", field)
+	if err != nil || parsed.Scheme != "https" || parsed.Host == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" {
+		return fmt.Errorf("%s must be a stable HTTPS URL without userinfo, query, or fragment", field)
 	}
 	return nil
 }
