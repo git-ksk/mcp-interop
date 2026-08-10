@@ -21,25 +21,47 @@ jobs:
         run: |
           curl -fsSL https://antigravity.google/cli/install.sh | bash
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-      - name: Observe isolated OAuth fixture traffic
+      - name: Probe isolated MCP manager
         shell: bash
         run: |
-          set -u
+          set -eu
           work="$(mktemp -d)"
           trap 'kill "${fixture_pid:-}" 2>/dev/null || true; rm -rf "$work"' EXIT
-          go build -o "$work/mcp-interop" ./cmd/mcp-interop
           go build -o "$work/oauth-fixture" ./internal/e2e/oauthfixture
           "$work/oauth-fixture" --listen 127.0.0.1:0 --ready-file "$work/ready" --log-file "$work/trace" &
           fixture_pid=$!
           for _ in {1..100}; do [[ -s "$work/ready" ]] && break; sleep 0.05; done
           endpoint="$(tr -d '\r\n' < "$work/ready")"
-          agy --version
+          probehome="$work/home"
+          mkdir -p "$probehome/.gemini/config" "$probehome/.gemini/antigravity-cli"
+          python3 - "$endpoint" "$probehome/.gemini/config/mcp_config.json" <<'PY'
+          import json,sys
+          endpoint,path=sys.argv[1:]
+          with open(path,'w') as f:
+              json.dump({'mcpServers':{'mcp-interop-target':{'serverUrl':endpoint}}},f)
+          PY
+          printf '%s\n' '{"altScreenMode":"never","showTips":false,"showFeedbackSurvey":false}' > "$probehome/.gemini/antigravity-cli/settings.json"
           set +e
-          "$work/mcp-interop" test "$endpoint" --client antigravity --json > "$work/result" 2> "$work/stderr"
-          rc=$?
+          (
+            sleep 4
+            printf '/mcp\r'
+            sleep 4
+            printf '\r'
+            sleep 3
+            printf '\003'
+          ) | HOME="$probehome" /usr/bin/script -q "$work/transcript" "$(command -v agy)" >/dev/null 2>&1
           set -e
-          cat "$work/result"
-          cat "$work/stderr" >&2 || true
+          echo "--- secret-safe MCP manager indicators ---"
+          python3 - "$work/transcript" <<'PY'
+          import re,sys
+          data=open(sys.argv[1],'rb').read().decode('utf-8','ignore')
+          data=re.sub(r'\x1b\[[0-?]*[ -/]*[@-~]','',data)
+          data=re.sub(r'https?://\S+','[URL]',data)
+          data=re.sub(r'\b[A-Za-z0-9_-]{24,}\b','[LONG_VALUE]',data)
+          for line in data.splitlines():
+              low=line.lower()
+              if any(k in low for k in ('mcp-interop-target','authenticate','oauth','authentication','mcp server','mcp manager')):
+                  print(line[:500])
+          PY
           echo "--- secret-free fixture trace ---"
           cat "$work/trace" || true
-          echo "mcp-interop rc=$rc"
