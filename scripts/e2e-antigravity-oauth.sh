@@ -23,6 +23,7 @@ watch_pid=""
 cleanup() {
   kill "${interop_pid:-}" "${watch_pid:-}" "${fixture_pid:-}" 2>/dev/null || true
   wait "${interop_pid:-}" "${watch_pid:-}" "${fixture_pid:-}" 2>/dev/null || true
+  /usr/bin/osascript -e 'tell application "Safari" to quit' >/dev/null 2>&1 || true
   [[ "${MCP_INTEROP_KEEP_E2E_TMP:-0}" == "1" ]] || rm -rf "$work_root"
 }
 trap cleanup EXIT INT TERM
@@ -67,14 +68,29 @@ done
 endpoint="$(tr -d '\r\n' < "$ready")"
 origin="${endpoint%/mcp}"
 
-# Observe only the short-lived localhost authorization URL passed by Antigravity
-# to macOS' browser launcher. It stays in this private temp directory and is
-# never printed or persisted in mcp-interop diagnostics.
+# The real agy 1.1.11 client launches the browser through macOS LaunchServices,
+# so the short-lived launcher process is not a reliable observation point. This
+# hosted-CI-only gate reads the current URL from the disposable Safari instance,
+# accepts only this localhost fixture's /authorize URL, writes it to a private
+# 0600 temp file, and never emits it to logs or mcp-interop diagnostics.
 (
-  for _ in {1..5000}; do
-    /bin/ps -axo command= 2>/dev/null | python3 scripts/capture_loopback_auth_url.py "$origin" "$auth_url_file" >/dev/null 2>&1 || true
+  for _ in {1..600}; do
+    safari_url="$(/usr/bin/osascript -e 'tell application "Safari" to if (count of documents) > 0 then return URL of front document' 2>/dev/null || true)"
+    if [[ -n "$safari_url" ]]; then
+      python3 - "$safari_url" "$origin" "$auth_url_file" <<'PY'
+import os,sys,urllib.parse
+raw,origin,out=sys.argv[1:]
+u=urllib.parse.urlparse(raw)
+expected=urllib.parse.urlparse(origin)
+if u.scheme=='http' and u.hostname==expected.hostname and u.port==expected.port and u.path=='/authorize':
+    if not os.path.exists(out):
+        fd=os.open(out,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)
+        with os.fdopen(fd,'w') as f:
+            f.write(raw)
+PY
+    fi
     [[ -s "$auth_url_file" ]] && exit 0
-    sleep 0.005
+    sleep 0.05
   done
 ) &
 watch_pid=$!
@@ -128,6 +144,7 @@ interop_pid=""
 kill "$watch_pid" 2>/dev/null || true
 wait "$watch_pid" 2>/dev/null || true
 watch_pid=""
+/usr/bin/osascript -e 'tell application "Safari" to quit' >/dev/null 2>&1 || true
 
 cat "$result"
 if [[ "$rc" -ne 0 ]]; then
