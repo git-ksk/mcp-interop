@@ -1,0 +1,22 @@
+name: Temporary Cursor OAuth E2E
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  cursor-oauth:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: [self-hosted, macOS, ARM64, mcp-interop-e2e]
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Cursor OAuth real-client gate
+        run: bash scripts/e2e-cursor-oauth.sh
