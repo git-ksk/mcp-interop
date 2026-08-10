@@ -1,0 +1,122 @@
+#!/usr/bin/env bash
+set -u
+set -o pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$repo_root" || exit 1
+[[ "$(uname -s)" == "Darwin" ]] || { echo "Antigravity OAuth E2E requires macOS" >&2; exit 2; }
+command -v agy >/dev/null 2>&1 || { echo "Antigravity CLI missing" >&2; exit 2; }
+
+work_root="$(mktemp -d "${TMPDIR:-/tmp}/mcp-antigravity-oauth.XXXXXX")" || exit 1
+interop_bin="$work_root/mcp-interop"
+fixture_bin="$work_root/oauth-fixture"
+ready="$work_root/ready"
+trace="$work_root/fixture.jsonl"
+result="$work_root/result.json"
+terminal="$work_root/terminal-private.log"
+input_fifo="$work_root/input"
+code_file="$work_root/auth-code"
+fixture_pid=""
+interop_pid=""
+cleanup() {
+  kill "${interop_pid:-}" "${fixture_pid:-}" 2>/dev/null || true
+  wait "${interop_pid:-}" "${fixture_pid:-}" 2>/dev/null || true
+  /usr/bin/osascript -e 'tell application "Safari" to quit' >/dev/null 2>&1 || true
+  [[ "${MCP_INTEROP_KEEP_E2E_TMP:-0}" == "1" ]] || rm -rf "$work_root"
+}
+trap cleanup EXIT INT TERM
+
+snapshot() {
+  local out="$1"
+  : > "$out"
+  for path in \
+    "$HOME/.gemini/config/mcp_config.json" \
+    "$HOME/.gemini/antigravity/mcp_oauth_tokens.json" \
+    "$HOME/.gemini/antigravity-cli/settings.json" \
+    "$HOME/Library/Keychains/login.keychain-db"; do
+    if [[ -f "$path" ]]; then
+      printf '%s\t%s\t%s\n' "$path" "$(stat -f '%m:%z' "$path")" "$(shasum -a 256 "$path" | awk '{print $1}')" >> "$out"
+    else
+      printf '%s\tmissing\n' "$path" >> "$out"
+    fi
+  done
+  sort -o "$out" "$out"
+}
+
+fixture_trace() {
+  echo "--- secret-free OAuth fixture trace ---" >&2
+  if [[ -s "$trace" ]]; then cat "$trace" >&2; else echo "(no fixture requests observed)" >&2; fi
+}
+
+go build -o "$interop_bin" ./cmd/mcp-interop || exit 1
+go build -o "$fixture_bin" ./internal/e2e/oauthfixture || exit 1
+before="$work_root/before"
+after="$work_root/after"
+snapshot "$before"
+before_pids="$(pgrep -x agy 2>/dev/null | sort -n | tr '\n' ' ' || true)"
+
+# The private authorization-code file is a localhost-fixture test hook. It is
+# written only after the real Antigravity/browser path reaches /authorize and
+# is never included in fixture logs or mcp-interop diagnostics.
+"$fixture_bin" --listen 127.0.0.1:0 --ready-file "$ready" --log-file "$trace" --authorization-code-file "$code_file" &
+fixture_pid=$!
+for _ in {1..100}; do
+  [[ -s "$ready" ]] && break
+  kill -0 "$fixture_pid" 2>/dev/null || { echo "OAuth fixture exited" >&2; exit 1; }
+  sleep 0.05
+done
+[[ -s "$ready" ]] || { echo "OAuth fixture not ready" >&2; exit 1; }
+endpoint="$(tr -d '\r\n' < "$ready")"
+
+mkfifo "$input_fifo"
+set +e
+"$interop_bin" test "$endpoint" --client antigravity --oauth --json < "$input_fifo" > "$result" 2> "$terminal" &
+interop_pid=$!
+exec 3> "$input_fifo"
+set -e
+
+for _ in {1..300}; do
+  [[ -s "$code_file" ]] && break
+  kill -0 "$interop_pid" 2>/dev/null || break
+  sleep 0.1
+done
+if [[ ! -s "$code_file" ]]; then
+  echo "Antigravity/browser path did not reach the fixture authorization endpoint" >&2
+  fixture_trace
+  exit 1
+fi
+
+cat "$code_file" >&3
+printf '\r' >&3
+exec 3>&-
+set +e
+wait "$interop_pid"
+rc=$?
+set -e
+interop_pid=""
+/usr/bin/osascript -e 'tell application "Safari" to quit' >/dev/null 2>&1 || true
+
+cat "$result"
+if [[ "$rc" -ne 0 ]]; then
+  echo "Antigravity OAuth test returned $rc" >&2
+  fixture_trace
+  exit 1
+fi
+[[ "$(grep -c '"status": "pass"' "$result" || true)" -eq 4 ]] || { echo "Antigravity did not pass all four stages" >&2; fixture_trace; exit 1; }
+grep -Fq 'persisted MCP OAuth state only inside the isolated HOME' "$result" || { echo "isolated OAuth persistence evidence missing" >&2; exit 1; }
+grep -Fq '"method":"POST","path":"/register"' "$trace" || { echo "DCR not observed" >&2; fixture_trace; exit 1; }
+grep -Fq '"method":"GET","path":"/authorize"' "$trace" || { echo "authorization request not observed" >&2; fixture_trace; exit 1; }
+grep -Fq '"method":"POST","path":"/token"' "$trace" || { echo "token exchange not observed" >&2; fixture_trace; exit 1; }
+grep -Fq '"method":"POST","path":"/mcp"' "$trace" || { echo "MCP request not observed" >&2; fixture_trace; exit 1; }
+if grep -Eq 'fixture-(code|token)-' "$result" "$trace" 2>/dev/null; then
+  echo "OAuth secret material leaked into persisted E2E evidence" >&2
+  exit 1
+fi
+
+sleep 0.3
+snapshot "$after"
+cmp -s "$before" "$after" || { echo "normal Antigravity/Keychain state changed" >&2; diff -u "$before" "$after" >&2 || true; exit 1; }
+after_pids="$(pgrep -x agy 2>/dev/null | sort -n | tr '\n' ' ' || true)"
+[[ "$before_pids" == "$after_pids" ]] || { echo "Antigravity process set changed: before=$before_pids after=$after_pids" >&2; exit 1; }
+
+echo "READY: Antigravity OAuth real-client E2E passed."

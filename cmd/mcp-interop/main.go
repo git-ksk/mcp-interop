@@ -35,12 +35,12 @@ Commands:
   version    Print mcp-interop build version information.
 
 Test options:
-  --oauth   Opt in to interactive OAuth where the live adapter supports it (Codex and Cursor).
+  --oauth   Opt in to interactive OAuth where the live adapter supports it (Codex, Cursor, and Antigravity on macOS).
 
 Current live adapters:
   codex        Codex CLI via its app-server MCP inventory surface.
   cursor       Cursor CLI via mcp login/list/list-tools with isolated OAuth opt-in.
-  antigravity  Antigravity CLI beta via isolated no-prompt PTY/tool-cache observation on macOS.
+  antigravity  Antigravity CLI beta via isolated macOS PTY/tool-cache observation and opt-in MCP OAuth manager.
 `
 
 func main() {
@@ -213,10 +213,11 @@ func runTest(ctx context.Context, args []string) int {
 				hadFailure = true
 				continue
 			}
+			adapterOptions := make([]antigravityadapter.Option, 0, 1)
 			if options.oauth {
-				fmt.Fprintln(os.Stderr, "Antigravity OAuth completion is not enabled; the beta adapter does not write MCP OAuth credentials or automate authorization.")
+				adapterOptions = append(adapterOptions, antigravityadapter.WithOAuth())
 			}
-			adapter := antigravityadapter.New(detection.Path, detection.Version)
+			adapter := antigravityadapter.New(detection.Path, detection.Version, adapterOptions...)
 			result, runErr := interop.NewRunner().Run(ctx, adapter, interop.Target{Endpoint: options.endpoint})
 			results = append(results, result)
 			if runErr != nil {

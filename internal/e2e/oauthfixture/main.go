@@ -25,12 +25,13 @@ import (
 const fixtureScope = "fixture.read"
 
 type server struct {
-	baseURL string
-	log     io.Writer
-	mu      sync.Mutex
-	clients map[string][]string
-	codes   map[string]authorizationCode
-	tokens  map[string]struct{}
+	baseURL  string
+	log      io.Writer
+	codeFile string
+	mu       sync.Mutex
+	clients  map[string][]string
+	codes    map[string]authorizationCode
+	tokens   map[string]struct{}
 }
 
 type authorizationCode struct {
@@ -55,14 +56,15 @@ func main() {
 	listen := flag.String("listen", "127.0.0.1:0", "loopback listen address")
 	readyFile := flag.String("ready-file", "", "write MCP endpoint when ready")
 	logFile := flag.String("log-file", "", "append secret-free request records")
+	codeFile := flag.String("authorization-code-file", "", "write the generated authorization code to a private E2E file")
 	flag.Parse()
-	if err := run(*listen, *readyFile, *logFile); err != nil {
+	if err := run(*listen, *readyFile, *logFile, *codeFile); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
 
-func run(listenAddr, readyFile, logFile string) error {
+func run(listenAddr, readyFile, logFile, codeFile string) error {
 	if err := requireLoopback(listenAddr); err != nil {
 		return err
 	}
@@ -87,13 +89,19 @@ func run(listenAddr, readyFile, logFile string) error {
 		defer handle.Close()
 		logWriter = handle
 	}
+	if codeFile != "" {
+		if err := os.MkdirAll(filepath.Dir(codeFile), 0o700); err != nil {
+			return err
+		}
+	}
 
 	handler := &server{
-		baseURL: baseURL,
-		log:     logWriter,
-		clients: map[string][]string{},
-		codes:   map[string]authorizationCode{},
-		tokens:  map[string]struct{}{},
+		baseURL:  baseURL,
+		log:      logWriter,
+		codeFile: codeFile,
+		clients:  map[string][]string{},
+		codes:    map[string]authorizationCode{},
+		tokens:   map[string]struct{}{},
 	}
 	httpServer := &http.Server{Handler: handler, ReadHeaderTimeout: 5 * time.Second}
 	if readyFile != "" {
@@ -240,12 +248,26 @@ func (s *server) authorize(w http.ResponseWriter, r *http.Request) {
 	s.mu.Lock()
 	s.codes[code] = authorizationCode{clientID: clientID, redirectURI: redirectURI, codeChallenge: challenge}
 	s.mu.Unlock()
+	if err := s.persistAuthorizationCode(code); err != nil {
+		s.mu.Lock()
+		delete(s.codes, code)
+		s.mu.Unlock()
+		http.Error(w, "failed to persist private fixture authorization code", http.StatusInternalServerError)
+		return
+	}
 	callback, _ := url.Parse(redirectURI)
 	params := callback.Query()
 	params.Set("code", code)
 	params.Set("state", state)
 	callback.RawQuery = params.Encode()
 	http.Redirect(w, r, callback.String(), http.StatusFound)
+}
+
+func (s *server) persistAuthorizationCode(code string) error {
+	if s.codeFile == "" {
+		return nil
+	}
+	return os.WriteFile(s.codeFile, []byte(code), 0o600)
 }
 
 func (s *server) token(w http.ResponseWriter, r *http.Request) {
@@ -272,14 +294,16 @@ func (s *server) token(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	accessToken := "fixture-token-" + randomValue()
+	refreshToken := "fixture-refresh-" + randomValue()
 	s.mu.Lock()
 	s.tokens[accessToken] = struct{}{}
 	s.mu.Unlock()
 	writeJSON(w, http.StatusOK, map[string]any{
-		"access_token": accessToken,
-		"token_type":   "Bearer",
-		"expires_in":   300,
-		"scope":        fixtureScope,
+		"access_token":  accessToken,
+		"refresh_token": refreshToken,
+		"token_type":    "Bearer",
+		"expires_in":    3600,
+		"scope":         fixtureScope,
 	})
 }
 
