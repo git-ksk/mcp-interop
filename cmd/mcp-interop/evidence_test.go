@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -58,12 +59,14 @@ func TestRunEvidenceMergeWritesCanonicalV3WithPrivateNewFileMode(t *testing.T) {
 	if evidence.SchemaVersion != 3 || evidence.ToolAuth != nil || evidence.ToolMetadata == nil || evidence.ToolChallenge == nil {
 		t.Fatalf("evidence=%#v", evidence)
 	}
-	info, err := os.Stat(output)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if info.Mode().Perm() != 0o600 {
-		t.Fatalf("output mode=%#o, want 0600", info.Mode().Perm())
+	if runtime.GOOS != "windows" {
+		info, err := os.Stat(output)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if info.Mode().Perm() != 0o600 {
+			t.Fatalf("output mode=%#o, want 0600", info.Mode().Perm())
+		}
 	}
 }
 
