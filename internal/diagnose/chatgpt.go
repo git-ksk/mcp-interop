@@ -27,6 +27,7 @@ const (
 	StatusPass Status = "pass"
 	StatusWarn Status = "warn"
 	StatusFail Status = "fail"
+	StatusNA   Status = "not_applicable"
 )
 
 type Check struct {

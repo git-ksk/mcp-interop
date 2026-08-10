@@ -4,6 +4,16 @@ All notable project changes will be summarized here. GitHub Releases remain the 
 
 ## Unreleased
 
+### Added
+
+- Runtime Evidence coverage counters (`observed`, `passed`, `failed`, `unknown`, `not_applicable`) in JSON and text diagnostics.
+- Explicit `not_applicable` runtime-check status, rendered as `N/A`, for observations whose trigger condition did not occur in the captured flow.
+
+### Changed
+
+- Tool-level OAuth diagnostics now evaluate per-tool OAuth `securitySchemes` independently from runtime reauthorization challenges. An explicitly missing OAuth security scheme is a failure even when the current grant already satisfies the tool.
+- `mcp/www_authenticate` is `N/A` rather than `WARN` when sanitized evidence explicitly says no reauthorization challenge was expected. OpenAI reference aggregation ignores `N/A` checks when deciding whether all applicable supplied observations passed.
+
 ## v0.2.0 — 2026-08-10
 
 ### Added

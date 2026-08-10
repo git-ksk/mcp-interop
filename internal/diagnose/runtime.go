@@ -235,6 +235,14 @@ type ReferencePatternReport struct {
 	Checks []RuntimeCheck `json:"checks"`
 }
 
+type EvidenceCoverage struct {
+	Observed      int `json:"observed"`
+	Passed        int `json:"passed"`
+	Failed        int `json:"failed"`
+	Unknown       int `json:"unknown"`
+	NotApplicable int `json:"not_applicable"`
+}
+
 type RuntimeEvidenceReport struct {
 	SchemaVersion        int                     `json:"schema_version"`
 	RegistrationStrategy string                  `json:"registration_strategy,omitempty"`
@@ -242,6 +250,7 @@ type RuntimeEvidenceReport struct {
 	Status               Status                  `json:"status"`
 	ReasonCode           interop.ReasonCode      `json:"reason_code,omitempty"`
 	Checks               []RuntimeCheck          `json:"checks"`
+	Coverage             EvidenceCoverage        `json:"coverage"`
 	OpenAIReference      *ReferencePatternReport `json:"openai_reference_pattern,omitempty"`
 }
 
@@ -272,6 +281,7 @@ func evaluateRuntimeEvidence(report *Report, evidence ChatGPTRuntimeEvidence) {
 	evaluateTokenRequest(report, runtime, evidence)
 	evaluateResourceRequest(runtime, evidence.ResourceRequest)
 	evaluateToolAuth(runtime, evidence.ToolAuth)
+	runtime.Coverage = coverageForChecks(runtime.Checks)
 	runtime.OpenAIReference = buildOpenAIReferencePattern(runtime)
 	report.RuntimeEvidence = runtime
 }
@@ -391,20 +401,18 @@ func evaluateToolAuth(runtime *RuntimeEvidenceReport, evidence *ToolAuthEvidence
 
 	metadata := RuntimeCheck{
 		ID:       "tool_oauth_security_scheme",
-		Expected: "oauth2 securitySchemes metadata when tool-level OAuth is required",
+		Expected: "oauth2 securitySchemes metadata for an OAuth-protected tool",
 		Observed: boolObservation(evidence.OAuth2SecuritySchemePresent),
-		Message:  "ChatGPT tool-level OAuth linking uses per-tool securitySchemes metadata",
+		Message:  "Per-tool OAuth metadata is independent of whether the current grant already satisfies the tool",
 	}
 	switch {
 	case evidence.OAuth2SecuritySchemePresent == nil:
 		metadata.Status = StatusWarn
 	case *evidence.OAuth2SecuritySchemePresent:
 		metadata.Status = StatusPass
-	case challengeExpected:
+	default:
 		metadata.Status = StatusFail
 		metadata.ReasonCode = interop.ReasonToolOAuthMetadataMissing
-	default:
-		metadata.Status = StatusWarn
 	}
 	runtime.add(metadata)
 
@@ -415,6 +423,11 @@ func evaluateToolAuth(runtime *RuntimeEvidenceReport, evidence *ToolAuthEvidence
 		Message:  "Runtime tool errors use _meta[mcp/www_authenticate] to trigger ChatGPT's tool-level OAuth UI",
 	}
 	switch {
+	case evidence.ChallengeExpected != nil && !*evidence.ChallengeExpected:
+		challenge.Status = StatusNA
+		challenge.Expected = "not required for the observed authorized tool call"
+		challenge.Observed = "not applicable"
+		challenge.Message = "The current authorization already satisfied the tool, so no reauthorization challenge was expected"
 	case evidence.WWWAuthenticatePresent == nil:
 		challenge.Status = StatusWarn
 	case *evidence.WWWAuthenticatePresent:
@@ -427,7 +440,7 @@ func evaluateToolAuth(runtime *RuntimeEvidenceReport, evidence *ToolAuthEvidence
 	}
 	runtime.add(challenge)
 
-	if evidence.WWWAuthenticatePresent != nil && *evidence.WWWAuthenticatePresent {
+	if challengeExpected && evidence.WWWAuthenticatePresent != nil && *evidence.WWWAuthenticatePresent {
 		validateToolChallenge(runtime, evidence.WWWAuthenticateHasError, "tool_oauth_challenge_error", "error parameter")
 		validateToolChallenge(runtime, evidence.WWWAuthenticateHasErrorDescription, "tool_oauth_challenge_error_description", "error_description parameter")
 	}
@@ -491,6 +504,7 @@ func firstReferenceCheck(runtime *RuntimeEvidenceReport, ids []string, outputID 
 func aggregateReferenceChecks(runtime *RuntimeEvidenceReport, ids []string, outputID string) RuntimeCheck {
 	result := RuntimeCheck{ID: outputID, Status: StatusWarn, Expected: "all applicable checks pass", Observed: "unknown", Message: "No sanitized runtime observation was supplied for this OpenAI reference-pattern boundary"}
 	found := 0
+	applicable := 0
 	passed := 0
 	for _, id := range ids {
 		for _, check := range runtime.Checks {
@@ -498,6 +512,10 @@ func aggregateReferenceChecks(runtime *RuntimeEvidenceReport, ids []string, outp
 				continue
 			}
 			found++
+			if check.Status == StatusNA {
+				continue
+			}
+			applicable++
 			if check.Status == StatusFail {
 				result.Status = StatusFail
 				result.Observed = "failed"
@@ -510,15 +528,38 @@ func aggregateReferenceChecks(runtime *RuntimeEvidenceReport, ids []string, outp
 			}
 		}
 	}
-	if found > 0 && passed == found {
+	if found > 0 && applicable == 0 {
+		result.Status = StatusNA
+		result.Observed = "not applicable"
+		result.Message = "No checks in this OpenAI reference-pattern boundary applied to the observed flow"
+	} else if applicable > 0 && passed == applicable {
 		result.Status = StatusPass
 		result.Observed = "passed"
-		result.Message = "All supplied observations for this OpenAI reference-pattern boundary passed"
+		result.Message = "All applicable supplied observations for this OpenAI reference-pattern boundary passed"
 	} else if found > 0 {
 		result.Observed = "partial"
-		result.Message = "Some observations for this OpenAI reference-pattern boundary remain unknown"
+		result.Message = "Some applicable observations for this OpenAI reference-pattern boundary remain unknown"
 	}
 	return result
+}
+
+func coverageForChecks(checks []RuntimeCheck) EvidenceCoverage {
+	var coverage EvidenceCoverage
+	for _, check := range checks {
+		switch check.Status {
+		case StatusPass:
+			coverage.Observed++
+			coverage.Passed++
+		case StatusFail:
+			coverage.Observed++
+			coverage.Failed++
+		case StatusNA:
+			coverage.NotApplicable++
+		default:
+			coverage.Unknown++
+		}
+	}
+	return coverage
 }
 
 func (r *ReferencePatternReport) add(check RuntimeCheck) {

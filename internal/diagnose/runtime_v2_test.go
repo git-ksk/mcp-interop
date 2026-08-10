@@ -162,8 +162,67 @@ func TestRuntimeEvidenceV2DetectsToolOAuthSignalFailures(t *testing.T) {
 	if report.RuntimeEvidence == nil || report.RuntimeEvidence.ReasonCode != interop.ReasonToolOAuthMetadataMissing {
 		t.Fatalf("runtime=%#v", report.RuntimeEvidence)
 	}
-	assertRuntimeCheck(t, *report.RuntimeEvidence, "tool_oauth_security_scheme", StatusFail, "oauth2 securitySchemes metadata when tool-level OAuth is required", "false")
+	assertRuntimeCheck(t, *report.RuntimeEvidence, "tool_oauth_security_scheme", StatusFail, "oauth2 securitySchemes metadata for an OAuth-protected tool", "false")
 	assertRuntimeCheck(t, *report.RuntimeEvidence, "tool_oauth_www_authenticate", StatusFail, "mcp/www_authenticate challenge when reauthorization is required", "false")
+}
+
+func TestRuntimeEvidenceV2MarksToolChallengeNotApplicableWhenGrantAlreadySatisfiesTool(t *testing.T) {
+	report := referenceCIMDReport()
+	evidence := ChatGPTRuntimeEvidence{
+		SchemaVersion: 2,
+		Registration: &RegistrationEvidence{
+			Strategy:          "cimd",
+			ClientMetadataURL: "https://chatgpt.com/oauth/test/client.json",
+		},
+		ToolAuth: &ToolAuthEvidence{
+			ChallengeExpected:           boolPtr(false),
+			OAuth2SecuritySchemePresent: boolPtr(true),
+		},
+	}
+	evaluateRuntimeEvidence(&report, evidence)
+	if report.RuntimeEvidence == nil {
+		t.Fatal("missing runtime evidence")
+	}
+	assertRuntimeCheck(t, *report.RuntimeEvidence, "tool_oauth_security_scheme", StatusPass, "oauth2 securitySchemes metadata for an OAuth-protected tool", "true")
+	assertRuntimeCheck(t, *report.RuntimeEvidence, "tool_oauth_www_authenticate", StatusNA, "not required for the observed authorized tool call", "not applicable")
+	coverage := report.RuntimeEvidence.Coverage
+	if coverage.NotApplicable != 1 || coverage.Failed != 0 || coverage.Unknown != 0 {
+		t.Fatalf("coverage=%#v", coverage)
+	}
+	if report.RuntimeEvidence.OpenAIReference == nil {
+		t.Fatal("missing OpenAI reference report")
+	}
+	var toolSignals *RuntimeCheck
+	for i := range report.RuntimeEvidence.OpenAIReference.Checks {
+		if report.RuntimeEvidence.OpenAIReference.Checks[i].ID == "tool_oauth_signals" {
+			toolSignals = &report.RuntimeEvidence.OpenAIReference.Checks[i]
+			break
+		}
+	}
+	if toolSignals == nil || toolSignals.Status != StatusPass {
+		t.Fatalf("tool oauth reference=%#v", toolSignals)
+	}
+}
+
+func TestRuntimeEvidenceV2MetadataMissingFailsEvenWhenChallengeNotExpected(t *testing.T) {
+	report := referenceCIMDReport()
+	evidence := ChatGPTRuntimeEvidence{
+		SchemaVersion: 2,
+		Registration: &RegistrationEvidence{
+			Strategy:          "cimd",
+			ClientMetadataURL: "https://chatgpt.com/oauth/test/client.json",
+		},
+		ToolAuth: &ToolAuthEvidence{
+			ChallengeExpected:           boolPtr(false),
+			OAuth2SecuritySchemePresent: boolPtr(false),
+		},
+	}
+	evaluateRuntimeEvidence(&report, evidence)
+	if report.RuntimeEvidence == nil || report.RuntimeEvidence.ReasonCode != interop.ReasonToolOAuthMetadataMissing {
+		t.Fatalf("runtime=%#v", report.RuntimeEvidence)
+	}
+	assertRuntimeCheck(t, *report.RuntimeEvidence, "tool_oauth_security_scheme", StatusFail, "oauth2 securitySchemes metadata for an OAuth-protected tool", "false")
+	assertRuntimeCheck(t, *report.RuntimeEvidence, "tool_oauth_www_authenticate", StatusNA, "not required for the observed authorized tool call", "not applicable")
 }
 
 func TestRuntimeEvidenceV2RejectsUnknownSecretBearingFields(t *testing.T) {

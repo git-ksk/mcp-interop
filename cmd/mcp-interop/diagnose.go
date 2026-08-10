@@ -172,6 +172,13 @@ func writeDiagnoseReport(output io.Writer, report diagnosepkg.Report) error {
 			fmt.Fprintf(writer, "REGISTRATION\t%s\n", report.RuntimeEvidence.RegistrationStrategy)
 		}
 		fmt.Fprintf(writer, "VERDICT\t%s\n", runtimeVerdict)
+		fmt.Fprintf(writer, "COVERAGE\tobserved=%d passed=%d failed=%d unknown=%d not_applicable=%d\n",
+			report.RuntimeEvidence.Coverage.Observed,
+			report.RuntimeEvidence.Coverage.Passed,
+			report.RuntimeEvidence.Coverage.Failed,
+			report.RuntimeEvidence.Coverage.Unknown,
+			report.RuntimeEvidence.Coverage.NotApplicable,
+		)
 		if report.RuntimeEvidence.ReasonCode != "" {
 			fmt.Fprintf(writer, "REASON\t%s\n", report.RuntimeEvidence.ReasonCode)
 		}
@@ -202,6 +209,8 @@ func diagnosticStatusLabel(status diagnosepkg.Status) string {
 		return "FAIL"
 	case diagnosepkg.StatusWarn:
 		return "WARN"
+	case diagnosepkg.StatusNA:
+		return "N/A"
 	default:
 		return "PASS"
 	}
@@ -212,7 +221,7 @@ func writeRuntimeCheck(writer *tabwriter.Writer, check diagnosepkg.RuntimeCheck)
 	if check.ReasonCode != "" {
 		detail = string(check.ReasonCode) + ": " + detail
 	}
-	fmt.Fprintf(writer, "%s\t%s\t%s\t%s\t%s\n", check.ID, strings.ToUpper(string(check.Status)), check.Expected, check.Observed, detail)
+	fmt.Fprintf(writer, "%s\t%s\t%s\t%s\t%s\n", check.ID, diagnosticStatusLabel(check.Status), check.Expected, check.Observed, detail)
 }
 
 func readRuntimeEvidence(path string) (diagnosepkg.ChatGPTRuntimeEvidence, error) {
