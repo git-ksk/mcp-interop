@@ -4,6 +4,10 @@ All notable project changes will be summarized here. GitHub Releases remain the 
 
 ## Unreleased
 
+### Fixed
+
+- OpenAI Reference Pattern tool OAuth aggregation now reports partial evidence as WARN instead of N/A when static tool metadata was not observed.
+
 ### Added
 
 - Controlled loopback OAuth scope fixture with `fixture.read` / `fixture.write`, insufficient-scope tool challenges, and an explicit release gate.
