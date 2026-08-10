@@ -152,3 +152,31 @@ func TestWriteDiagnoseReportSeparatesPreflightAndRuntimeFailure(t *testing.T) {
 		}
 	}
 }
+
+func TestWriteDiagnoseReportPrintsEvidenceCoverageAndNA(t *testing.T) {
+	report := diagnosepkg.Report{
+		Profile:  "chatgpt",
+		Endpoint: "https://example.com/mcp",
+		Checks: []diagnosepkg.Check{
+			{ID: "endpoint_https", Status: diagnosepkg.StatusPass, Blocking: true, Message: "ok"},
+		},
+		RuntimeEvidence: &diagnosepkg.RuntimeEvidenceReport{
+			Status:   diagnosepkg.StatusPass,
+			Coverage: diagnosepkg.EvidenceCoverage{Observed: 1, Passed: 1, NotApplicable: 1},
+			Checks: []diagnosepkg.RuntimeCheck{
+				{ID: "tool_oauth_security_scheme", Status: diagnosepkg.StatusPass, Expected: "present", Observed: "true", Message: "ok"},
+				{ID: "tool_oauth_www_authenticate", Status: diagnosepkg.StatusNA, Expected: "not required", Observed: "not applicable", Message: "authorized"},
+			},
+		},
+	}
+	var output bytes.Buffer
+	if err := writeDiagnoseReport(&output, report); err != nil {
+		t.Fatal(err)
+	}
+	text := output.String()
+	for _, want := range []string{"COVERAGE", "observed=1", "not_applicable=1", "N/A", "not applicable"} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("diagnose output missing %q:\n%s", want, text)
+		}
+	}
+}

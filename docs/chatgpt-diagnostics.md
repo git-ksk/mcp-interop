@@ -189,7 +189,12 @@ OpenAI documents two halves for ChatGPT's tool-level OAuth linking UI:
 
 `tool_auth` evidence can record only the presence/shape signals. `mcp-interop` does **not** call tools merely to obtain this evidence.
 
-If `challenge_expected=true`, an explicitly missing OAuth security scheme or runtime challenge can be classified. If the observation was not captured, the result stays `WARN / unknown` rather than guessing.
+The two tool-level boundaries are evaluated independently:
+
+- `oauth2_security_scheme_present` describes static per-tool OAuth metadata and remains applicable even when the current grant already has sufficient scope. If it is explicitly observed as absent, the result is `TOOL_OAUTH_METADATA_MISSING`.
+- `www_authenticate_present` describes a runtime reauthorization challenge. When `challenge_expected=false`, this check is `N/A`; no challenge was required for the observed authorized call. When `challenge_expected=true`, an explicitly missing challenge is `TOOL_OAUTH_CHALLENGE_MISSING`.
+
+If a signal was not captured, the result stays `WARN / unknown` rather than guessing.
 
 ## OpenAI Reference Pattern
 
@@ -231,6 +236,20 @@ REASON   TOKEN_AUTH_METHOD_MISMATCH
 or a failing OpenAI Reference Pattern summary.
 
 The CLI exits non-zero when supplied Runtime Evidence contains a conclusive failure. Missing observations generally become `WARN / unknown`.
+
+Runtime checks distinguish three non-failure states:
+
+- `PASS` — the supplied observation conclusively matched the expected behavior.
+- `WARN / unknown` — the relevant signal was not observed or was not conclusive.
+- `N/A / not_applicable` — the signal had a known trigger condition and that condition explicitly did not occur in the captured flow.
+
+The Runtime Evidence report also includes coverage counters, for example:
+
+```text
+COVERAGE  observed=10 passed=10 failed=0 unknown=1 not_applicable=1
+```
+
+The JSON report exposes the same values under `runtime_evidence.coverage`. `observed` counts conclusive `PASS` and `FAIL` checks; warnings and not-applicable checks are tracked separately.
 
 Even `PREFLIGHT PASS` + Runtime Evidence `PASS` does **not** prove the real ChatGPT product completed OAuth, MCP initialization, or tool discovery.
 

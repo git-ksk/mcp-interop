@@ -191,7 +191,12 @@ OpenAIの現在の仕様ではChatGPTのtool-level OAuth linking UIに、少な�
 
 `tool_auth`ではpresence/shapeだけを渡します。**この証拠を取るためにmcp-interopが勝手にtoolをcallすることはありません。**
 
-`challenge_expected=true`なのにoauth2 schemeやruntime challengeが明示的に欠けていれば分類できます。観測していない場合はFAILを推測せず`WARN / unknown`です。
+2つのtool-level境界は独立して評価します。
+
+- `oauth2_security_scheme_present`は静的なper-tool OAuth metadataです。現在のgrantが十分なscopeを持つ場合でも適用対象で、明示的に欠落していれば`TOOL_OAUTH_METADATA_MISSING`です。
+- `www_authenticate_present`はruntime reauthorization challengeです。`challenge_expected=false`ならこのcheckは`N/A`です。`challenge_expected=true`なのに明示的にchallengeが無ければ`TOOL_OAUTH_CHALLENGE_MISSING`です。
+
+signal自体を観測できていない場合はFAILを推測せず`WARN / unknown`です。
 
 ## OpenAI Reference Pattern
 
@@ -235,6 +240,20 @@ REASON   TOKEN_AUTH_METHOD_MISMATCH
 になれます。
 
 Runtime EvidenceでconclusiveなFAILがあればCLI exit codeはnon-zeroです。未観測signalは原則`WARN / unknown`です。
+
+非FAIL状態は意味を分けます。
+
+- `PASS` — observationが期待動作と明確に一致した。
+- `WARN / unknown` — signalが未観測、または結論を出せない。
+- `N/A / not_applicable` — signalには発生条件があり、その条件が今回のflowでは明示的に発生していない。
+
+Runtime Evidence reportにはcoverageも表示します。
+
+```text
+COVERAGE  observed=10 passed=10 failed=0 unknown=1 not_applicable=1
+```
+
+JSONでも同じ値を`runtime_evidence.coverage`に出力します。`observed`は結論が出た`PASS`と`FAIL`の合計で、WARNとN/Aは別集計です。
 
 **Preflight PASS + Runtime Evidence PASSでも、実ChatGPT productがOAuth、MCP initialize、tool discoveryを完遂した証明にはなりません。**
 
