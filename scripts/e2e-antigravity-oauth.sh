@@ -72,20 +72,7 @@ origin="${endpoint%/mcp}"
 # never printed or persisted in mcp-interop diagnostics.
 (
   for _ in {1..5000}; do
-    /bin/ps -axo command= 2>/dev/null | python3 - "$origin" "$auth_url_file" <<'PY'
-import os,re,sys,urllib.parse
-origin,out=sys.argv[1:]
-expected=urllib.parse.urlparse(origin)
-data=sys.stdin.read()
-for raw in re.findall(r"https?://[^\s<>\"']+",data):
-    raw=raw.rstrip(').,;]}')
-    u=urllib.parse.urlparse(raw)
-    if u.scheme=='http' and u.hostname==expected.hostname and u.port==expected.port and u.path=='/authorize':
-        if not os.path.exists(out):
-            fd=os.open(out,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)
-            with os.fdopen(fd,'w') as f: f.write(raw)
-        raise SystemExit(0)
-PY
+    /bin/ps -axo command= 2>/dev/null | python3 scripts/capture_loopback_auth_url.py "$origin" "$auth_url_file" >/dev/null 2>&1 || true
     [[ -s "$auth_url_file" ]] && exit 0
     sleep 0.005
   done
