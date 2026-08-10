@@ -59,11 +59,11 @@ stableな判定ルールは[Reason code](reason-codes.ja.md)を参照してく�
 
 ### Cursor
 
-v0.1.xではCursor OAuth完遂は未対応です。beta adapterでno-auth endpointは検証できますが、OAuth-required targetはauthenticated pathが正式実装されるまでincompleteになります。
+v0.2.0でもCursor OAuth完遂は未対応です。beta adapterでno-auth endpointは検証できますが、OAuth-required targetはauthenticated pathが正式実装されるまでincompleteになります。
 
 ### Antigravity
 
-v0.1.xでは自動OAuth完遂を意図的に無効化しています。OAuth discoveryまでは観測済みですが、通常のmacOS Keychainからcredentialを安全に隔離できることが証明されるまでauthorization/token exchangeは実行しません。
+v0.2.0でも自動OAuth完遂を意図的に無効化しています。OAuth discoveryまでは観測済みですが、通常のmacOS Keychainからcredentialを安全に隔離できることが証明されるまでauthorization/token exchangeは実行しません。
 
 ## ChatGPT custom MCP appが接続できない
 
@@ -127,7 +127,7 @@ macOS beta adapterは、入力を送らないPTY startupと、isolated HOME内�
 - client processが早期終了していないか
 - OSがlive adapter対応対象か
 
-v0.1.xのAntigravity live adapterはmacOSのみ対応です。
+v0.2.0のAntigravity live adapterもmacOSのみ対応です。
 
 ## VS Codeは検出されるのにlive testできない
 

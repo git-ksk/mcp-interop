@@ -18,9 +18,9 @@
 
 ## Status
 
-**v0.1.0を公開済みです。**
+**現在のreleaseはv0.2.0です。**
 
-Release: [v0.1.0](https://github.com/git-ksk/mcp-interop/releases/tag/v0.1.0)
+Release: [v0.2.0](https://github.com/git-ksk/mcp-interop/releases/tag/v0.2.0)
 
 現在のlive adapter:
 
@@ -28,7 +28,7 @@ Release: [v0.1.0](https://github.com/git-ksk/mcp-interop/releases/tag/v0.1.0)
 - **Cursor CLI (beta)** — dedicated MCP management commandを使うno-auth live inventory。OAuth完遂は未対応
 - **Antigravity CLI (beta, macOS)** — isolated no-prompt PTY startupとmachine-readable MCP tool cacheを使うno-auth live inventory。OAuth完遂は意図的に無効
 
-開発branchには、**ChatGPT OAuth/server preflight profile**もあります。ChatGPTの公開された認証仕様に対してMCP/OAuth metadataを診断しますが、実ChatGPT clientを動かしたとは主張しません。
+v0.2.0には、**ChatGPT OAuth/server preflight、Runtime Evidence v2、OpenAI reference-pattern diagnostics**も含まれます。公開metadataと明示的に渡されたsanitized runtime observationを診断しますが、実ChatGPT clientを動かしたとは主張しません。
 
 VS Codeは、stableなno-model server-start/tool-discovery surfaceが確認できるまでresearch-onlyです。
 
@@ -39,7 +39,7 @@ GitHub Copilot CLIは今後の候補です。Claude Code対応は現時点では
 Go 1.24以降で、現在のstable releaseを固定して入れる場合:
 
 ```console
-go install github.com/git-ksk/mcp-interop/cmd/mcp-interop@v0.1.0
+go install github.com/git-ksk/mcp-interop/cmd/mcp-interop@v0.2.0
 ```
 
 最新の公開module versionを追う場合:
@@ -56,7 +56,7 @@ mcp-interop version
 mcp-interop --version
 ```
 
-[v0.1.0 GitHub Release](https://github.com/git-ksk/mcp-interop/releases/tag/v0.1.0)には、macOS / Linux / Windows向けのamd64 / arm64 archiveと`checksums.txt`もあります。
+[v0.2.0 GitHub Release](https://github.com/git-ksk/mcp-interop/releases/tag/v0.2.0)には、macOS / Linux / Windows向けのamd64 / arm64 archiveと`checksums.txt`があります。
 
 ## 何を証明するテストか
 
@@ -127,7 +127,7 @@ mcp-interop test https://example.com/mcp --client codex --oauth
 
 URLには短時間有効なOAuth stateが含まれるため、Issueやlog共有時に貼らないでください。
 
-Cursor / AntigravityのOAuth完遂はv0.1.xでは未対応です。
+Cursor / AntigravityのOAuth完遂はv0.2.0でも未対応です。
 
 ## ChatGPT OAuth/server preflight
 
@@ -169,17 +169,23 @@ mcp-interop diagnose https://example.com/mcp \
   --runtime-evidence runtime-evidence.json
 ```
 
-`runtime-evidence.json`の最小形:
+`runtime-evidence.json`の最小v2形:
 
 ```json
 {
-  "client_id": "https://chatgpt.com/oauth/.../client.json",
-  "resource_matches": true,
-  "client_assertion_present": false
+  "schema_version": 2,
+  "registration": {
+    "strategy": "cimd",
+    "client_metadata_url": "https://chatgpt.com/oauth/.../client.json"
+  },
+  "token_request": {
+    "resource_matches": true,
+    "client_assertion_present": false
+  }
 }
 ```
 
-`code_verifier_present`と`client_assertion_type_present`もbooleanで任意指定できます。未観測なら推測せず`WARN / unknown`になります。未知fieldは拒否するため、token、authorization code、PKCE verifier、raw client assertion、cookieなどを入力しないでください。
+authorization/token/resource/toolの追加observationは任意です。未観測なら推測せず`WARN / unknown`になります。未知fieldは拒否するため、token、authorization code、PKCE verifier、raw client assertion、cookieなどを入力しないでください。legacy Runtime Evidence v1も互換目的で引き続き受け付けます。
 
 **このcommandはChatGPT UIを操作せず、OAuthを完遂せず、実ChatGPT client PASSを主張しません。** Preflight、Runtime Evidence、real-client interoperabilityは別の証拠層です。詳細は[ChatGPT接続診断](docs/chatgpt-diagnostics.ja.md)を参照してください。
 
@@ -304,21 +310,25 @@ harnessは:
 
 ## Roadmap
 
-### v0.2 — authentication completeness
+### v0.2.0で提供
 
-- [x] clientが観測したDCR failure向けstructured OAuth reason code
-- [x] ChatGPT向けPRM / CIMD / DCR / PKCE / token-auth preflight診断。live-client verdictとは分離
-- [ ] profile診断evidenceと追加のreal-client OAuth failureを相関
+- [x] 実client / Runtime Evidenceの明示的failure向けstructured OAuth reason code
+- [x] PRM / CIMD / DCR / PKCE / token-authを含むChatGPT OAuth/server preflight
+- [x] 観測済み非secret metadataを使うChatGPT CIMD / redirect URI / JWKSのexact validation
+- [x] `cimd` / `dcr` / `predefined` registration strategyを持つRuntime Evidence v2とlegacy v1互換
+- [x] token/resource request correlation、Bearer delivery、signature/issuer/audience/expiry/scope診断
+- [x] OpenAI authenticated MCP reference-patternとtool-level OAuth signal診断
+- [x] multiple Authorization Serverのconservative handling
+- [x] English / Japanese diagnostics・troubleshooting documentationの拡充
+
+### v0.2.0以降もopen
+
+- [ ] real-client OAuth failureとprofile/runtime capability evidenceの自動相関を完成 ([#19](https://github.com/git-ksk/mcp-interop/issues/19))
 - [ ] Cursor OAuth token exchange + authenticated tool discovery
 - [ ] Antigravity OAuthを安全に完遂できるcredential isolation boundaryの確立
-- [ ] 残る`unknown` / incomplete result向けsanitized verbose trace
-
-### v0.3 — client coverage
-
-- [ ] real ChatGPT adapterを追加する前にsupportedなheadless ChatGPT MCP/app-management surfaceを調査。brittleなDOM scrapingはinterop contractに使わない
+- [ ] real ChatGPT adapter前にsupportedなheadless ChatGPT MCP/app-management surfaceを調査し、brittle DOM scrapingはinterop contractに使わない ([#20](https://github.com/git-ksk/mcp-interop/issues/20))
 - [ ] supported direct lifecycle/tool-discovery surfaceが利用可能になったらVS Codeを再検討
-- [ ] stable automatable MCP inventory surfaceが確認できたらGitHub Copilot CLIを評価
-- [ ] beta adapterのOS/client-version evidenceを拡充
+- [ ] stable automatable lifecycle/tool-discovery surfaceを持つ追加real MCP clientを評価
 
 ### v0.1.0で提供済み
 

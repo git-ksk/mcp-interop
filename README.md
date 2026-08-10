@@ -16,9 +16,9 @@ It also includes profile-based **preflight diagnostics** for client surfaces tha
 
 ## Status
 
-**v0.1.0 is released.** This is the first public version of `mcp-interop`.
+**v0.2.0 is the current release.**
 
-Release: [v0.1.0](https://github.com/git-ksk/mcp-interop/releases/tag/v0.1.0)
+Release: [v0.2.0](https://github.com/git-ksk/mcp-interop/releases/tag/v0.2.0)
 
 Live adapters currently exist for:
 
@@ -26,7 +26,7 @@ Live adapters currently exist for:
 - **Cursor CLI (beta)** — live no-auth inventory via dedicated MCP management commands; OAuth completion is still pending maintainer E2E verification.
 - **Antigravity CLI (beta, macOS)** — live no-auth inventory through an isolated no-prompt PTY startup and machine-readable MCP tool cache; automated OAuth completion is intentionally disabled.
 
-The development branch also includes a **ChatGPT OAuth/server preflight profile**. It validates published MCP/OAuth metadata against ChatGPT's documented authentication behavior without claiming that the real ChatGPT client ran.
+v0.2.0 also includes **ChatGPT OAuth/server preflight, Runtime Evidence v2, and OpenAI reference-pattern diagnostics**. These validate published metadata and explicitly supplied sanitized runtime observations without claiming that the real ChatGPT client ran.
 
 VS Code remains research-only until a stable no-model server-start/tool-discovery surface is available.
 
@@ -37,7 +37,7 @@ GitHub Copilot CLI is a follow-up candidate. Claude Code support is intentionall
 With Go 1.24 or newer, install the current stable release explicitly:
 
 ```console
-go install github.com/git-ksk/mcp-interop/cmd/mcp-interop@v0.1.0
+go install github.com/git-ksk/mcp-interop/cmd/mcp-interop@v0.2.0
 ```
 
 To track the newest published module version instead:
@@ -54,7 +54,7 @@ mcp-interop version
 mcp-interop --version
 ```
 
-The [v0.1.0 GitHub Release](https://github.com/git-ksk/mcp-interop/releases/tag/v0.1.0) also provides checksummed archives for macOS, Linux, and Windows on both amd64 and arm64.
+The [v0.2.0 GitHub Release](https://github.com/git-ksk/mcp-interop/releases/tag/v0.2.0) provides checksummed archives for macOS, Linux, and Windows on both amd64 and arm64.
 
 ## What a test proves
 
@@ -151,17 +151,23 @@ mcp-interop diagnose https://example.com/mcp \
   --runtime-evidence runtime-evidence.json
 ```
 
-Minimal evidence:
+Minimal v2 evidence:
 
 ```json
 {
-  "client_id": "https://chatgpt.com/oauth/.../client.json",
-  "resource_matches": true,
-  "client_assertion_present": false
+  "schema_version": 2,
+  "registration": {
+    "strategy": "cimd",
+    "client_metadata_url": "https://chatgpt.com/oauth/.../client.json"
+  },
+  "token_request": {
+    "resource_matches": true,
+    "client_assertion_present": false
+  }
 }
 ```
 
-`code_verifier_present` and `client_assertion_type_present` are optional booleans. Missing observations remain `WARN / unknown`; they are never inferred. Unknown JSON fields are rejected, so tokens, authorization codes, PKCE verifier values, raw client assertions, cookies, and credentials are not accepted.
+Additional authorization/token/resource/tool observations are optional. Missing observations remain `WARN / unknown`; they are never inferred. Unknown JSON fields are rejected, so tokens, authorization codes, PKCE verifier values, raw client assertions, cookies, and credentials are not accepted. Legacy Runtime Evidence v1 remains accepted for compatibility.
 
 Preflight, Runtime Evidence, and real-client interoperability remain separate evidence layers. A server can therefore show `PREFLIGHT PASS` and Runtime Evidence `FAIL` with `TOKEN_AUTH_METHOD_MISMATCH`.
 
@@ -310,21 +316,25 @@ Published release history is summarized in [CHANGELOG.md](CHANGELOG.md).
 
 ## Roadmap
 
-### v0.2 — authentication completeness
+### Shipped in v0.2.0
 
-- [x] Add structured OAuth reason codes for client-observed DCR failures.
-- [x] Add ChatGPT-oriented Protected Resource Metadata / CIMD / DCR / PKCE / token-auth preflight diagnostics while keeping them separate from live-client verdicts.
-- [ ] Correlate additional real-client OAuth failures with the profile diagnostic evidence.
+- [x] Structured OAuth reason codes for explicit real-client and Runtime Evidence failures.
+- [x] ChatGPT OAuth/server preflight with PRM, CIMD/DCR, PKCE, and token-auth diagnostics.
+- [x] Exact ChatGPT CIMD / redirect URI / JWKS validation from observed non-secret metadata.
+- [x] Runtime Evidence v2 with `cimd` / `dcr` / `predefined` registration strategy and legacy v1 compatibility.
+- [x] Token/resource request correlation, Bearer delivery, and resource-server signature/issuer/audience/expiry/scope diagnostics.
+- [x] OpenAI authenticated MCP reference-pattern and tool-level OAuth signal diagnostics.
+- [x] Conservative multiple-authorization-server handling.
+- [x] Expanded English/Japanese diagnostics and troubleshooting documentation.
+
+### Open after v0.2.0
+
+- [ ] Complete automatic correlation between real-client OAuth failures and profile/runtime capability evidence ([#19](https://github.com/git-ksk/mcp-interop/issues/19)).
 - [ ] Complete Cursor OAuth token exchange + authenticated tool discovery.
 - [ ] Establish a safe Antigravity OAuth completion boundary before enabling authorization/token exchange.
-- [ ] Add sanitized verbose traces for remaining `unknown` / incomplete results.
-
-### v0.3 — client coverage
-
-- [ ] Research a supported headless ChatGPT MCP/app-management surface before any real ChatGPT adapter; do not use brittle DOM scraping as the compatibility contract.
+- [ ] Research a supported headless ChatGPT MCP/app-management surface before any real ChatGPT adapter; do not use brittle DOM scraping as the compatibility contract ([#20](https://github.com/git-ksk/mcp-interop/issues/20)).
 - [ ] Revisit VS Code when a supported direct lifecycle/tool-discovery surface exists.
-- [ ] Evaluate GitHub Copilot CLI when a stable automatable MCP inventory surface is available.
-- [ ] Add additional OS/client-version evidence for beta adapters where the real client supports it.
+- [ ] Evaluate additional real MCP clients when they expose stable automatable lifecycle/tool-discovery surfaces.
 
 ### Shipped in v0.1.0
 

@@ -57,11 +57,11 @@ See [Reason codes](reason-codes.md) for the stable classification rules.
 
 ### Cursor
 
-Cursor OAuth completion is not enabled in v0.1.x. The beta adapter can test no-auth endpoints, but an OAuth-required target remains incomplete until the authenticated path is verified and shipped.
+Cursor OAuth completion is not enabled in v0.2.0. The beta adapter can test no-auth endpoints, but an OAuth-required target remains incomplete until the authenticated path is verified and shipped.
 
 ### Antigravity
 
-Automated OAuth completion is intentionally disabled in v0.1.x. OAuth discovery has been observed, but completion remains blocked until credential storage can be proven isolated from the normal macOS Keychain.
+Automated OAuth completion remains intentionally disabled in v0.2.0. OAuth discovery has been observed, but completion remains blocked until credential storage can be proven isolated from the normal macOS Keychain.
 
 ## ChatGPT custom MCP app fails to connect
 
@@ -125,7 +125,7 @@ Check:
 - whether the process exited early;
 - whether the operating system is supported by the live adapter.
 
-The shipped live implementation is macOS-only in v0.1.x.
+The shipped Antigravity live implementation remains macOS-only in v0.2.0.
 
 ## VS Code is detected but cannot be live-tested
 
