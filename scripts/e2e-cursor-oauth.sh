@@ -42,6 +42,15 @@ snapshot() {
   sort -o "$out" "$out"
 }
 
+fixture_trace() {
+  echo "--- secret-free OAuth fixture trace ---" >&2
+  if [[ -s "$log" ]]; then
+    cat "$log" >&2
+  else
+    echo "(no fixture requests observed)" >&2
+  fi
+}
+
 command -v cursor-agent >/dev/null 2>&1 || command -v agent >/dev/null 2>&1 || { echo "Cursor CLI missing" >&2; exit 2; }
 go build -o "$interop_bin" ./cmd/mcp-interop || exit 1
 go build -o "$fixture_bin" ./internal/e2e/oauthfixture || exit 1
@@ -49,7 +58,8 @@ go build -o "$fixture_bin" ./internal/e2e/oauthfixture || exit 1
 before="$work_root/before"
 after="$work_root/after"
 snapshot "$before"
-before_pids="$(pgrep -x cursor-agent 2>/dev/null | sort | tr '\n' ' ' || true)"
+before_pids="$(pgrep -x cursor-agent 2>/dev/null; pgrep -x agent 2>/dev/null || true)"
+before_pids="$(printf '%s\n' "$before_pids" | sed '/^$/d' | sort -n | tr '\n' ' ')"
 
 "$fixture_bin" --listen 127.0.0.1:0 --ready-file "$ready" --log-file "$log" &
 fixture_pid=$!
@@ -72,17 +82,26 @@ rc=$?
 set -e
 cat "$result"
 [[ -s "$work_root/stderr" ]] && cat "$work_root/stderr" >&2
-[[ "$rc" -eq 0 ]] || { echo "Cursor OAuth test returned $rc" >&2; exit 1; }
-[[ "$(grep -c '"status": "pass"' "$result" || true)" -eq 4 ]] || { echo "Cursor did not pass all four stages" >&2; exit 1; }
-grep -Fq '"path":"/register","method":"POST"' "$log" || { echo "DCR not observed" >&2; exit 1; }
-grep -Fq '"path":"/authorize","method":"GET"' "$log" || { echo "authorization request not observed" >&2; exit 1; }
-grep -Fq '"path":"/token","method":"POST"' "$log" || { echo "token exchange not observed" >&2; exit 1; }
-grep -Fq '"path":"/mcp","method":"POST"' "$log" || { echo "authenticated MCP request not observed" >&2; exit 1; }
+if [[ "$rc" -ne 0 ]]; then
+  echo "Cursor OAuth test returned $rc" >&2
+  fixture_trace
+  exit 1
+fi
+if [[ "$(grep -c '"status": "pass"' "$result" || true)" -ne 4 ]]; then
+  echo "Cursor did not pass all four stages" >&2
+  fixture_trace
+  exit 1
+fi
+grep -Fq '"path":"/register","method":"POST"' "$log" || { echo "DCR not observed" >&2; fixture_trace; exit 1; }
+grep -Fq '"path":"/authorize","method":"GET"' "$log" || { echo "authorization request not observed" >&2; fixture_trace; exit 1; }
+grep -Fq '"path":"/token","method":"POST"' "$log" || { echo "token exchange not observed" >&2; fixture_trace; exit 1; }
+grep -Fq '"path":"/mcp","method":"POST"' "$log" || { echo "authenticated MCP request not observed" >&2; fixture_trace; exit 1; }
 
 sleep 0.2
 snapshot "$after"
 cmp -s "$before" "$after" || { echo "normal Cursor/Keychain state changed" >&2; diff -u "$before" "$after" >&2 || true; exit 1; }
-after_pids="$(pgrep -x cursor-agent 2>/dev/null | sort | tr '\n' ' ' || true)"
+after_pids="$(pgrep -x cursor-agent 2>/dev/null; pgrep -x agent 2>/dev/null || true)"
+after_pids="$(printf '%s\n' "$after_pids" | sed '/^$/d' | sort -n | tr '\n' ' ')"
 [[ "$before_pids" == "$after_pids" ]] || { echo "Cursor process set changed: before=$before_pids after=$after_pids" >&2; exit 1; }
 
 if find "${TMPDIR:-/tmp}" -maxdepth 1 -type d -name 'mcp-interop-*' -newer "$before" -print 2>/dev/null | grep -q .; then
