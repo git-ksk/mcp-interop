@@ -18,9 +18,9 @@
 
 ## Status
 
-**現在のreleaseはv0.2.0です。**
+**現在のreleaseはv0.3.0です。**
 
-Release: [v0.2.0](https://github.com/git-ksk/mcp-interop/releases/tag/v0.2.0)
+Release: [v0.3.0](https://github.com/git-ksk/mcp-interop/releases/tag/v0.3.0)
 
 現在のlive adapter:
 
@@ -28,7 +28,7 @@ Release: [v0.2.0](https://github.com/git-ksk/mcp-interop/releases/tag/v0.2.0)
 - **Cursor CLI (beta)** — dedicated MCP management commandを使うno-auth live inventory。OAuth完遂は未対応
 - **Antigravity CLI (beta, macOS)** — isolated no-prompt PTY startupとmachine-readable MCP tool cacheを使うno-auth live inventory。OAuth完遂は意図的に無効
 
-v0.2.0には、**ChatGPT OAuth/server preflight、Runtime Evidence v2、OpenAI reference-pattern diagnostics**も含まれます。公開metadataと明示的に渡されたsanitized runtime observationを診断しますが、実ChatGPT clientを動かしたとは主張しません。
+v0.3.0には、**ChatGPT OAuth/server preflight、Runtime Evidence v3、secret-free evidence utilities、controlled insufficient-scope OAuth fixture、versioned OpenAI reference-pattern diagnostics**が含まれます。Runtime Evidence v3はstatic tool metadataとruntime reauthorization challengeを分離しつつ、v1/v2 input互換を維持します。公開metadataと明示的に渡されたsanitized runtime observationを診断しますが、実ChatGPT clientを動かしたとは主張しません。
 
 VS Codeは、stableなno-model server-start/tool-discovery surfaceが確認できるまでresearch-onlyです。
 
@@ -39,7 +39,7 @@ GitHub Copilot CLIは今後の候補です。Claude Code対応は現時点では
 Go 1.24以降で、現在のstable releaseを固定して入れる場合:
 
 ```console
-go install github.com/git-ksk/mcp-interop/cmd/mcp-interop@v0.2.0
+go install github.com/git-ksk/mcp-interop/cmd/mcp-interop@v0.3.0
 ```
 
 最新の公開module versionを追う場合:
@@ -56,7 +56,7 @@ mcp-interop version
 mcp-interop --version
 ```
 
-[v0.2.0 GitHub Release](https://github.com/git-ksk/mcp-interop/releases/tag/v0.2.0)には、macOS / Linux / Windows向けのamd64 / arm64 archiveと`checksums.txt`があります。
+[v0.3.0 GitHub Release](https://github.com/git-ksk/mcp-interop/releases/tag/v0.3.0)には、macOS / Linux / Windows向けのamd64 / arm64 archiveと`checksums.txt`があります。
 
 ## 何を証明するテストか
 
@@ -127,7 +127,7 @@ mcp-interop test https://example.com/mcp --client codex --oauth
 
 URLには短時間有効なOAuth stateが含まれるため、Issueやlog共有時に貼らないでください。
 
-Cursor / AntigravityのOAuth完遂はv0.2.0でも未対応です。
+Cursor / AntigravityのOAuth完遂はv0.3.0でも未対応です。
 
 ## ChatGPT OAuth/server preflight
 
@@ -339,7 +339,16 @@ harnessは:
 - [x] multiple Authorization Serverのconservative handling
 - [x] English / Japanese diagnostics・troubleshooting documentationの拡充
 
-### v0.2.0以降もopen
+### v0.3.0で提供
+
+- [x] `tool_metadata` / `tool_challenge`を独立させたRuntime Evidence v3とv1/v2 input互換
+- [x] Runtime Evidence coverage counterと`WARN / unknown`とは別の明示的`N/A` semantics
+- [x] secret-free `evidence validate` / `summary` / conflict-safe `merge`とcanonical v3 output
+- [x] tool-level `securitySchemes` / `mcp/www_authenticate`を検証するcontrolled insufficient-scope OAuth fixture + release gate
+- [x] static metadata未観測を`N/A`に過大評価せず`WARN`として扱うpartial tool OAuth aggregation
+- [x] versioned OpenAI reference profile metadataとmanual real-ChatGPT secret-free dogfood workflow
+
+### v0.3.0以降もopen
 
 - [ ] real-client OAuth failureとprofile/runtime capability evidenceの自動相関を完成 ([#19](https://github.com/git-ksk/mcp-interop/issues/19))
 - [ ] Cursor OAuth token exchange + authenticated tool discovery
