@@ -35,11 +35,11 @@ Commands:
   version    Print mcp-interop build version information.
 
 Test options:
-  --oauth   Opt in to interactive OAuth where the live adapter supports it (currently Codex).
+  --oauth   Opt in to interactive OAuth where the live adapter supports it (Codex and Cursor).
 
 Current live adapters:
   codex        Codex CLI via its app-server MCP inventory surface.
-  cursor       Cursor CLI via mcp list/list-tools (OAuth completion pending).
+  cursor       Cursor CLI via mcp login/list/list-tools with isolated OAuth opt-in.
   antigravity  Antigravity CLI beta via isolated no-prompt PTY/tool-cache observation on macOS.
 `
 
@@ -190,10 +190,11 @@ func runTest(ctx context.Context, args []string) int {
 				hadFailure = true
 				continue
 			}
+			adapterOptions := make([]cursoradapter.Option, 0, 1)
 			if options.oauth {
-				fmt.Fprintln(os.Stderr, "Cursor OAuth completion is not enabled yet; --oauth currently applies only to supported adapters such as Codex.")
+				adapterOptions = append(adapterOptions, cursoradapter.WithAuthorizationHandler(printAuthorizationURL))
 			}
-			adapter := cursoradapter.New(detection.Path, detection.Version)
+			adapter := cursoradapter.New(detection.Path, detection.Version, adapterOptions...)
 			result, runErr := interop.NewRunner().Run(ctx, adapter, interop.Target{Endpoint: options.endpoint})
 			results = append(results, result)
 			if runErr != nil {
@@ -330,11 +331,14 @@ func printAuthorizationURL(ctx context.Context, authorizationURL string) error {
 		return ctx.Err()
 	default:
 	}
+	if handled, err := maybeAutoAuthorizeLoopback(ctx, authorizationURL); handled {
+		return err
+	}
 
-	fmt.Fprintln(os.Stderr, "\nCodex OAuth authorization required.")
+	fmt.Fprintln(os.Stderr, "\nMCP OAuth authorization required.")
 	fmt.Fprintln(os.Stderr, "Open this URL in a browser to continue (it contains short-lived OAuth state; do not share it):")
 	fmt.Fprintln(os.Stderr, authorizationURL)
-	fmt.Fprintln(os.Stderr, "Waiting for Codex OAuth callback...")
+	fmt.Fprintln(os.Stderr, "Waiting for the OAuth callback...")
 	return nil
 }
 
