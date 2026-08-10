@@ -27,7 +27,9 @@ func TestOAuthFixtureDCRPKCETokenAndMCP(t *testing.T) {
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("register status = %d", resp.StatusCode)
 	}
-	var registration struct{ ClientID string `json:"client_id"` }
+	var registration struct {
+		ClientID string `json:"client_id"`
+	}
 	if err := json.NewDecoder(resp.Body).Decode(&registration); err != nil {
 		t.Fatal(err)
 	}
@@ -67,7 +69,9 @@ func TestOAuthFixtureDCRPKCETokenAndMCP(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer tokenResp.Body.Close()
-	var token struct{ AccessToken string `json:"access_token"` }
+	var token struct {
+		AccessToken string `json:"access_token"`
+	}
 	if err := json.NewDecoder(tokenResp.Body).Decode(&token); err != nil {
 		t.Fatal(err)
 	}
