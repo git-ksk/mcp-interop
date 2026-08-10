@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+set -u
+set -o pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$repo_root" || exit 1
+[[ "$(uname -s)" == "Darwin" ]] || { echo "Cursor OAuth E2E requires macOS" >&2; exit 2; }
+
+work_root="$(mktemp -d "${TMPDIR:-/tmp}/mcp-cursor-oauth.XXXXXX")" || exit 1
+interop_bin="$work_root/mcp-interop"
+fixture_bin="$work_root/oauth-fixture"
+ready="$work_root/ready"
+log="$work_root/fixture.jsonl"
+result="$work_root/result.json"
+fixture_pid=""
+cleanup() {
+  [[ -n "$fixture_pid" ]] && kill "$fixture_pid" 2>/dev/null || true
+  [[ -n "$fixture_pid" ]] && wait "$fixture_pid" 2>/dev/null || true
+  [[ "${MCP_INTEROP_KEEP_E2E_TMP:-0}" == "1" ]] || rm -rf "$work_root"
+}
+trap cleanup EXIT INT TERM
+
+snapshot() {
+  local out="$1"
+  : > "$out"
+  for path in \
+    "$HOME/.config/cursor/cli-config.json" \
+    "$HOME/.cursor/mcp.json" \
+    "$HOME/Library/Application Support/Cursor/User/mcp.json" \
+    "$HOME/Library/Keychains/login.keychain-db"; do
+    if [[ -f "$path" ]]; then
+      printf '%s\t%s\t%s\n' "$path" "$(stat -f '%m:%z' "$path")" "$(shasum -a 256 "$path" | awk '{print $1}')" >> "$out"
+    else
+      printf '%s\tmissing\n' "$path" >> "$out"
+    fi
+  done
+  if [[ -d "$HOME/.cursor/projects" ]]; then
+    find "$HOME/.cursor/projects" -type f \( -name 'mcp-auth.json' -o -name 'mcp-approvals.json' \) -print 2>/dev/null | sort | while IFS= read -r path; do
+      printf '%s\t%s\t%s\n' "$path" "$(stat -f '%m:%z' "$path")" "$(shasum -a 256 "$path" | awk '{print $1}')" >> "$out"
+    done
+  fi
+  sort -o "$out" "$out"
+}
+
+command -v cursor-agent >/dev/null 2>&1 || command -v agent >/dev/null 2>&1 || { echo "Cursor CLI missing" >&2; exit 2; }
+go build -o "$interop_bin" ./cmd/mcp-interop || exit 1
+go build -o "$fixture_bin" ./internal/e2e/oauthfixture || exit 1
+
+before="$work_root/before"
+after="$work_root/after"
+snapshot "$before"
+before_pids="$(pgrep -x cursor-agent 2>/dev/null | sort | tr '\n' ' ' || true)"
+
+"$fixture_bin" --listen 127.0.0.1:0 --ready-file "$ready" --log-file "$log" &
+fixture_pid=$!
+for _ in {1..100}; do
+  [[ -s "$ready" ]] && break
+  kill -0 "$fixture_pid" 2>/dev/null || { echo "OAuth fixture exited" >&2; exit 1; }
+  sleep 0.05
+done
+[[ -s "$ready" ]] || { echo "OAuth fixture not ready" >&2; exit 1; }
+endpoint="$(tr -d '\r\n' < "$ready")"
+
+set +e
+env \
+  -u CURSOR_API_KEY \
+  HTTP_PROXY='http://127.0.0.1:9' HTTPS_PROXY='http://127.0.0.1:9' ALL_PROXY='http://127.0.0.1:9' \
+  NO_PROXY='127.0.0.1,localhost,::1' no_proxy='127.0.0.1,localhost,::1' \
+  MCP_INTEROP_E2E_AUTO_AUTHORIZE_LOOPBACK=1 \
+  "$interop_bin" test "$endpoint" --client cursor --oauth --json > "$result" 2> "$work_root/stderr"
+rc=$?
+set -e
+cat "$result"
+[[ -s "$work_root/stderr" ]] && cat "$work_root/stderr" >&2
+[[ "$rc" -eq 0 ]] || { echo "Cursor OAuth test returned $rc" >&2; exit 1; }
+[[ "$(grep -c '"status": "pass"' "$result" || true)" -eq 4 ]] || { echo "Cursor did not pass all four stages" >&2; exit 1; }
+grep -Fq '"path":"/register","method":"POST"' "$log" || { echo "DCR not observed" >&2; exit 1; }
+grep -Fq '"path":"/authorize","method":"GET"' "$log" || { echo "authorization request not observed" >&2; exit 1; }
+grep -Fq '"path":"/token","method":"POST"' "$log" || { echo "token exchange not observed" >&2; exit 1; }
+grep -Fq '"path":"/mcp","method":"POST"' "$log" || { echo "authenticated MCP request not observed" >&2; exit 1; }
+
+sleep 0.2
+snapshot "$after"
+cmp -s "$before" "$after" || { echo "normal Cursor/Keychain state changed" >&2; diff -u "$before" "$after" >&2 || true; exit 1; }
+after_pids="$(pgrep -x cursor-agent 2>/dev/null | sort | tr '\n' ' ' || true)"
+[[ "$before_pids" == "$after_pids" ]] || { echo "Cursor process set changed: before=$before_pids after=$after_pids" >&2; exit 1; }
+
+if find "${TMPDIR:-/tmp}" -maxdepth 1 -type d -name 'mcp-interop-*' -newer "$before" -print 2>/dev/null | grep -q .; then
+  echo "mcp-interop temporary session leaked" >&2
+  exit 1
+fi
+
+echo "READY: Cursor OAuth real-client E2E passed."
