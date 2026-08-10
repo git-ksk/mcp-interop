@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
@@ -87,7 +88,13 @@ func run(listenAddr, readyFile, logFile string) error {
 		logWriter = handle
 	}
 
-	handler := &server{baseURL: baseURL, log: logWriter, clients: map[string][]string{}, codes: map[string]authorizationCode{}, tokens: map[string]struct{}{}}
+	handler := &server{
+		baseURL: baseURL,
+		log:     logWriter,
+		clients: map[string][]string{},
+		codes:   map[string]authorizationCode{},
+		tokens:  map[string]struct{}{},
+	}
 	httpServer := &http.Server{Handler: handler, ReadHeaderTimeout: 5 * time.Second}
 	if readyFile != "" {
 		if err := os.MkdirAll(filepath.Dir(readyFile), 0o700); err != nil {
@@ -98,13 +105,13 @@ func run(listenAddr, readyFile, logFile string) error {
 		}
 	}
 
-	ctx, stop := signal.NotifyContext(contextBackground(), os.Interrupt, syscall.SIGTERM)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	errCh := make(chan error, 1)
 	go func() { errCh <- httpServer.Serve(listener) }()
 	select {
 	case <-ctx.Done():
-		shutdownCtx, cancel := contextWithTimeout(2 * time.Second)
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 		_ = httpServer.Shutdown(shutdownCtx)
 		err := <-errCh
@@ -118,12 +125,6 @@ func run(listenAddr, readyFile, logFile string) error {
 		}
 		return nil
 	}
-}
-
-// Small wrappers keep the fixture testable without exporting implementation details.
-func contextBackground() context.Context { return context.Background() }
-func contextWithTimeout(timeout time.Duration) (context.Context, context.CancelFunc) {
-	return context.WithTimeout(context.Background(), timeout)
 }
 
 func requireLoopback(addr string) error {
@@ -159,11 +160,15 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) protectedResourceMetadata(w http.ResponseWriter) {
-	writeJSON(w, map[string]any{"resource": s.baseURL + "/mcp", "authorization_servers": []string{s.baseURL}, "scopes_supported": []string{fixtureScope}})
+	writeJSON(w, http.StatusOK, map[string]any{
+		"resource":              s.baseURL + "/mcp",
+		"authorization_servers": []string{s.baseURL},
+		"scopes_supported":      []string{fixtureScope},
+	})
 }
 
 func (s *server) authorizationServerMetadata(w http.ResponseWriter) {
-	writeJSON(w, map[string]any{
+	writeJSON(w, http.StatusOK, map[string]any{
 		"issuer":                                s.baseURL,
 		"authorization_endpoint":                s.baseURL + "/authorize",
 		"token_endpoint":                        s.baseURL + "/token",
@@ -198,8 +203,11 @@ func (s *server) register(w http.ResponseWriter, r *http.Request) {
 	s.mu.Lock()
 	s.clients[clientID] = append([]string(nil), input.RedirectURIs...)
 	s.mu.Unlock()
-	w.WriteHeader(http.StatusCreated)
-	writeJSON(w, map[string]any{"client_id": clientID, "redirect_uris": input.RedirectURIs, "token_endpoint_auth_method": "none"})
+	writeJSON(w, http.StatusCreated, map[string]any{
+		"client_id":                  clientID,
+		"redirect_uris":              input.RedirectURIs,
+		"token_endpoint_auth_method": "none",
+	})
 }
 
 func (s *server) authorize(w http.ResponseWriter, r *http.Request) {
@@ -251,15 +259,19 @@ func (s *server) token(w http.ResponseWriter, r *http.Request) {
 	}
 	s.mu.Unlock()
 	if !ok || verifier == "" || entry.redirectURI != redirectURI || (clientID != "" && entry.clientID != clientID) || pkceS256(verifier) != entry.codeChallenge {
-		w.WriteHeader(http.StatusBadRequest)
-		writeJSON(w, map[string]any{"error": "invalid_grant"})
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid_grant"})
 		return
 	}
 	accessToken := "fixture-token-" + randomValue()
 	s.mu.Lock()
 	s.tokens[accessToken] = struct{}{}
 	s.mu.Unlock()
-	writeJSON(w, map[string]any{"access_token": accessToken, "token_type": "Bearer", "expires_in": 300, "scope": fixtureScope})
+	writeJSON(w, http.StatusOK, map[string]any{
+		"access_token": accessToken,
+		"token_type":   "Bearer",
+		"expires_in":   300,
+		"scope":        fixtureScope,
+	})
 }
 
 func (s *server) mcp(w http.ResponseWriter, r *http.Request) {
@@ -288,15 +300,23 @@ func (s *server) mcp(w http.ResponseWriter, r *http.Request) {
 	response := rpcResponse{JSONRPC: "2.0", ID: request.ID}
 	switch request.Method {
 	case "initialize":
-		response.Result = map[string]any{"protocolVersion": "2025-06-18", "capabilities": map[string]any{"tools": map[string]any{}}, "serverInfo": map[string]any{"name": "mcp-interop-oauth-fixture", "version": "dev"}}
+		response.Result = map[string]any{
+			"protocolVersion": "2025-06-18",
+			"capabilities":    map[string]any{"tools": map[string]any{}},
+			"serverInfo":      map[string]any{"name": "mcp-interop-oauth-fixture", "version": "dev"},
+		}
 	case "tools/list":
-		response.Result = map[string]any{"tools": []any{map[string]any{"name": "ping", "description": "OAuth fixture no-op", "inputSchema": map[string]any{"type": "object", "properties": map[string]any{}}}}}
+		response.Result = map[string]any{"tools": []any{map[string]any{
+			"name":        "ping",
+			"description": "OAuth fixture no-op",
+			"inputSchema": map[string]any{"type": "object", "properties": map[string]any{}},
+		}}}
 	case "ping":
 		response.Result = map[string]any{}
 	default:
 		response.Result = map[string]any{}
 	}
-	writeJSON(w, response)
+	writeJSON(w, http.StatusOK, response)
 }
 
 func (s *server) record(path, method string) {
@@ -336,7 +356,8 @@ func contains(values []string, want string) bool {
 	return false
 }
 
-func writeJSON(w http.ResponseWriter, value any) {
+func writeJSON(w http.ResponseWriter, status int, value any) {
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(value)
 }
