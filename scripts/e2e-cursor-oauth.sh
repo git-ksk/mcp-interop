@@ -12,6 +12,7 @@ fixture_bin="$work_root/oauth-fixture"
 ready="$work_root/ready"
 log="$work_root/fixture.jsonl"
 result="$work_root/result.json"
+browser_marker="$work_root/browser-invoked"
 fixture_pid=""
 cleanup() {
   [[ -n "$fixture_pid" ]] && kill "$fixture_pid" 2>/dev/null || true
@@ -49,11 +50,37 @@ fixture_trace() {
   else
     echo "(no fixture requests observed)" >&2
   fi
+  if [[ -f "$browser_marker" ]]; then
+    echo "browser launcher: invoked" >&2
+  else
+    echo "browser launcher: not observed" >&2
+  fi
 }
 
 command -v cursor-agent >/dev/null 2>&1 || command -v agent >/dev/null 2>&1 || { echo "Cursor CLI missing" >&2; exit 2; }
 go build -o "$interop_bin" ./cmd/mcp-interop || exit 1
 go build -o "$fixture_bin" ./internal/e2e/oauthfixture || exit 1
+
+mkdir -p "$work_root/bin"
+cat > "$work_root/bin/loopback-browser" <<'BROWSER'
+#!/usr/bin/env bash
+set -eu
+url=""
+for arg in "$@"; do
+  case "$arg" in
+    http://*) url="$arg" ;;
+  esac
+done
+[[ -n "$url" ]] || exit 64
+case "$url" in
+  http://127.0.0.1:*/*|http://localhost:*/*|http://\[::1\]:*/*) ;;
+  *) exit 65 ;;
+esac
+: > "${MCP_INTEROP_E2E_BROWSER_MARKER:?}"
+/usr/bin/curl -fsS -L --max-time 20 "$url" >/dev/null
+BROWSER
+chmod 700 "$work_root/bin/loopback-browser"
+ln -s loopback-browser "$work_root/bin/open"
 
 before="$work_root/before"
 after="$work_root/after"
@@ -74,6 +101,9 @@ endpoint="$(tr -d '\r\n' < "$ready")"
 set +e
 env \
   -u CURSOR_API_KEY \
+  PATH="$work_root/bin:$PATH" \
+  BROWSER="$work_root/bin/loopback-browser" \
+  MCP_INTEROP_E2E_BROWSER_MARKER="$browser_marker" \
   HTTP_PROXY='http://127.0.0.1:9' HTTPS_PROXY='http://127.0.0.1:9' ALL_PROXY='http://127.0.0.1:9' \
   NO_PROXY='127.0.0.1,localhost,::1' no_proxy='127.0.0.1,localhost,::1' \
   MCP_INTEROP_E2E_AUTO_AUTHORIZE_LOOPBACK=1 \
