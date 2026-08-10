@@ -14,6 +14,10 @@ const (
 	// Client Registration attempt failed for a reason other than unsupported.
 	ReasonDCRFailed ReasonCode = "DCR_FAILED"
 
+	// ReasonOAuthCallbackPortConflict means the real client explicitly reported
+	// that its loopback OAuth callback listener could not bind the selected port.
+	ReasonOAuthCallbackPortConflict ReasonCode = "OAUTH_CALLBACK_PORT_CONFLICT"
+
 	// ReasonRegistrationStrategyUnsupported means sanitized runtime evidence says
 	// a registration strategy was used that the discovered authorization-server
 	// metadata does not advertise.
