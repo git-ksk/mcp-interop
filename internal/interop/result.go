@@ -31,6 +31,28 @@ type StageResult struct {
 	Message    string     `json:"message,omitempty"`
 }
 
+// AuthCapabilities is independent, secret-free authorization-server metadata
+// evidence attached to a real-client auth failure. Nil booleans mean the
+// capability could not be proven for one unambiguous authorization server.
+type AuthCapabilities struct {
+	CIMDAdvertised            *bool `json:"cimd_advertised,omitempty"`
+	DCRAdvertised             *bool `json:"dcr_advertised,omitempty"`
+	AuthorizationServerCount  int   `json:"authorization_server_count,omitempty"`
+	SelectionAmbiguous        bool  `json:"selection_ambiguous,omitempty"`
+}
+
+// Diagnostic adds supporting evidence without changing the four-stage real-
+// client verdict. Diagnostics must remain secret-free and are redacted before
+// they are emitted.
+type Diagnostic struct {
+	ID               string            `json:"id"`
+	Stage            Stage             `json:"stage,omitempty"`
+	ReasonCode       ReasonCode        `json:"reason_code,omitempty"`
+	Conclusion       string            `json:"conclusion,omitempty"`
+	Message          string            `json:"message,omitempty"`
+	AuthCapabilities *AuthCapabilities `json:"auth_capabilities,omitempty"`
+}
+
 // Result is the deterministic report returned by one real-client adapter.
 type Result struct {
 	ClientID      string        `json:"client_id"`
@@ -38,6 +60,7 @@ type Result struct {
 	ClientVersion string        `json:"client_version,omitempty"`
 	Endpoint      string        `json:"endpoint"`
 	Stages        []StageResult `json:"stages"`
+	Diagnostics   []Diagnostic  `json:"diagnostics,omitempty"`
 }
 
 // NewResult creates a report with every stage explicitly unknown. Adapters must
@@ -75,6 +98,11 @@ func (r *Result) SetWithReason(stage Stage, status Status, reasonCode ReasonCode
 		}
 	}
 	return false
+}
+
+// AddDiagnostic appends supporting evidence without mutating any stage result.
+func (r *Result) AddDiagnostic(diagnostic Diagnostic) {
+	r.Diagnostics = append(r.Diagnostics, diagnostic)
 }
 
 // Get returns one stage result.
