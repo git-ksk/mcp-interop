@@ -21,7 +21,7 @@ jobs:
         run: |
           curl -fsSL https://antigravity.google/cli/install.sh | bash
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-      - name: Probe isolated MCP manager
+      - name: Drive isolated MCP OAuth flow
         shell: bash
         run: |
           set -eu
@@ -33,7 +33,7 @@ jobs:
           for _ in {1..100}; do [[ -s "$work/ready" ]] && break; sleep 0.05; done
           endpoint="$(tr -d '\r\n' < "$work/ready")"
           probehome="$work/home"
-          mkdir -p "$probehome/.gemini/config" "$probehome/.gemini/antigravity-cli"
+          mkdir -p "$probehome/.gemini/config" "$probehome/.gemini/antigravity-cli" "$work/bin"
           python3 - "$endpoint" "$probehome/.gemini/config/mcp_config.json" <<'PY'
           import json,sys
           endpoint,path=sys.argv[1:]
@@ -41,26 +41,69 @@ jobs:
               json.dump({'mcpServers':{'mcp-interop-target':{'serverUrl':endpoint}}},f)
           PY
           printf '%s\n' '{"altScreenMode":"never","showTips":false,"showFeedbackSurvey":false}' > "$probehome/.gemini/antigravity-cli/settings.json"
+          cat > "$work/bin/loopback-browser" <<'BROWSER'
+          #!/usr/bin/env bash
+          set -eu
+          url=""
+          for arg in "$@"; do
+            case "$arg" in http://*) url="$arg" ;; esac
+          done
+          [[ -n "$url" ]] || exit 64
+          python3 - "$url" "${MCP_INTEROP_E2E_AUTH_CODE_FILE:?}" "${MCP_INTEROP_E2E_BROWSER_MARKER:?}" <<'PY'
+          import ipaddress,os,re,sys,urllib.error,urllib.parse,urllib.request
+          raw,code_path,marker_path=sys.argv[1:]
+          u=urllib.parse.urlparse(raw)
+          try:
+              loopback=ipaddress.ip_address(u.hostname or '').is_loopback
+          except ValueError:
+              loopback=(u.hostname or '').lower()=='localhost'
+          if u.scheme!='http' or not loopback:
+              raise SystemExit(65)
+          q=urllib.parse.parse_qs(u.query)
+          redirect=urllib.parse.urlparse(q.get('redirect_uri',[''])[0])
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self,req,fp,code,msg,headers,newurl): return None
+          opener=urllib.request.build_opener(NoRedirect)
+          status=0; location=''; body=b''
+          try:
+              resp=opener.open(raw,timeout=15)
+              status=resp.status; location=resp.headers.get('Location',''); body=resp.read(65536)
+          except urllib.error.HTTPError as e:
+              status=e.code; location=e.headers.get('Location',''); body=e.read(65536)
+          code=''
+          if location:
+              code=urllib.parse.parse_qs(urllib.parse.urlparse(location).query).get('code',[''])[0]
+          if not code:
+              m=re.search(rb'fixture-code-[A-Za-z0-9_-]+',body)
+              if m: code=m.group(0).decode()
+          with open(marker_path,'w') as f:
+              f.write(f'auth_host={u.hostname}\nredirect_scheme={redirect.scheme}\nredirect_host={redirect.hostname}\nstatus={status}\ncode_observed={bool(code)}\n')
+          if code:
+              fd=os.open(code_path,os.O_WRONLY|os.O_CREAT|os.O_TRUNC,0o600)
+              with os.fdopen(fd,'w') as f: f.write(code)
+          PY
+          BROWSER
+          chmod 700 "$work/bin/loopback-browser"
+          ln -s loopback-browser "$work/bin/open"
+          code_file="$work/auth-code"
+          marker_file="$work/browser-marker"
           set +e
           (
             sleep 4
             printf '/mcp\r'
             sleep 4
             printf '\r'
-            sleep 3
-          ) | HOME="$probehome" perl -e '$t=shift; alarm $t; exec @ARGV' 15 /usr/bin/script -q "$work/transcript" "$(command -v agy)" >/dev/null 2>&1
+            for _ in {1..100}; do [[ -s "$code_file" ]] && break; sleep 0.1; done
+            if [[ -s "$code_file" ]]; then
+              cat "$code_file"
+              printf '\r'
+              sleep 6
+            fi
+          ) | HOME="$probehome" PATH="$work/bin:$PATH" BROWSER="$work/bin/loopback-browser" MCP_INTEROP_E2E_AUTH_CODE_FILE="$code_file" MCP_INTEROP_E2E_BROWSER_MARKER="$marker_file" perl -e '$t=shift; alarm $t; exec @ARGV' 25 /usr/bin/script -q "$work/transcript" "$(command -v agy)" >/dev/null 2>&1
           set -e
-          echo "--- secret-safe MCP manager indicators ---"
-          python3 - "$work/transcript" <<'PY'
-          import re,sys
-          data=open(sys.argv[1],'rb').read().decode('utf-8','ignore')
-          data=re.sub(r'\x1b\[[0-?]*[ -/]*[@-~]','',data)
-          data=re.sub(r'https?://\S+','[URL]',data)
-          data=re.sub(r'\b[A-Za-z0-9_-]{24,}\b','[LONG_VALUE]',data)
-          for line in data.splitlines():
-              low=line.lower()
-              if any(k in low for k in ('mcp-interop-target','authenticate','oauth','authentication','mcp server','mcp manager')):
-                  print(line[:500])
-          PY
+          echo "--- browser observation (secret-free) ---"
+          cat "$marker_file" 2>/dev/null || echo "browser wrapper not invoked"
+          token_file="$probehome/.gemini/antigravity/mcp_oauth_tokens.json"
+          if [[ -s "$token_file" ]]; then echo "isolated_token_file=present"; else echo "isolated_token_file=absent"; fi
           echo "--- secret-free fixture trace ---"
           cat "$work/trace" || true
