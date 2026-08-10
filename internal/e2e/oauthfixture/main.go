@@ -294,14 +294,16 @@ func (s *server) token(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	accessToken := "fixture-token-" + randomValue()
+	refreshToken := "fixture-refresh-" + randomValue()
 	s.mu.Lock()
 	s.tokens[accessToken] = struct{}{}
 	s.mu.Unlock()
 	writeJSON(w, http.StatusOK, map[string]any{
-		"access_token": accessToken,
-		"token_type":   "Bearer",
-		"expires_in":   300,
-		"scope":        fixtureScope,
+		"access_token":  accessToken,
+		"refresh_token": refreshToken,
+		"token_type":    "Bearer",
+		"expires_in":    3600,
+		"scope":         fixtureScope,
 	})
 }
 
