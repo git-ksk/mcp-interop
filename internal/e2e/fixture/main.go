@@ -19,7 +19,12 @@ import (
 	"time"
 )
 
-const defaultProtocolVersion = "2025-06-18"
+const (
+	defaultProtocolVersion        = "2025-06-18"
+	protectedResourceMetadataPath = "/.well-known/oauth-protected-resource"
+	fixtureReadScope              = "fixture.read"
+	fixtureWriteScope             = "fixture.write"
+)
 
 type rpcRequest struct {
 	JSONRPC string          `json:"jsonrpc"`
@@ -48,6 +53,7 @@ type requestLog struct {
 type fixtureHandler struct {
 	logMu sync.Mutex
 	log   io.Writer
+	oauth oauthFixtureConfig
 }
 
 func main() {
@@ -102,8 +108,9 @@ func run(listenAddr, readyFile, logFile string) error {
 		}
 	}
 
+	metadataURL := fmt.Sprintf("http://127.0.0.1:%d%s", addr.Port, protectedResourceMetadataPath)
 	server := &http.Server{
-		Handler:           &fixtureHandler{log: logWriter},
+		Handler:           newFixtureHandler(logWriter, endpoint, metadataURL, fixtureReadScope),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
@@ -147,6 +154,10 @@ func requireLoopbackListenAddress(addr string) error {
 }
 
 func (h *fixtureHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path == protectedResourceMetadataPath {
+		h.serveProtectedResourceMetadata(w, r)
+		return
+	}
 	if r.URL.Path != "/mcp" && !strings.HasPrefix(r.URL.Path, "/mcp/") {
 		http.NotFound(w, r)
 		return
@@ -244,19 +255,9 @@ func (h *fixtureHandler) handle(path string, request rpcRequest) (rpcResponse, b
 			},
 		}
 	case "tools/list":
-		response.Result = map[string]any{
-			"tools": []any{
-				map[string]any{
-					"name":        "ping",
-					"description": "Deterministic no-op tool used by mcp-interop real-client E2E.",
-					"inputSchema": map[string]any{
-						"type":                 "object",
-						"properties":           map[string]any{},
-						"additionalProperties": false,
-					},
-				},
-			},
-		}
+		response.Result = map[string]any{"tools": fixtureTools()}
+	case "tools/call":
+		response.Result, response.Error = h.handleToolCall(request.Params)
 	case "ping":
 		response.Result = map[string]any{}
 	default:

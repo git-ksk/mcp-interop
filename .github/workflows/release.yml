@@ -23,6 +23,9 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      - name: Tool OAuth fixture release gate
+        run: go test ./internal/e2e/fixture -run '^TestToolOAuthInsufficientScopeReleaseGate$' -count=1
+
       - name: Validate release tag
         shell: bash
         run: |
