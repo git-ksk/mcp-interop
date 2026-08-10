@@ -16,9 +16,9 @@ It also includes profile-based **preflight diagnostics** for client surfaces tha
 
 ## Status
 
-**v0.2.0 is the current release.**
+**v0.3.0 is the current release.**
 
-Release: [v0.2.0](https://github.com/git-ksk/mcp-interop/releases/tag/v0.2.0)
+Release: [v0.3.0](https://github.com/git-ksk/mcp-interop/releases/tag/v0.3.0)
 
 Live adapters currently exist for:
 
@@ -26,7 +26,7 @@ Live adapters currently exist for:
 - **Cursor CLI (beta)** — live no-auth inventory via dedicated MCP management commands; OAuth completion is still pending maintainer E2E verification.
 - **Antigravity CLI (beta, macOS)** — live no-auth inventory through an isolated no-prompt PTY startup and machine-readable MCP tool cache; automated OAuth completion is intentionally disabled.
 
-v0.2.0 also includes **ChatGPT OAuth/server preflight, Runtime Evidence v2, and OpenAI reference-pattern diagnostics**. The current development branch additionally accepts Runtime Evidence v3, which separates static tool metadata from runtime reauthorization challenges. These validate published metadata and explicitly supplied sanitized runtime observations without claiming that the real ChatGPT client ran.
+v0.3.0 includes **ChatGPT OAuth/server preflight, Runtime Evidence v3, secret-free evidence utilities, controlled insufficient-scope OAuth fixtures, and versioned OpenAI reference-pattern diagnostics**. Runtime Evidence v3 separates static tool metadata from runtime reauthorization challenges while preserving v1/v2 input compatibility. These diagnostics validate published metadata and explicitly supplied sanitized runtime observations without claiming that the real ChatGPT client ran.
 
 VS Code remains research-only until a stable no-model server-start/tool-discovery surface is available.
 
@@ -37,7 +37,7 @@ GitHub Copilot CLI is a follow-up candidate. Claude Code support is intentionall
 With Go 1.24 or newer, install the current stable release explicitly:
 
 ```console
-go install github.com/git-ksk/mcp-interop/cmd/mcp-interop@v0.2.0
+go install github.com/git-ksk/mcp-interop/cmd/mcp-interop@v0.3.0
 ```
 
 To track the newest published module version instead:
@@ -54,7 +54,7 @@ mcp-interop version
 mcp-interop --version
 ```
 
-The [v0.2.0 GitHub Release](https://github.com/git-ksk/mcp-interop/releases/tag/v0.2.0) provides checksummed archives for macOS, Linux, and Windows on both amd64 and arm64.
+The [v0.3.0 GitHub Release](https://github.com/git-ksk/mcp-interop/releases/tag/v0.3.0) provides checksummed archives for macOS, Linux, and Windows on both amd64 and arm64.
 
 ## What a test proves
 
@@ -340,19 +340,27 @@ Published release history is summarized in [CHANGELOG.md](CHANGELOG.md).
 - [x] ChatGPT OAuth/server preflight with PRM, CIMD/DCR, PKCE, and token-auth diagnostics.
 - [x] Exact ChatGPT CIMD / redirect URI / JWKS validation from observed non-secret metadata.
 - [x] Runtime Evidence v2 with `cimd` / `dcr` / `predefined` registration strategy and legacy v1 compatibility.
-- [ ] Runtime Evidence v3 split tool metadata/challenge shape (development branch; see #26).
 - [x] Token/resource request correlation, Bearer delivery, and resource-server signature/issuer/audience/expiry/scope diagnostics.
 - [x] OpenAI authenticated MCP reference-pattern and tool-level OAuth signal diagnostics.
 - [x] Conservative multiple-authorization-server handling.
 - [x] Expanded English/Japanese diagnostics and troubleshooting documentation.
 
-### Open after v0.2.0
+### Shipped in v0.3.0
+
+- [x] Runtime Evidence v3 with independent `tool_metadata` / `tool_challenge` sections and v1/v2 input compatibility.
+- [x] Explicit Runtime Evidence coverage counters and `N/A` semantics distinct from `WARN / unknown`.
+- [x] Secret-free `evidence validate`, `summary`, and conflict-safe `merge` utilities with canonical v3 output.
+- [x] Controlled insufficient-scope OAuth fixture and release gate for tool-level `securitySchemes` / `mcp/www_authenticate` behavior.
+- [x] Partial tool OAuth aggregation that keeps unobserved static metadata as `WARN` rather than over-reporting `N/A`.
+- [x] Versioned OpenAI reference profile metadata and a documented manual real-ChatGPT secret-free dogfood workflow.
+
+### Open after v0.3.0
 
 - [ ] Complete automatic correlation between real-client OAuth failures and profile/runtime capability evidence ([#19](https://github.com/git-ksk/mcp-interop/issues/19)).
-- [ ] Complete Cursor OAuth token exchange + authenticated tool discovery.
-- [ ] Establish a safe Antigravity OAuth completion boundary before enabling authorization/token exchange.
+- [ ] Complete Cursor OAuth token exchange + authenticated tool discovery ([#3](https://github.com/git-ksk/mcp-interop/issues/3)).
+- [ ] Establish a safe Antigravity OAuth completion boundary before enabling authorization/token exchange ([#5](https://github.com/git-ksk/mcp-interop/issues/5)).
 - [ ] Research a supported headless ChatGPT MCP/app-management surface before any real ChatGPT adapter; do not use brittle DOM scraping as the compatibility contract ([#20](https://github.com/git-ksk/mcp-interop/issues/20)).
-- [ ] Revisit VS Code when a supported direct lifecycle/tool-discovery surface exists.
+- [ ] Revisit VS Code when a supported direct lifecycle/tool-discovery surface exists ([#6](https://github.com/git-ksk/mcp-interop/issues/6)).
 - [ ] Evaluate additional real MCP clients when they expose stable automatable lifecycle/tool-discovery surfaces.
 
 ### Shipped in v0.1.0
