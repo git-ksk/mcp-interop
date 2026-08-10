@@ -1,0 +1,45 @@
+name: Temporary Antigravity OAuth Observe
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  observe:
+    runs-on: macos-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Install Antigravity CLI
+        run: |
+          curl -fsSL https://antigravity.google/cli/install.sh | bash
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Observe isolated OAuth fixture traffic
+        shell: bash
+        run: |
+          set -u
+          work="$(mktemp -d)"
+          trap 'kill "${fixture_pid:-}" 2>/dev/null || true; rm -rf "$work"' EXIT
+          go build -o "$work/mcp-interop" ./cmd/mcp-interop
+          go build -o "$work/oauth-fixture" ./internal/e2e/oauthfixture
+          "$work/oauth-fixture" --listen 127.0.0.1:0 --ready-file "$work/ready" --log-file "$work/trace" &
+          fixture_pid=$!
+          for _ in {1..100}; do [[ -s "$work/ready" ]] && break; sleep 0.05; done
+          endpoint="$(tr -d '\r\n' < "$work/ready")"
+          agy --version
+          set +e
+          "$work/mcp-interop" test "$endpoint" --client antigravity --json > "$work/result" 2> "$work/stderr"
+          rc=$?
+          set -e
+          cat "$work/result"
+          cat "$work/stderr" >&2 || true
+          echo "--- secret-free fixture trace ---"
+          cat "$work/trace" || true
+          echo "mcp-interop rc=$rc"
