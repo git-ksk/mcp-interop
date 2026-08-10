@@ -40,7 +40,8 @@ type Adapter interface {
 
 type sessionFactory func() (*Session, error)
 
-// Runner owns temporary-session lifecycle and final secret redaction.
+// Runner owns temporary-session lifecycle, independent auth-failure diagnostic
+// enrichment, and final secret redaction.
 type Runner struct {
 	newSession sessionFactory
 }
@@ -71,6 +72,7 @@ func (r *Runner) Run(ctx context.Context, adapter Adapter, target Target) (Resul
 	if result.Endpoint == "" {
 		result.Endpoint = target.Endpoint
 	}
+	EnrichAuthFailure(ctx, target.Endpoint, &result, nil)
 	result = RedactResult(result)
 
 	if runErr != nil {
