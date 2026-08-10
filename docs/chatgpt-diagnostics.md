@@ -16,6 +16,13 @@ The diagnostic keeps three distinct evidence layers:
 
 A future real ChatGPT adapter remains a separate fourth layer and requires a supported, automatable ChatGPT product surface.
 
+`mcp-interop` is a product-interoperability diagnostic, not a generic MCP conformance suite. A useful distinction is:
+
+- **MCP conformance** = implementation × specification
+- **mcp-interop** = deployment × client product × client version
+
+The OpenAI Reference Pattern therefore records product-facing assumptions separately from the Runtime Evidence schema and from the MCP specification itself.
+
 ## Basic usage
 
 ```console
@@ -183,6 +190,46 @@ Only booleans, the stable CIMD metadata URL, registration strategy, and a short 
 - client secrets;
 - cookies or credential files.
 
+## Manual real-ChatGPT dogfood workflow
+
+Use this workflow when you need evidence from the actual ChatGPT product without making the diagnostic depend on ChatGPT UI automation. The real-client steps are manual; the evidence processing remains deterministic and secret-free.
+
+1. Run public preflight first:
+
+   ```console
+   mcp-interop diagnose https://example.com/mcp --profile chatgpt
+   ```
+
+2. Connect the same Remote MCP deployment from the real ChatGPT product using the normal supported connection flow.
+3. Invoke two lightweight read-only tools. Prefer calls that do not expose sensitive customer data and that make the smallest practical request.
+4. Invoke one explicitly safe write-authorized path that does **not** modify existing persistent data. A dedicated no-op, dry-run, validation-only, or otherwise state-preserving write fixture is preferred. Do not edit or delete production records merely to exercise OAuth.
+5. Capture server-side Runtime Evidence as secret-free fragments. Record only the schema fields accepted by `mcp-interop`; do not copy raw HTTP headers, request bodies, credentials, or application identifiers into the evidence files.
+6. Merge, validate, and summarize the fragments:
+
+   ```console
+   mcp-interop evidence merge authorization.json resource.json tool.json -o runtime-evidence.json
+   mcp-interop evidence validate runtime-evidence.json
+   mcp-interop evidence summary runtime-evidence.json
+   ```
+
+7. Correlate the sanitized observations with the same deployment preflight:
+
+   ```console
+   mcp-interop diagnose https://example.com/mcp \
+     --profile chatgpt \
+     --runtime-evidence runtime-evidence.json
+   ```
+
+8. Review the three layers separately: public Preflight, Runtime Evidence, and the versioned OpenAI Reference Pattern. The manual ChatGPT interaction confirms that the evidence was produced by a real product session, but `mcp-interop` still does not turn that observation into generic MCP conformance.
+
+### Dogfood privacy boundary
+
+Do not persist or publish identifiers or credentials that are not part of the Runtime Evidence schema. Exclude unique user/resource/operation/request identifiers and raw OAuth or session artifacts. If server logs contain those fields, transform the observations into allowed booleans/short error codes before they enter the evidence workflow.
+
+Monokura has been used as a real-world validation target for this workflow. Public documentation records only the product-level fact that the sequence was exercised; no unique user/resource/operation identifier or credential is part of the published example.
+
+This manual workflow is intentionally preferred over ChatGPT DOM automation today. UI/DOM automation is brittle across product changes, complicates credential isolation, is difficult to reproduce in CI, and risks depending on private implementation details.
+
 ## Runtime checks
 
 When supplied, v2/v3 can correlate:
@@ -253,6 +300,18 @@ The reference summary covers the observed boundaries for:
 - tool-level OAuth signals.
 
 The reference source is the current OpenAI authentication documentation plus the structural authenticated-MCP pattern demonstrated by `openai/openai-mcpkit/python-authenticated-mcp-server-scaffold`.
+
+Each OpenAI Reference Pattern result is self-versioned. The current profile metadata is:
+
+```text
+PROFILE_REVISION  2026-08-10.1
+OBSERVED_DATE     2026-08-10
+SOURCE            OpenAI authenticated MCP reference pattern
+```
+
+The JSON report exposes the same metadata as `profile_revision`, `observed_date`, and `source` under `runtime_evidence.openai_reference_pattern`. `profile_revision` versions mcp-interop's ChatGPT/OpenAI interoperability assumptions; it is **not** an MCP specification version or a Runtime Evidence schema version. `observed_date` is the date the referenced OpenAI product guidance was last reviewed for that profile revision. When the product guidance changes materially, the reference profile revision/date should change even if Runtime Evidence schema v3 remains unchanged.
+
+Adding this profile metadata does not change the accepted Runtime Evidence v1/v2/v3 input contract. It versions the diagnostic interpretation layer itself.
 
 This is a **reference-pattern comparison**, not a statement that Auth0-specific setup is universally required. Provider-specific operational steps from the scaffold are not treated as protocol requirements.
 

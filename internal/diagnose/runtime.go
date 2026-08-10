@@ -14,8 +14,11 @@ import (
 )
 
 const (
-	runtimeEvidenceSchemaV2 = 2
-	runtimeEvidenceSchemaV3 = 3
+	runtimeEvidenceSchemaV2            = 2
+	runtimeEvidenceSchemaV3            = 3
+	openAIReferenceProfileRevision     = "2026-08-10.1"
+	openAIReferenceProfileObservedDate = "2026-08-10"
+	openAIReferenceProfileSource       = "OpenAI authenticated MCP reference pattern"
 )
 
 var oauthErrorPattern = regexp.MustCompile(`^[A-Za-z0-9._-]{1,64}$`)
@@ -313,9 +316,11 @@ type RuntimeCheck struct {
 }
 
 type ReferencePatternReport struct {
-	Status Status         `json:"status"`
-	Source string         `json:"source"`
-	Checks []RuntimeCheck `json:"checks"`
+	Status          Status         `json:"status"`
+	ProfileRevision string         `json:"profile_revision"`
+	ObservedDate    string         `json:"observed_date"`
+	Source          string         `json:"source"`
+	Checks          []RuntimeCheck `json:"checks"`
 }
 
 type EvidenceCoverage struct {
@@ -554,8 +559,10 @@ func validateToolChallenge(runtime *RuntimeEvidenceReport, value *bool, id, expe
 
 func buildOpenAIReferencePattern(runtime *RuntimeEvidenceReport) *ReferencePatternReport {
 	reference := &ReferencePatternReport{
-		Status: StatusPass,
-		Source: "OpenAI authenticated MCP reference pattern",
+		Status:          StatusPass,
+		ProfileRevision: openAIReferenceProfileRevision,
+		ObservedDate:    openAIReferenceProfileObservedDate,
+		Source:          openAIReferenceProfileSource,
 	}
 	reference.add(referenceCheck(runtime, "registration_strategy", "registration"))
 	reference.add(firstReferenceCheck(runtime, []string{"authorization_pkce_s256", "token_pkce_verifier"}, "pkce"))

@@ -2,6 +2,7 @@ package diagnose
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/git-ksk/mcp-interop/internal/interop"
@@ -74,6 +75,19 @@ func TestRuntimeEvidenceV2OpenAIReferenceHappyPath(t *testing.T) {
 	}
 	if report.RuntimeEvidence.OpenAIReference == nil || report.RuntimeEvidence.OpenAIReference.Status != StatusPass {
 		t.Fatalf("reference pattern=%#v", report.RuntimeEvidence.OpenAIReference)
+	}
+	reference := report.RuntimeEvidence.OpenAIReference
+	if reference.ProfileRevision != openAIReferenceProfileRevision || reference.ObservedDate != openAIReferenceProfileObservedDate || reference.Source != openAIReferenceProfileSource {
+		t.Fatalf("reference profile metadata=%#v", reference)
+	}
+	encoded, err := json.Marshal(reference)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`"profile_revision":"2026-08-10.1"`, `"observed_date":"2026-08-10"`, `"source":"OpenAI authenticated MCP reference pattern"`} {
+		if !strings.Contains(string(encoded), want) {
+			t.Fatalf("reference JSON missing %s: %s", want, encoded)
+		}
 	}
 }
 

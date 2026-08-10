@@ -10,6 +10,7 @@ All notable project changes will be summarized here. GitHub Releases remain the 
 
 ### Added
 
+- Versioned OpenAI Reference Pattern metadata (`profile_revision`, `observed_date`, `source`) and a documented manual real-ChatGPT secret-free dogfood workflow.
 - Controlled loopback OAuth scope fixture with `fixture.read` / `fixture.write`, insufficient-scope tool challenges, and an explicit release gate.
 - `mcp-interop evidence validate`, `summary`, and `merge` utilities using the same strict secret-free Runtime Evidence decoder as `diagnose`.
 - Conflict-safe evidence merging that emits canonical schema v3 JSON and structural summaries that never echo observed values.
