@@ -48,8 +48,7 @@ jobs:
             sleep 4
             printf '\r'
             sleep 3
-            printf '\003'
-          ) | HOME="$probehome" /usr/bin/script -q "$work/transcript" "$(command -v agy)" >/dev/null 2>&1
+          ) | HOME="$probehome" perl -e '$t=shift; alarm $t; exec @ARGV' 15 /usr/bin/script -q "$work/transcript" "$(command -v agy)" >/dev/null 2>&1
           set -e
           echo "--- secret-safe MCP manager indicators ---"
           python3 - "$work/transcript" <<'PY'
