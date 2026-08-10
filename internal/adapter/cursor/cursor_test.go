@@ -278,7 +278,7 @@ func TestAuthorizationURLFromTextUsesDynamicRedirect(t *testing.T) {
 
 func TestClassifyOAuthFailure(t *testing.T) {
 	cases := map[string]interop.ReasonCode{
-		"EADDRINUSE callback server":                        interop.ReasonOAuthCallbackPortConflict,
+		"EADDRINUSE callback server":                       interop.ReasonOAuthCallbackPortConflict,
 		"Dynamic client registration not supported":        interop.ReasonDCRUnsupported,
 		"Dynamic client registration failed with HTTP 500": interop.ReasonDCRFailed,
 	}
