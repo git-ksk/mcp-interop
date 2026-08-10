@@ -357,10 +357,10 @@ Published release history is summarized in [CHANGELOG.md](CHANGELOG.md).
 ### Open after v0.3.0
 
 - [ ] Complete automatic correlation between real-client OAuth failures and profile/runtime capability evidence ([#19](https://github.com/git-ksk/mcp-interop/issues/19)).
-- [ ] Complete Cursor OAuth token exchange + authenticated tool discovery.
-- [ ] Establish a safe Antigravity OAuth completion boundary before enabling authorization/token exchange.
+- [ ] Complete Cursor OAuth token exchange + authenticated tool discovery ([#3](https://github.com/git-ksk/mcp-interop/issues/3)).
+- [ ] Establish a safe Antigravity OAuth completion boundary before enabling authorization/token exchange ([#5](https://github.com/git-ksk/mcp-interop/issues/5)).
 - [ ] Research a supported headless ChatGPT MCP/app-management surface before any real ChatGPT adapter; do not use brittle DOM scraping as the compatibility contract ([#20](https://github.com/git-ksk/mcp-interop/issues/20)).
-- [ ] Revisit VS Code when a supported direct lifecycle/tool-discovery surface exists.
+- [ ] Revisit VS Code when a supported direct lifecycle/tool-discovery surface exists ([#6](https://github.com/git-ksk/mcp-interop/issues/6)).
 - [ ] Evaluate additional real MCP clients when they expose stable automatable lifecycle/tool-discovery surfaces.
 
 ### Shipped in v0.1.0

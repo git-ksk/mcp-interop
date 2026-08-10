@@ -351,10 +351,10 @@ harnessは:
 ### v0.3.0以降もopen
 
 - [ ] real-client OAuth failureとprofile/runtime capability evidenceの自動相関を完成 ([#19](https://github.com/git-ksk/mcp-interop/issues/19))
-- [ ] Cursor OAuth token exchange + authenticated tool discovery
-- [ ] Antigravity OAuthを安全に完遂できるcredential isolation boundaryの確立
+- [ ] Cursor OAuth token exchange + authenticated tool discovery ([#3](https://github.com/git-ksk/mcp-interop/issues/3))
+- [ ] Antigravity OAuthを安全に完遂できるcredential isolation boundaryの確立 ([#5](https://github.com/git-ksk/mcp-interop/issues/5))
 - [ ] real ChatGPT adapter前にsupportedなheadless ChatGPT MCP/app-management surfaceを調査し、brittle DOM scrapingはinterop contractに使わない ([#20](https://github.com/git-ksk/mcp-interop/issues/20))
-- [ ] supported direct lifecycle/tool-discovery surfaceが利用可能になったらVS Codeを再検討
+- [ ] supported direct lifecycle/tool-discovery surfaceが利用可能になったらVS Codeを再検討 ([#6](https://github.com/git-ksk/mcp-interop/issues/6))
 - [ ] stable automatable lifecycle/tool-discovery surfaceを持つ追加real MCP clientを評価
 
 ### v0.1.0で提供済み
