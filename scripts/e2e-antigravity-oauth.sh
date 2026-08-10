@@ -15,14 +15,12 @@ trace="$work_root/fixture.jsonl"
 result="$work_root/result.json"
 terminal="$work_root/terminal-private.log"
 input_fifo="$work_root/input"
-auth_url_file="$work_root/auth-url"
 code_file="$work_root/auth-code"
 fixture_pid=""
 interop_pid=""
-watch_pid=""
 cleanup() {
-  kill "${interop_pid:-}" "${watch_pid:-}" "${fixture_pid:-}" 2>/dev/null || true
-  wait "${interop_pid:-}" "${watch_pid:-}" "${fixture_pid:-}" 2>/dev/null || true
+  kill "${interop_pid:-}" "${fixture_pid:-}" 2>/dev/null || true
+  wait "${interop_pid:-}" "${fixture_pid:-}" 2>/dev/null || true
   /usr/bin/osascript -e 'tell application "Safari" to quit' >/dev/null 2>&1 || true
   [[ "${MCP_INTEROP_KEEP_E2E_TMP:-0}" == "1" ]] || rm -rf "$work_root"
 }
@@ -57,7 +55,10 @@ after="$work_root/after"
 snapshot "$before"
 before_pids="$(pgrep -x agy 2>/dev/null | sort -n | tr '\n' ' ' || true)"
 
-"$fixture_bin" --listen 127.0.0.1:0 --ready-file "$ready" --log-file "$trace" &
+# The private authorization-code file is a localhost-fixture test hook. It is
+# written only after the real Antigravity/browser path reaches /authorize and
+# is never included in fixture logs or mcp-interop diagnostics.
+"$fixture_bin" --listen 127.0.0.1:0 --ready-file "$ready" --log-file "$trace" --authorization-code-file "$code_file" &
 fixture_pid=$!
 for _ in {1..100}; do
   [[ -s "$ready" ]] && break
@@ -66,34 +67,6 @@ for _ in {1..100}; do
 done
 [[ -s "$ready" ]] || { echo "OAuth fixture not ready" >&2; exit 1; }
 endpoint="$(tr -d '\r\n' < "$ready")"
-origin="${endpoint%/mcp}"
-
-# The real agy 1.1.11 client launches the browser through macOS LaunchServices,
-# so the short-lived launcher process is not a reliable observation point. This
-# hosted-CI-only gate reads the current URL from the disposable Safari instance,
-# accepts only this localhost fixture's /authorize URL, writes it to a private
-# 0600 temp file, and never emits it to logs or mcp-interop diagnostics.
-(
-  for _ in {1..600}; do
-    safari_url="$(/usr/bin/osascript -e 'tell application "Safari" to if (count of documents) > 0 then return URL of front document' 2>/dev/null || true)"
-    if [[ -n "$safari_url" ]]; then
-      python3 - "$safari_url" "$origin" "$auth_url_file" <<'PY'
-import os,sys,urllib.parse
-raw,origin,out=sys.argv[1:]
-u=urllib.parse.urlparse(raw)
-expected=urllib.parse.urlparse(origin)
-if u.scheme=='http' and u.hostname==expected.hostname and u.port==expected.port and u.path=='/authorize':
-    if not os.path.exists(out):
-        fd=os.open(out,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)
-        with os.fdopen(fd,'w') as f:
-            f.write(raw)
-PY
-    fi
-    [[ -s "$auth_url_file" ]] && exit 0
-    sleep 0.05
-  done
-) &
-watch_pid=$!
 
 mkfifo "$input_fifo"
 set +e
@@ -103,35 +76,15 @@ exec 3> "$input_fifo"
 set -e
 
 for _ in {1..300}; do
-  [[ -s "$auth_url_file" ]] && break
+  [[ -s "$code_file" ]] && break
   kill -0 "$interop_pid" 2>/dev/null || break
   sleep 0.1
 done
-if [[ ! -s "$auth_url_file" ]]; then
-  echo "Antigravity authorization launch URL was not observed" >&2
+if [[ ! -s "$code_file" ]]; then
+  echo "Antigravity/browser path did not reach the fixture authorization endpoint" >&2
   fixture_trace
   exit 1
 fi
-
-python3 - "$auth_url_file" "$origin" "$code_file" <<'PY'
-import os,sys,urllib.error,urllib.parse,urllib.request
-url_path,origin,code_path=sys.argv[1:]
-raw=open(url_path).read()
-u=urllib.parse.urlparse(raw); expected=urllib.parse.urlparse(origin)
-if u.scheme!='http' or u.hostname!=expected.hostname or u.port!=expected.port or u.path!='/authorize':
-    raise SystemExit(65)
-class NoRedirect(urllib.request.HTTPRedirectHandler):
-    def redirect_request(self,req,fp,code,msg,headers,newurl): return None
-opener=urllib.request.build_opener(NoRedirect)
-try:
-    resp=opener.open(raw,timeout=15); location=resp.headers.get('Location','')
-except urllib.error.HTTPError as e:
-    location=e.headers.get('Location','')
-code=urllib.parse.parse_qs(urllib.parse.urlparse(location).query).get('code',[''])[0]
-if not code: raise SystemExit(66)
-fd=os.open(code_path,os.O_WRONLY|os.O_CREAT|os.O_TRUNC,0o600)
-with os.fdopen(fd,'w') as f: f.write(code)
-PY
 
 cat "$code_file" >&3
 printf '\r' >&3
@@ -141,9 +94,6 @@ wait "$interop_pid"
 rc=$?
 set -e
 interop_pid=""
-kill "$watch_pid" 2>/dev/null || true
-wait "$watch_pid" 2>/dev/null || true
-watch_pid=""
 /usr/bin/osascript -e 'tell application "Safari" to quit' >/dev/null 2>&1 || true
 
 cat "$result"
