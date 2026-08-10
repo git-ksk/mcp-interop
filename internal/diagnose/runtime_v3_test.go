@@ -69,6 +69,19 @@ func TestRuntimeEvidenceV3DoesNotInventMissingToolMetadataObservation(t *testing
 		}
 	}
 	assertRuntimeCheck(t, *report.RuntimeEvidence, "tool_oauth_www_authenticate", StatusNA, "not required for the observed authorized tool call", "not applicable")
+	if report.RuntimeEvidence.OpenAIReference == nil {
+		t.Fatal("missing OpenAI reference report")
+	}
+	for _, check := range report.RuntimeEvidence.OpenAIReference.Checks {
+		if check.ID != "tool_oauth_signals" {
+			continue
+		}
+		if check.Status != StatusWarn || check.Observed != "partial" {
+			t.Fatalf("tool_oauth_signals=%#v, want WARN/partial", check)
+		}
+		return
+	}
+	t.Fatal("missing tool_oauth_signals reference check")
 }
 
 func TestRuntimeEvidenceV2AndV3ToolEvidenceEvaluateEquivalently(t *testing.T) {

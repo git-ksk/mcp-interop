@@ -615,10 +615,13 @@ func aggregateReferenceChecks(runtime *RuntimeEvidenceReport, ids []string, outp
 			}
 		}
 	}
-	if found > 0 && applicable == 0 {
+	if found > 0 && applicable == 0 && found == len(ids) {
 		result.Status = StatusNA
 		result.Observed = "not applicable"
 		result.Message = "No checks in this OpenAI reference-pattern boundary applied to the observed flow"
+	} else if found > 0 && applicable == 0 {
+		result.Observed = "partial"
+		result.Message = "Observed checks were not applicable, but other observations for this OpenAI reference-pattern boundary were not supplied"
 	} else if applicable > 0 && passed == applicable {
 		result.Status = StatusPass
 		result.Observed = "passed"
