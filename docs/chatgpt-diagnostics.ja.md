@@ -158,6 +158,20 @@ schema v2は変更なしで引き続き受け付けます。従来のcombined `t
 
 内部ではlegacy v1のCIMD/token-request evidenceとして正規化します。新規連携はv3推奨です。
 
+### Evidence utility
+
+独立したsecret-free fragmentを`diagnose`前にvalidate/mergeできます。
+
+```console
+mcp-interop evidence validate authorization.json
+mcp-interop evidence summary authorization.json
+mcp-interop evidence merge authorization.json resource.json tool.json -o runtime-evidence.json
+```
+
+- `validate`は`diagnose --runtime-evidence`と同じstrict decoderを使います。
+- `summary`はinput schema、section名、supplied field数だけを表示し、boolean値、OAuth error、client metadata URLなどのobservation値は表示しません。
+- `merge`はv1/v2/v3をcanonical schema v3へ正規化し、同じfieldに競合observationがあれば失敗します。
+
 ### Secret boundary
 
 入力できるのはboolean、stable CIMD metadata URL、registration strategy、短いOAuth error codeだけです。未知fieldは拒否します。

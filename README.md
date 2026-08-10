@@ -177,6 +177,18 @@ Additional authorization/token/resource/tool observations are optional. Schema v
 
 Preflight, Runtime Evidence, and real-client interoperability remain separate evidence layers. A server can therefore show `PREFLIGHT PASS` and Runtime Evidence `FAIL` with `TOKEN_AUTH_METHOD_MISMATCH`.
 
+### Evidence utilities
+
+Use the same strict secret-free decoder outside `diagnose` to validate, summarize, or combine evidence fragments:
+
+```console
+mcp-interop evidence validate runtime-evidence.json
+mcp-interop evidence summary runtime-evidence.json
+mcp-interop evidence merge authorization.json resource.json tool.json -o runtime-evidence.json
+```
+
+`summary` prints only structural coverage (section names and supplied-field counts), never observed values or metadata URLs. `merge` fails on conflicting observations instead of using last-write-wins and emits canonical schema v3 JSON. Unknown fields remain rejected, so these commands do not create a second path for ingesting tokens, authorization codes, raw client assertions, cookies, or other credentials.
+
 ## Codex adapter
 
 The Codex adapter:
