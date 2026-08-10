@@ -2,7 +2,26 @@
 
 [English](architecture.md) | [日本語](architecture.ja.md)
 
-`mcp-interop` is a black-box interoperability runner for Remote MCP deployments. The project deliberately separates protocol-level observation from real-client execution so it does not become another MCP conformance suite.
+`mcp-interop` is a black-box interoperability runner for Remote MCP deployments. The project deliberately separates protocol conformance from real-client product interoperability so it does not become another MCP conformance suite.
+
+## Relationship to MCP Conformance
+
+`mcp-interop` is complementary to the official [MCP Conformance Test Framework](https://github.com/modelcontextprotocol/conformance), not a replacement for it.
+
+The distinction is not “real software versus synthetic tests.” The official framework can launch a real client command and can test a real server URL. Its oracle is the MCP specification: scenario-controlled interactions are evaluated against expected protocol behavior.
+
+`mcp-interop` instead evaluates a **specific deployed Remote MCP endpoint against specific released client products and versions** through those products' own MCP surfaces. Its core comparison axis is therefore:
+
+```text
+MCP Conformance: implementation x specification
+mcp-interop:      deployment x client product x client version
+```
+
+A conformance PASS does not prove that every released client will interoperate with a particular deployment. An `mcp-interop` PASS does not prove full specification conformance. A useful release pipeline can run Conformance first, deploy the real endpoint, then run `mcp-interop` against the clients users actually use.
+
+Product-specific `diagnose` profiles must preserve the same boundary: generic MCP/OAuth conformance belongs to the official suite; profile diagnostics may test compatibility with a named client product but must never present metadata compatibility as generic conformance or as a real-client interoperability PASS.
+
+See [MCP Conformance vs. mcp-interop](conformance-vs-interop.md) for the detailed boundary and test topologies.
 
 ## Core model
 
@@ -82,17 +101,21 @@ tools/list
 
 and fails if `tools/call` occurs. It also checks user configuration metadata, the login Keychain database, leaked client processes, and temporary session directories before/after the run.
 
+The fixture is an **adapter self-test and release gate**, not a general MCP conformance suite. Its job is to prove that the `mcp-interop` measurement path actually observes the real clients and preserves the project's isolation guarantees.
+
 GitHub-hosted CI does not install external MCP clients. It validates adapter regression tests, fixture behavior, harness syntax/build paths, and release builds. A separate manual workflow targets a self-hosted macOS ARM64 runner for real-client E2E.
 
 ## What this project does not test
 
 A successful interoperability result does not mean:
 
+- the implementation is fully MCP-conformant;
 - the MCP server is secure;
 - tool implementations are correct;
 - destructive operations are safe;
 - the model will choose the appropriate tool;
-- every OAuth identity or scope combination will work.
+- every OAuth identity or scope combination will work;
+- untested client products or versions are compatible.
 
 Those concerns belong to separate security, conformance, or agent-evaluation tools.
 

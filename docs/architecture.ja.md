@@ -2,7 +2,26 @@
 
 [English](architecture.md) | [日本語](architecture.ja.md)
 
-`mcp-interop` は、Remote MCP デプロイメントを**実際のMCPクライアントでブラックボックス検証する**相互運用性テストランナーです。プロトコル仕様への適合確認と、実クライアントで本当に動くかの確認を分離し、一般的なMCP conformance suiteとは異なる役割を持たせています。
+`mcp-interop` は、Remote MCP デプロイメントを**実際のMCPクライアントでブラックボックス検証する**相互運用性テストランナーです。プロトコル仕様へのconformanceと、実client productとのinteroperabilityを明確に分離し、一般的なMCP conformance suiteとは異なる役割を持たせています。
+
+## MCP Conformanceとの関係
+
+`mcp-interop` は、公式の [MCP Conformance Test Framework](https://github.com/modelcontextprotocol/conformance) を置き換えるものではなく、補完するテストレイヤーです。
+
+違いは「real softwareかsynthetic testか」ではありません。公式Conformanceは実client commandを起動でき、実server URLも直接テストできます。公式側のoracleはMCP specificationであり、scenario-controlledなinteractionをexpected protocol behaviorと比較します。
+
+一方`mcp-interop`は、**特定のRemote MCP deploymentを、特定のreleased client product/versionで実際に使えるか**を、その製品自身のMCP surfaceから観測します。比較軸は次の通りです。
+
+```text
+MCP Conformance: implementation x specification
+mcp-interop:      deployment x client product x client version
+```
+
+Conformance PASSだけでは、特定deploymentがすべてのreleased clientで動くことまでは証明しません。逆に`mcp-interop` PASSだけでも、MCP仕様への完全な適合性は証明しません。release pipelineでは、まずConformanceを通し、実endpointをdeployし、その後usersが実際に使うclientで`mcp-interop`を実行する二段階構成が適しています。
+
+Product-specificな`diagnose` profileも同じ境界を守ります。GenericなMCP/OAuth conformanceは公式Conformanceの担当です。`diagnose`は特定client productとの互換性を確認できますが、metadata compatibilityをgeneric conformanceやreal-client interoperability PASSとして扱ってはいけません。
+
+詳細は[MCP Conformance と mcp-interop の違い](conformance-vs-interop.ja.md)を参照してください。
 
 ## コアモデル
 
@@ -82,17 +101,21 @@ tools/list
 
 `tools/call`が発生した場合はFAILです。また、実行前後でuser config metadata、login Keychain DB、新規残存client process、temporary session directoryを比較します。
 
+このfixtureは**adapterのself-test / release gate**であり、一般的なMCP conformance suiteではありません。目的は、`mcp-interop`のmeasurement pathが本当に実clientを観測でき、isolation guaranteeを維持していることを確認することです。
+
 GitHub-hosted CIには外部MCP clientをインストールしません。通常CIではadapter regression test、fixture、harnessのsyntax/build path、release buildを検証します。実クライアントE2Eはself-hosted macOS ARM64 runner向けのmanual workflowとして分離しています。
 
 ## このプロジェクトが検証しないもの
 
 interop testが成功しても、次を保証するものではありません。
 
+- implementationが完全にMCP conformantであること
 - MCP serverが安全であること
 - tool実装自体が正しいこと
 - destructive operationが安全であること
 - modelが適切なtoolを選択すること
 - あらゆるOAuth identity/scope combinationが成功すること
+- 実際にテストしていないclient product/versionとの互換性
 
 これらはsecurity scanner、conformance test、agent evaluationなど別種類のツールが扱う領域です。
 
