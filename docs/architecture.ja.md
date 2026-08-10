@@ -65,15 +65,15 @@ live adapterはユーザーが普段使っているMCP設定を黙って変更�
 
 processについても同じ原則を適用します。adapterが終了させてよいのは、現在のisolated test sessionに属すると証明できるprocessだけです。実行ファイル名だけを根拠に他のCodex/Cursor/Antigravity processをkillしてはいけません。
 
-## v0.1.0で提供しているadapter
+## 提供中のadapter
 
 ### Codex CLI
 
-v0.1.0で最も完成度の高いadapterです。isolated `CODEX_HOME`、実`codex app-server`のMCP status surface、明示的なopt-in OAuth flowを使用します。OAuth credential storageはtemporary HOME内のfileへ強制し、通常のkeyring経路を使いません。
+現在最も完成度の高いadapterです。isolated `CODEX_HOME`、実`codex app-server`のMCP status surface、明示的なopt-in OAuth flowを使用します。OAuth credential storageはtemporary HOME内のfileへ強制し、通常のkeyring経路を使いません。
 
 ### Cursor CLI (beta)
 
-isolated temporary `HOME`とworkspaceを作り、実Cursor CLIの`mcp enable`、`mcp list`、`mcp list-tools`を使います。model promptなしでno-auth Remote MCPのlive interoperabilityを確認できます。OAuth token exchangeとauthenticated tool discoveryはv0.2での完成を予定しています。
+isolated temporary `HOME`とworkspaceを作り、実Cursor CLIの`mcp enable`、`mcp list`、`mcp list-tools`を使います。model promptなしでno-auth Remote MCPのlive interoperabilityを確認できます。OAuth token exchangeとauthenticated tool discoveryは、isolated fixture pathで完全に検証できるまで未提供のままです。
 
 ### Antigravity CLI (beta, macOS)
 

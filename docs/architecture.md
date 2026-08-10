@@ -69,11 +69,11 @@ Process ownership follows the same rule: an adapter may reap only processes it c
 
 ### Codex CLI
 
-The Codex adapter is the most complete implementation in v0.1.0. It uses an isolated `CODEX_HOME`, the real `codex app-server` MCP status surface, and an explicit opt-in OAuth flow. OAuth credentials are forced into file storage inside the temporary home rather than the normal keyring path.
+The Codex adapter is currently the most complete implementation. It uses an isolated `CODEX_HOME`, the real `codex app-server` MCP status surface, and an explicit opt-in OAuth flow. OAuth credentials are forced into file storage inside the temporary home rather than the normal keyring path.
 
 ### Cursor CLI (beta)
 
-The Cursor adapter uses an isolated temporary `HOME` and workspace plus the real CLI MCP management commands (`mcp enable`, `mcp list`, and `mcp list-tools`). It supports live no-auth interoperability testing without model prompts. OAuth completion remains planned for v0.2 after authenticated token exchange and tool discovery are fully verified.
+The Cursor adapter uses an isolated temporary `HOME` and workspace plus the real CLI MCP management commands (`mcp enable`, `mcp list`, and `mcp list-tools`). It supports live no-auth interoperability testing without model prompts. OAuth completion remains unshipped until authenticated token exchange and tool discovery are fully verified in the isolated fixture path.
 
 ### Antigravity CLI (beta, macOS)
 

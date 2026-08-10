@@ -4,27 +4,30 @@ All notable project changes will be summarized here. GitHub Releases remain the 
 
 ## Unreleased
 
+## v0.2.0 — 2026-08-10
+
 ### Added
 
-- Optional machine-readable `reason_code` on stage results without changing the existing `reach` / `auth` / `init` / `tools` status contract.
-- Initial Codex OAuth diagnostics for `DCR_UNSUPPORTED` and `DCR_FAILED`, classified from explicit real-client error evidence without exposing raw app-server error text.
-- Profile-based `mcp-interop diagnose <url> --profile chatgpt` preflight diagnostics for Protected Resource Metadata, authorization-server discovery, CIMD/DCR registration compatibility, ChatGPT token endpoint auth methods, PKCE S256, refresh-token advisory evidence, and optional observed ChatGPT CIMD/redirect/JWKS validation.
-- Versioned secret-free ChatGPT Runtime Evidence v2 with explicit `cimd` / `dcr` / `predefined` registration strategy, separate authorization/token/resource/tool-auth observations, and backward-compatible legacy v1 input.
-- OpenAI Reference Pattern correlation based on the documented ChatGPT OAuth flow and the structural authenticated-MCP pattern demonstrated by `openai/openai-mcpkit`, without treating Auth0-specific setup as a protocol requirement.
-- Runtime diagnostics for PKCE, resource consistency, token endpoint authentication/errors, bearer delivery, resource-server signature/issuer/audience/expiry/scope verification, and tool-level OAuth linking signals.
-- Conservative runtime reason codes including `TOKEN_AUTH_METHOD_MISMATCH`, `CLIENT_AUTH_REJECTED`, `TOKEN_AUDIENCE_MISMATCH`, `ACCESS_TOKEN_NOT_ATTACHED`, and tool OAuth metadata/challenge failures.
-- Conservative handling for ambiguous multiple authorization servers; token-auth expectations remain unknown until the selected issuer is observable.
-- English and Japanese reason-code, ChatGPT diagnostic, and troubleshooting documentation.
+- Structured OAuth `reason_code` values while preserving the existing `reach` / `auth` / `init` / `tools` result contract, including real-client `DCR_UNSUPPORTED` / `DCR_FAILED` and Runtime Evidence v2 reason codes.
+- `mcp-interop diagnose <url> --profile chatgpt` OAuth/server preflight for Protected Resource Metadata, authorization-server discovery, CIMD/DCR registration compatibility, token endpoint authentication, PKCE S256, and refresh-token advisory evidence.
+- Exact observed ChatGPT CIMD validation for the stable client metadata URL, redirect URI, token endpoint authentication method intersection, and JWKS reachability.
+- Secret-free ChatGPT Runtime Evidence v2 with explicit `cimd` / `dcr` / `predefined` registration strategy and separate authorization-request, token-request, resource-request, and tool-auth observations.
+- Runtime correlation for OAuth `resource` consistency across authorization/token requests, PKCE verifier presence, token endpoint authentication/errors, and Bearer delivery to the MCP resource server.
+- Resource-server verification evidence for token signature, issuer, audience/resource, expiry, and required scopes.
+- OpenAI authenticated MCP reference-pattern diagnostics covering registration, PKCE, token auth, Bearer delivery, resource-server verification, and tool-level OAuth signals without treating provider-specific Auth0 setup as a protocol requirement.
+- Tool-level OAuth signal diagnostics for `securitySchemes` and `_meta["mcp/www_authenticate"]`, evaluated only when corresponding sanitized Runtime Evidence is explicitly available.
+- Conservative handling of multiple advertised authorization servers; issuer-specific token-auth expectations remain unknown until the selected issuer is observable.
+- Backward-compatible legacy Runtime Evidence v1 input, normalized internally to the v2 diagnostic model.
+- Expanded English and Japanese documentation for ChatGPT diagnostics, reason codes, troubleshooting, architecture, and conformance/interoperability boundaries.
 
-### Planned
+### Current limitations
 
-- Correlate additional real-client OAuth failures with metadata/runtime diagnostic evidence while keeping server preflight, observed runtime evidence, OpenAI reference-pattern comparison, and real-client interoperability verdicts separate.
-- Complete Cursor OAuth through authenticated tool discovery.
-- Establish a safe Antigravity OAuth completion boundary before enabling automated authorization/token exchange.
-- Continue improving diagnostic output for inconclusive client results with additional conservative reason codes and sanitized traces.
-- Research a supported ChatGPT real-client automation surface without browser DOM scraping before adding any ChatGPT live adapter.
-- Treat ChatGPT mTLS client-certificate evidence as a future advisory/runtime observation rather than a current interoperability requirement.
-- Revisit additional real MCP clients when they expose a supported, automatable lifecycle/tool-discovery surface.
+- ChatGPT real-client automation remains research-only. v0.2.0 provides ChatGPT OAuth/server preflight, observed Runtime Evidence, and OpenAI reference-pattern diagnostics, not a ChatGPT live adapter or a real-client `reach/auth/init/tools` PASS.
+- Cursor OAuth completion and authenticated tool discovery are not shipped yet.
+- Antigravity OAuth completion remains intentionally disabled until credential isolation from the normal macOS Keychain can be proven safe.
+- VS Code remains research-only pending a supported direct lifecycle/tool-discovery automation surface.
+- Tool-level OAuth signal checks are only meaningful when those signals were actually observed and supplied as sanitized Runtime Evidence.
+- Automatic end-to-end correlation between real-client OAuth failures and profile/runtime capability evidence is not yet complete; the evidence layers remain deliberately separate.
 
 ## v0.1.0 — 2026-08-09
 
