@@ -221,15 +221,24 @@ func (a *Adapter) Run(ctx context.Context, target interop.Target, session *inter
 		return result, nil
 	}
 
-	if requiresOAuth(combined) {
-		result.Set(interop.StageReach, interop.StatusPass, "Cursor reached the MCP authentication boundary")
-		if a.authorize == nil {
-			result.Set(interop.StageAuth, interop.StatusSkip, "Cursor reports MCP authentication is required; rerun with explicit OAuth opt-in to authenticate")
-			result.Set(interop.StageInit, interop.StatusSkip, "authentication is incomplete")
-			result.Set(interop.StageTools, interop.StatusSkip, "authentication is incomplete")
-			return result, nil
+	// --oauth is explicit operator intent. Cursor's supported management surface
+	// does not consistently emit a stable human-readable "login required" marker
+	// even after reaching PRM / AS metadata / DCR. When OAuth is explicitly
+	// enabled, invoke the supported mcp login command rather than guessing from
+	// localized/version-specific prose.
+	if a.authorize != nil {
+		if requiresOAuth(combined) {
+			result.Set(interop.StageReach, interop.StatusPass, "Cursor reached the MCP authentication boundary")
 		}
 		return a.completeOAuth(ctx, workspace, env, result)
+	}
+
+	if requiresOAuth(combined) {
+		result.Set(interop.StageReach, interop.StatusPass, "Cursor reached the MCP authentication boundary")
+		result.Set(interop.StageAuth, interop.StatusSkip, "Cursor reports MCP authentication is required; rerun with explicit OAuth opt-in to authenticate")
+		result.Set(interop.StageInit, interop.StatusSkip, "authentication is incomplete")
+		result.Set(interop.StageTools, interop.StatusSkip, "authentication is incomplete")
+		return result, nil
 	}
 
 	if listed.err == nil && containsServer(listed.stdout, testServerName) {
