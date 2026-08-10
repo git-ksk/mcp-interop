@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -14,23 +15,77 @@ import (
 )
 
 const (
-	clientID       = "antigravity"
-	clientName     = "Antigravity CLI"
-	testServerName = "mcp-interop-target"
-	defaultTimeout = 15 * time.Second
+	clientID               = "antigravity"
+	clientName             = "Antigravity CLI"
+	testServerName         = "mcp-interop-target"
+	defaultTimeout         = 15 * time.Second
+	defaultOAuthTimeout    = 5 * time.Minute
+	defaultManagerOpenWait = 4 * time.Second
+	defaultAuthSelectWait  = 4 * time.Second
 )
+
+// Option configures optional live-adapter behavior.
+type Option func(*Adapter)
+
+// WithOAuth explicitly enables Antigravity's interactive MCP OAuth manager in
+// the isolated HOME. OAuth remains opt-in because the flow launches a browser
+// and requires an authorization code to be pasted back into Antigravity.
+func WithOAuth() Option {
+	return func(adapter *Adapter) {
+		adapter.oauthEnabled = true
+		adapter.oauthInput = os.Stdin
+		adapter.oauthOutput = os.Stderr
+	}
+}
+
+// WithOAuthIO enables OAuth with caller-provided interactive streams. This is
+// primarily useful to embed mcp-interop or drive controlled localhost E2E tests.
+// The adapter never records bytes read from or written to these streams.
+func WithOAuthIO(input io.Reader, output io.Writer) Option {
+	return func(adapter *Adapter) {
+		adapter.oauthEnabled = true
+		adapter.oauthInput = input
+		adapter.oauthOutput = output
+	}
+}
+
+// WithOAuthTimeout overrides the maximum duration of the explicit OAuth flow.
+func WithOAuthTimeout(timeout time.Duration) Option {
+	return func(adapter *Adapter) {
+		if timeout > 0 {
+			adapter.oauthTimeout = timeout
+		}
+	}
+}
 
 // Adapter tests a Remote MCP server through the installed Antigravity CLI.
 // The current live implementation is intentionally macOS-only because that is
-// the platform where the no-prompt PTY/cache behavior has been verified.
+// the platform where the PTY/cache and OAuth-isolation behavior is verified.
 type Adapter struct {
-	executable string
-	version    string
-	timeout    time.Duration
+	executable       string
+	version          string
+	timeout          time.Duration
+	oauthTimeout     time.Duration
+	oauthEnabled     bool
+	oauthInput       io.Reader
+	oauthOutput      io.Writer
+	managerOpenWait  time.Duration
+	authSelectWait   time.Duration
 }
 
-func New(executable, version string) *Adapter {
-	return &Adapter{executable: executable, version: version, timeout: defaultTimeout}
+func New(executable, version string, options ...Option) *Adapter {
+	adapter := &Adapter{
+		executable:      executable,
+		version:         version,
+		timeout:         defaultTimeout,
+		oauthTimeout:    defaultOAuthTimeout,
+		managerOpenWait: defaultManagerOpenWait,
+		authSelectWait:  defaultAuthSelectWait,
+	}
+	for _, option := range options {
+		option(adapter)
+	}
+	return adapter
 }
 
 func newResult(version, endpoint string) interop.Result {
@@ -71,6 +126,23 @@ func writeConfig(home, endpoint string) error {
 
 func toolCacheRoot(home string) string {
 	return filepath.Join(home, ".gemini", "antigravity-cli", "mcp", testServerName)
+}
+
+func oauthTokenPath(home string) string {
+	return filepath.Join(home, ".gemini", "antigravity", "mcp_oauth_tokens.json")
+}
+
+// oauthTokenObserved intentionally checks metadata only. Token bytes are never
+// opened or parsed by the adapter and therefore cannot enter reports/logs.
+func oauthTokenObserved(home string) (bool, error) {
+	info, err := os.Stat(oauthTokenPath(home))
+	if err == nil {
+		return info.Mode().IsRegular() && info.Size() > 0, nil
+	}
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	return false, err
 }
 
 func countValidToolCacheFiles(home string) (int, error) {
