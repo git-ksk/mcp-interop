@@ -122,10 +122,10 @@ if [[ "$(grep -c '"status": "pass"' "$result" || true)" -ne 4 ]]; then
   fixture_trace
   exit 1
 fi
-grep -Fq '"path":"/register","method":"POST"' "$log" || { echo "DCR not observed" >&2; fixture_trace; exit 1; }
-grep -Fq '"path":"/authorize","method":"GET"' "$log" || { echo "authorization request not observed" >&2; fixture_trace; exit 1; }
-grep -Fq '"path":"/token","method":"POST"' "$log" || { echo "token exchange not observed" >&2; fixture_trace; exit 1; }
-grep -Fq '"path":"/mcp","method":"POST"' "$log" || { echo "authenticated MCP request not observed" >&2; fixture_trace; exit 1; }
+grep -Fq '"method":"POST","path":"/register"' "$log" || { echo "DCR not observed" >&2; fixture_trace; exit 1; }
+grep -Fq '"method":"GET","path":"/authorize"' "$log" || { echo "authorization request not observed" >&2; fixture_trace; exit 1; }
+grep -Fq '"method":"POST","path":"/token"' "$log" || { echo "token exchange not observed" >&2; fixture_trace; exit 1; }
+grep -Fq '"method":"POST","path":"/mcp"' "$log" || { echo "authenticated MCP request not observed" >&2; fixture_trace; exit 1; }
 
 sleep 0.2
 snapshot "$after"
