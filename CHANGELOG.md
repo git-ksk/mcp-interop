@@ -6,6 +6,8 @@ All notable project changes will be summarized here. GitHub Releases remain the 
 
 ### Added
 
+- `mcp-interop evidence validate`, `summary`, and `merge` utilities using the same strict secret-free Runtime Evidence decoder as `diagnose`.
+- Conflict-safe evidence merging that emits canonical schema v3 JSON and structural summaries that never echo observed values.
 - Runtime Evidence schema v3 with independent `tool_metadata` and `tool_challenge` sections, while preserving v1/v2 input compatibility.
 - v2 `tool_auth` normalization to the same evaluation boundaries used by v3, with mixed v2/v3 tool shapes rejected.
 - Runtime Evidence coverage counters (`observed`, `passed`, `failed`, `unknown`, `not_applicable`) in JSON and text diagnostics.

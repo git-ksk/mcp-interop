@@ -23,6 +23,7 @@ Usage:
   mcp-interop clients [--json]
   mcp-interop test <url> [--client codex,cursor,antigravity] [--oauth] [--json]
   mcp-interop diagnose <url> [--profile chatgpt] [--client-id <url>] [--redirect-uri <url>] [--runtime-evidence <file|->] [--json]
+  mcp-interop evidence <validate|summary|merge> ...
   mcp-interop version
   mcp-interop help
 
@@ -30,6 +31,7 @@ Commands:
   clients    Detect supported MCP clients installed on this machine.
   test       Run a Remote MCP interoperability test through real clients.
   diagnose   Run profile-based server/OAuth preflight diagnostics without claiming real-client PASS.
+  evidence   Validate, summarize, or merge secret-free Runtime Evidence documents.
   version    Print mcp-interop build version information.
 
 Test options:
@@ -58,6 +60,8 @@ func run(ctx context.Context, args []string) int {
 		return runTest(ctx, args[1:])
 	case "diagnose":
 		return runDiagnose(ctx, args[1:])
+	case "evidence":
+		return runEvidence(args[1:])
 	case "version", "--version":
 		fmt.Println(formatVersion(currentVersionInfo()))
 		return 0

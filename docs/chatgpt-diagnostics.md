@@ -158,6 +158,20 @@ The original compact evidence shape remains accepted:
 
 It is normalized internally as legacy v1 CIMD/token-request evidence. New integrations should prefer schema v3.
 
+### Evidence utilities
+
+The CLI can validate and combine independently produced secret-free fragments before running `diagnose`:
+
+```console
+mcp-interop evidence validate authorization.json
+mcp-interop evidence summary authorization.json
+mcp-interop evidence merge authorization.json resource.json tool.json -o runtime-evidence.json
+```
+
+- `validate` uses the exact same strict decoder as `diagnose --runtime-evidence`.
+- `summary` reports only the input schema, section names, and counts of supplied fields. It does not echo booleans, OAuth errors, client metadata URLs, or other observed values.
+- `merge` canonicalizes v1/v2/v3 inputs to schema v3 and fails if two fragments make conflicting observations about the same field.
+
 ### Secret boundary
 
 Only booleans, the stable CIMD metadata URL, registration strategy, and a short OAuth error code are accepted. Unknown fields are rejected. Do **not** put any of the following into Runtime Evidence:

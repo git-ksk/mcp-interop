@@ -169,7 +169,7 @@ mcp-interop diagnose https://example.com/mcp \
   --runtime-evidence runtime-evidence.json
 ```
 
-`runtime-evidence.json`の最小v2形:
+`runtime-evidence.json`の最小v3形:
 
 ```json
 {
@@ -191,9 +191,21 @@ mcp-interop diagnose https://example.com/mcp \
 }
 ```
 
-authorization/token/resource/toolの追加observationは任意です。未観測なら推測せず`WARN / unknown`になります。未知fieldは拒否するため、token、authorization code、PKCE verifier、raw client assertion、cookieなどを入力しないでください。legacy Runtime Evidence v1も互換目的で引き続き受け付けます。
+authorization/token/resource/toolの追加observationは任意です。v3では`tool_metadata`と`tool_challenge`を独立して扱い、v2 `tool_auth`とlegacy v1も互換目的で引き続き受け付けます。未観測なら推測せず`WARN / unknown`になります。未知fieldは拒否するため、token、authorization code、PKCE verifier、raw client assertion、cookieなどを入力しないでください。
 
 **このcommandはChatGPT UIを操作せず、OAuthを完遂せず、実ChatGPT client PASSを主張しません。** Preflight、Runtime Evidence、real-client interoperabilityは別の証拠層です。詳細は[ChatGPT接続診断](docs/chatgpt-diagnostics.ja.md)を参照してください。
+
+### Evidence utility
+
+`diagnose`と同じstrict secret-free decoderを使う補助commandです。
+
+```console
+mcp-interop evidence validate runtime-evidence.json
+mcp-interop evidence summary runtime-evidence.json
+mcp-interop evidence merge authorization.json resource.json tool.json -o runtime-evidence.json
+```
+
+`summary`はsection名とsupplied field数だけを表示します。`merge`は競合observationを後勝ちにせず失敗させ、canonical schema v3 JSONを出力します。未知fieldの拒否も共通です。
 
 ## Codex adapter
 
