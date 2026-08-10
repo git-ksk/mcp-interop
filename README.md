@@ -26,7 +26,7 @@ Live adapters currently exist for:
 - **Cursor CLI (beta)** — live no-auth inventory via dedicated MCP management commands; OAuth completion is still pending maintainer E2E verification.
 - **Antigravity CLI (beta, macOS)** — live no-auth inventory through an isolated no-prompt PTY startup and machine-readable MCP tool cache; automated OAuth completion is intentionally disabled.
 
-v0.2.0 also includes **ChatGPT OAuth/server preflight, Runtime Evidence v2, and OpenAI reference-pattern diagnostics**. These validate published metadata and explicitly supplied sanitized runtime observations without claiming that the real ChatGPT client ran.
+v0.2.0 also includes **ChatGPT OAuth/server preflight, Runtime Evidence v2, and OpenAI reference-pattern diagnostics**. The current development branch additionally accepts Runtime Evidence v3, which separates static tool metadata from runtime reauthorization challenges. These validate published metadata and explicitly supplied sanitized runtime observations without claiming that the real ChatGPT client ran.
 
 VS Code remains research-only until a stable no-model server-start/tool-discovery surface is available.
 
@@ -151,11 +151,11 @@ mcp-interop diagnose https://example.com/mcp \
   --runtime-evidence runtime-evidence.json
 ```
 
-Minimal v2 evidence:
+Minimal v3 evidence:
 
 ```json
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "registration": {
     "strategy": "cimd",
     "client_metadata_url": "https://chatgpt.com/oauth/.../client.json"
@@ -163,11 +163,17 @@ Minimal v2 evidence:
   "token_request": {
     "resource_matches": true,
     "client_assertion_present": false
+  },
+  "tool_metadata": {
+    "oauth2_security_scheme_present": true
+  },
+  "tool_challenge": {
+    "expected": false
   }
 }
 ```
 
-Additional authorization/token/resource/tool observations are optional. Missing observations remain `WARN / unknown`; they are never inferred. Unknown JSON fields are rejected, so tokens, authorization codes, PKCE verifier values, raw client assertions, cookies, and credentials are not accepted. Legacy Runtime Evidence v1 remains accepted for compatibility.
+Additional authorization/token/resource/tool observations are optional. Schema v3 keeps `tool_metadata` and `tool_challenge` independent; schema v2 `tool_auth` and legacy v1 input remain accepted for compatibility. Missing observations remain `WARN / unknown`; they are never inferred. Unknown JSON fields are rejected, so tokens, authorization codes, PKCE verifier values, raw client assertions, cookies, and credentials are not accepted.
 
 Preflight, Runtime Evidence, and real-client interoperability remain separate evidence layers. A server can therefore show `PREFLIGHT PASS` and Runtime Evidence `FAIL` with `TOKEN_AUTH_METHOD_MISMATCH`.
 
@@ -322,6 +328,7 @@ Published release history is summarized in [CHANGELOG.md](CHANGELOG.md).
 - [x] ChatGPT OAuth/server preflight with PRM, CIMD/DCR, PKCE, and token-auth diagnostics.
 - [x] Exact ChatGPT CIMD / redirect URI / JWKS validation from observed non-secret metadata.
 - [x] Runtime Evidence v2 with `cimd` / `dcr` / `predefined` registration strategy and legacy v1 compatibility.
+- [ ] Runtime Evidence v3 split tool metadata/challenge shape (development branch; see #26).
 - [x] Token/resource request correlation, Bearer delivery, and resource-server signature/issuer/audience/expiry/scope diagnostics.
 - [x] OpenAI authenticated MCP reference-pattern and tool-level OAuth signal diagnostics.
 - [x] Conservative multiple-authorization-server handling.

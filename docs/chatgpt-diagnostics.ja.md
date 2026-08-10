@@ -66,13 +66,16 @@ mcp-interop diagnose https://example.com/mcp \
 
 authorization code、OAuth state、token、cookie、client assertionは渡さないでください。
 
-## Runtime Evidence v2
+## Runtime Evidence v3
 
-v2ではregistration、authorization request、token request、resource-server verification、tool-level OAuth signalを分離します。
+v3ではv2のregistration、authorization request、token request、resource-server observationを維持しつつ、tool-level evidenceを独立した2セクションに分けます。
+
+- `tool_metadata` — tool discovery時に観測する静的per-tool OAuth metadata
+- `tool_challenge` — tool callで認証/追加scopeが必要になった場合だけ観測するruntime reauthorization signal
 
 ```json
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "registration": {
     "strategy": "cimd",
     "client_metadata_url": "https://chatgpt.com/oauth/.../client.json"
@@ -86,18 +89,21 @@ v2ではregistration、authorization request、token request、resource-server v
     "resource_matches": true,
     "code_verifier_present": true,
     "client_assertion_present": false,
-    "client_assertion_type_present": false,
-    "oauth_error": "invalid_client"
+    "client_assertion_type_present": false
   },
   "resource_request": {
-    "bearer_present": false
+    "bearer_present": true,
+    "signature_valid": true,
+    "issuer_matches": true,
+    "audience_matches": true,
+    "expiry_valid": true,
+    "scopes_sufficient": true
   },
-  "tool_auth": {
-    "challenge_expected": true,
-    "oauth2_security_scheme_present": true,
-    "www_authenticate_present": true,
-    "www_authenticate_has_error": true,
-    "www_authenticate_has_error_description": true
+  "tool_metadata": {
+    "oauth2_security_scheme_present": true
+  },
+  "tool_challenge": {
+    "expected": false
   }
 }
 ```
@@ -116,7 +122,26 @@ mcp-interop diagnose https://example.com/mcp \
 - `dcr`
 - `predefined`
 
-ここを明示する理由は、registration方式ごとにtoken endpoint authenticationの推論可能範囲が違うためです。CIMDではChatGPT CIMDとAS metadataを比較して、双方が`private_key_jwt`を広告していればそれをexpectedとして扱えます。一方DCR/predefinedでは、registered clientの実metadataが分からない限りtoken auth methodを勝手に推測しません。
+registration方式ごとにtoken endpoint authenticationの推論可能範囲が違います。CIMDではChatGPT CIMDとAS metadataを比較して、双方が`private_key_jwt`を広告していればexpectedとして扱えます。一方DCR/predefinedでは、registered clientの実metadataが分からない限りtoken auth methodを推測しません。
+
+### v2互換
+
+schema v2は変更なしで引き続き受け付けます。従来のcombined `tool_auth`は内部でv3と同じ評価境界へ正規化されるため、既存evidence producerの診断結果は維持されます。
+
+```json
+{
+  "schema_version": 2,
+  "tool_auth": {
+    "challenge_expected": true,
+    "oauth2_security_scheme_present": true,
+    "www_authenticate_present": true,
+    "www_authenticate_has_error": true,
+    "www_authenticate_has_error_description": true
+  }
+}
+```
+
+1つのevidence object内でv2 `tool_auth`とv3 `tool_metadata` / `tool_challenge`を混在させることはできません。
 
 ### legacy v1互換
 
@@ -131,7 +156,7 @@ mcp-interop diagnose https://example.com/mcp \
 }
 ```
 
-内部ではlegacy v1のCIMD/token-request evidenceとして正規化します。新規連携はv2推奨です。
+内部ではlegacy v1のCIMD/token-request evidenceとして正規化します。新規連携はv3推奨です。
 
 ### Secret boundary
 
@@ -189,7 +214,7 @@ OpenAIの現在の仕様ではChatGPTのtool-level OAuth linking UIに、少な�
 - tool metadataの`securitySchemes`に`oauth2`
 - 認証/再認証が必要なruntime errorの`_meta["mcp/www_authenticate"]`
 
-`tool_auth`ではpresence/shapeだけを渡します。**この証拠を取るためにmcp-interopが勝手にtoolをcallすることはありません。**
+v3ではpresence/shapeを`tool_metadata`と`tool_challenge`へ分離して渡します。v2 `tool_auth`も引き続き読み込み、内部で同じ評価境界へ正規化します。**この証拠を取るためにmcp-interopが勝手にtoolをcallすることはありません。**
 
 2つのtool-level境界は独立して評価します。
 

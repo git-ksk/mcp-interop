@@ -64,15 +64,18 @@ The diagnostic then verifies:
 
 Do not supply authorization codes, OAuth state, tokens, cookies, or client assertions.
 
-## Runtime Evidence v2
+## Runtime Evidence v3
 
-Runtime Evidence v2 separates registration, authorization request, token request, resource-server verification, and tool-level OAuth signals.
+Runtime Evidence v3 keeps registration, authorization request, token request, and resource-server observations from v2, but splits tool-level evidence into two independent sections:
+
+- `tool_metadata` — static per-tool OAuth metadata observed during tool discovery;
+- `tool_challenge` — runtime reauthorization signals observed only when a tool call requires authentication or additional scope.
 
 Example:
 
 ```json
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "registration": {
     "strategy": "cimd",
     "client_metadata_url": "https://chatgpt.com/oauth/.../client.json"
@@ -86,18 +89,21 @@ Example:
     "resource_matches": true,
     "code_verifier_present": true,
     "client_assertion_present": false,
-    "client_assertion_type_present": false,
-    "oauth_error": "invalid_client"
+    "client_assertion_type_present": false
   },
   "resource_request": {
-    "bearer_present": false
+    "bearer_present": true,
+    "signature_valid": true,
+    "issuer_matches": true,
+    "audience_matches": true,
+    "expiry_valid": true,
+    "scopes_sufficient": true
   },
-  "tool_auth": {
-    "challenge_expected": true,
-    "oauth2_security_scheme_present": true,
-    "www_authenticate_present": true,
-    "www_authenticate_has_error": true,
-    "www_authenticate_has_error_description": true
+  "tool_metadata": {
+    "oauth2_security_scheme_present": true
+  },
+  "tool_challenge": {
+    "expected": false
   }
 }
 ```
@@ -118,6 +124,25 @@ mcp-interop diagnose https://example.com/mcp \
 
 This matters because token endpoint authentication cannot be inferred the same way for every registration strategy. For CIMD, the diagnostic can compare ChatGPT's fetched client metadata with authorization-server metadata and prefer `private_key_jwt` when both advertise it. For DCR or predefined clients, it does **not** assume a token auth method that was not observed from the registered client.
 
+### v2 compatibility
+
+Schema v2 remains accepted unchanged. Its combined `tool_auth` section is normalized internally to the v3 evaluation boundaries, so existing evidence producers keep the same diagnostic behavior:
+
+```json
+{
+  "schema_version": 2,
+  "tool_auth": {
+    "challenge_expected": true,
+    "oauth2_security_scheme_present": true,
+    "www_authenticate_present": true,
+    "www_authenticate_has_error": true,
+    "www_authenticate_has_error_description": true
+  }
+}
+```
+
+A single evidence object must not mix v2 `tool_auth` with v3 `tool_metadata` / `tool_challenge`.
+
 ### Legacy v1 compatibility
 
 The original compact evidence shape remains accepted:
@@ -131,7 +156,7 @@ The original compact evidence shape remains accepted:
 }
 ```
 
-It is normalized internally as legacy v1 CIMD/token-request evidence. New integrations should prefer schema v2.
+It is normalized internally as legacy v1 CIMD/token-request evidence. New integrations should prefer schema v3.
 
 ### Secret boundary
 
@@ -146,7 +171,7 @@ Only booleans, the stable CIMD metadata URL, registration strategy, and a short 
 
 ## Runtime checks
 
-When supplied, v2 can correlate:
+When supplied, v2/v3 can correlate:
 
 ### Authorization request
 
@@ -187,7 +212,7 @@ OpenAI documents two halves for ChatGPT's tool-level OAuth linking UI:
 - tool authentication metadata such as an `oauth2` entry in `securitySchemes`;
 - runtime `_meta["mcp/www_authenticate"]` challenges when authentication/reauthorization is required.
 
-`tool_auth` evidence can record only the presence/shape signals. `mcp-interop` does **not** call tools merely to obtain this evidence.
+Schema v3 records these signals separately in `tool_metadata` and `tool_challenge`. Schema v2 `tool_auth` is still accepted and normalized internally. `mcp-interop` does **not** call tools merely to obtain this evidence.
 
 The two tool-level boundaries are evaluated independently:
 

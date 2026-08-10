@@ -13,14 +13,18 @@ import (
 	"github.com/git-ksk/mcp-interop/internal/interop"
 )
 
-const runtimeEvidenceSchemaV2 = 2
+const (
+	runtimeEvidenceSchemaV2 = 2
+	runtimeEvidenceSchemaV3 = 3
+)
 
 var oauthErrorPattern = regexp.MustCompile(`^[A-Za-z0-9._-]{1,64}$`)
 
 // ChatGPTRuntimeEvidence is a deliberately secret-free observation of a
 // ChatGPT OAuth/MCP flow. Schema v2 separates registration, authorization,
-// token, resource-server, and tool-level signals. Legacy v1 fields remain
-// accepted so existing evidence files keep working.
+// token, resource-server, and combined tool-level signals. Schema v3 splits
+// static tool metadata from runtime reauthorization challenges. Legacy v1 and
+// v2 inputs remain accepted so existing evidence files keep working.
 //
 // Only presence/match booleans and a sanitized OAuth error code are accepted.
 // Tokens, authorization codes, PKCE verifier values, client assertions,
@@ -33,6 +37,8 @@ type ChatGPTRuntimeEvidence struct {
 	TokenRequest         *TokenRequestEvidence         `json:"token_request,omitempty"`
 	ResourceRequest      *ResourceRequestEvidence      `json:"resource_request,omitempty"`
 	ToolAuth             *ToolAuthEvidence             `json:"tool_auth,omitempty"`
+	ToolMetadata         *ToolMetadataEvidence         `json:"tool_metadata,omitempty"`
+	ToolChallenge        *ToolChallengeEvidence        `json:"tool_challenge,omitempty"`
 
 	// Legacy schema v1. These fields are intentionally retained for backwards
 	// compatibility and are normalized into the v2 sections during decoding.
@@ -71,9 +77,22 @@ type ResourceRequestEvidence struct {
 	ScopesSufficient *bool `json:"scopes_sufficient,omitempty"`
 }
 
+// ToolAuthEvidence is the schema v2 combined tool-level shape. New evidence
+// producers should use ToolMetadataEvidence and ToolChallengeEvidence in v3.
 type ToolAuthEvidence struct {
 	ChallengeExpected                  *bool `json:"challenge_expected,omitempty"`
 	OAuth2SecuritySchemePresent        *bool `json:"oauth2_security_scheme_present,omitempty"`
+	WWWAuthenticatePresent             *bool `json:"www_authenticate_present,omitempty"`
+	WWWAuthenticateHasError            *bool `json:"www_authenticate_has_error,omitempty"`
+	WWWAuthenticateHasErrorDescription *bool `json:"www_authenticate_has_error_description,omitempty"`
+}
+
+type ToolMetadataEvidence struct {
+	OAuth2SecuritySchemePresent *bool `json:"oauth2_security_scheme_present,omitempty"`
+}
+
+type ToolChallengeEvidence struct {
+	Expected                           *bool `json:"expected,omitempty"`
 	WWWAuthenticatePresent             *bool `json:"www_authenticate_present,omitempty"`
 	WWWAuthenticateHasError            *bool `json:"www_authenticate_has_error,omitempty"`
 	WWWAuthenticateHasErrorDescription *bool `json:"www_authenticate_has_error_description,omitempty"`
@@ -93,25 +112,39 @@ func (e *ChatGPTRuntimeEvidence) UnmarshalJSON(data []byte) error {
 	}
 
 	value := ChatGPTRuntimeEvidence(wire)
-	hasV2 := value.Registration != nil || value.AuthorizationRequest != nil || value.TokenRequest != nil || value.ResourceRequest != nil || value.ToolAuth != nil
+	hasCommon := value.Registration != nil || value.AuthorizationRequest != nil || value.TokenRequest != nil || value.ResourceRequest != nil
+	hasV2Tool := value.ToolAuth != nil
+	hasV3Tool := value.ToolMetadata != nil || value.ToolChallenge != nil
 	hasLegacy := value.ClientID != "" || value.ResourceMatches != nil || value.CodeVerifierPresent != nil || value.ClientAssertionPresent != nil || value.ClientAssertionTypePresent != nil
 
-	if value.SchemaVersion != 0 && value.SchemaVersion != 1 && value.SchemaVersion != runtimeEvidenceSchemaV2 {
+	if value.SchemaVersion != 0 && value.SchemaVersion != 1 && value.SchemaVersion != runtimeEvidenceSchemaV2 && value.SchemaVersion != runtimeEvidenceSchemaV3 {
 		return fmt.Errorf("unsupported runtime evidence schema_version %d", value.SchemaVersion)
 	}
-	if hasV2 && value.SchemaVersion == 1 {
-		return errors.New("schema_version 1 cannot contain v2 runtime evidence sections")
+	if hasV2Tool && hasV3Tool {
+		return errors.New("runtime evidence cannot mix schema v2 tool_auth with schema v3 tool_metadata/tool_challenge")
 	}
-	if hasV2 && hasLegacy {
-		return errors.New("runtime evidence cannot mix legacy v1 fields with v2 sections")
+	if (hasCommon || hasV2Tool || hasV3Tool) && hasLegacy {
+		return errors.New("runtime evidence cannot mix legacy v1 fields with structured evidence sections")
 	}
-	if value.SchemaVersion == runtimeEvidenceSchemaV2 && hasLegacy {
-		return errors.New("schema_version 2 cannot contain legacy v1 runtime evidence fields")
+	if value.SchemaVersion == 1 && (hasCommon || hasV2Tool || hasV3Tool) {
+		return errors.New("schema_version 1 cannot contain structured runtime evidence sections")
+	}
+	if value.SchemaVersion == runtimeEvidenceSchemaV2 && hasV3Tool {
+		return errors.New("schema_version 2 cannot contain tool_metadata or tool_challenge")
+	}
+	if value.SchemaVersion == runtimeEvidenceSchemaV3 && hasV2Tool {
+		return errors.New("schema_version 3 cannot contain legacy tool_auth")
+	}
+	if (value.SchemaVersion == runtimeEvidenceSchemaV2 || value.SchemaVersion == runtimeEvidenceSchemaV3) && hasLegacy {
+		return fmt.Errorf("schema_version %d cannot contain legacy v1 runtime evidence fields", value.SchemaVersion)
 	}
 
-	if hasV2 || value.SchemaVersion == runtimeEvidenceSchemaV2 {
+	switch {
+	case value.SchemaVersion == runtimeEvidenceSchemaV3 || hasV3Tool:
+		value.SchemaVersion = runtimeEvidenceSchemaV3
+	case value.SchemaVersion == runtimeEvidenceSchemaV2 || hasCommon || hasV2Tool:
 		value.SchemaVersion = runtimeEvidenceSchemaV2
-	} else {
+	default:
 		value.SchemaVersion = 1
 		value.normalizeLegacy()
 	}
@@ -145,17 +178,34 @@ func (e *ChatGPTRuntimeEvidence) normalizeLegacy() {
 }
 
 func (e ChatGPTRuntimeEvidence) Validate() error {
+	hasCommon := e.Registration != nil || e.AuthorizationRequest != nil || e.TokenRequest != nil || e.ResourceRequest != nil
+	hasV2Tool := e.ToolAuth != nil
+	hasV3Tool := e.ToolMetadata != nil || e.ToolChallenge != nil
+	hasLegacy := e.ClientID != "" || e.ResourceMatches != nil || e.CodeVerifierPresent != nil || e.ClientAssertionPresent != nil || e.ClientAssertionTypePresent != nil
+
 	if e.SchemaVersion == 0 {
-		if e.Registration != nil || e.AuthorizationRequest != nil || e.TokenRequest != nil || e.ResourceRequest != nil || e.ToolAuth != nil {
+		switch {
+		case hasV3Tool:
+			e.SchemaVersion = runtimeEvidenceSchemaV3
+		case hasCommon || hasV2Tool:
 			e.SchemaVersion = runtimeEvidenceSchemaV2
-		} else {
+		default:
 			e.SchemaVersion = 1
 		}
 	}
-	if e.SchemaVersion != 1 && e.SchemaVersion != runtimeEvidenceSchemaV2 {
+	if e.SchemaVersion != 1 && e.SchemaVersion != runtimeEvidenceSchemaV2 && e.SchemaVersion != runtimeEvidenceSchemaV3 {
 		return fmt.Errorf("unsupported runtime evidence schema_version %d", e.SchemaVersion)
 	}
+	if hasV2Tool && hasV3Tool {
+		return errors.New("runtime evidence cannot mix schema v2 tool_auth with schema v3 tool_metadata/tool_challenge")
+	}
 	if e.SchemaVersion == 1 {
+		// Legacy v1 is normalized internally into registration/token_request while
+		// retaining the original v1 fields. Explicit schema v1 input containing
+		// structured sections is rejected during JSON decoding.
+		if !hasLegacy && (hasCommon || hasV2Tool || hasV3Tool) {
+			return errors.New("schema_version 1 cannot contain structured runtime evidence sections")
+		}
 		if e.ClientID == "" {
 			return errors.New("client_id is required for legacy runtime evidence")
 		}
@@ -167,9 +217,17 @@ func (e ChatGPTRuntimeEvidence) Validate() error {
 		}
 		return nil
 	}
-
-	if e.Registration == nil && e.AuthorizationRequest == nil && e.TokenRequest == nil && e.ResourceRequest == nil && e.ToolAuth == nil {
-		return errors.New("schema_version 2 runtime evidence must contain at least one evidence section")
+	if hasLegacy {
+		return fmt.Errorf("schema_version %d cannot contain legacy v1 runtime evidence fields", e.SchemaVersion)
+	}
+	if e.SchemaVersion == runtimeEvidenceSchemaV2 && hasV3Tool {
+		return errors.New("schema_version 2 cannot contain tool_metadata or tool_challenge")
+	}
+	if e.SchemaVersion == runtimeEvidenceSchemaV3 && hasV2Tool {
+		return errors.New("schema_version 3 cannot contain legacy tool_auth")
+	}
+	if !hasCommon && !hasV2Tool && !hasV3Tool {
+		return fmt.Errorf("schema_version %d runtime evidence must contain at least one evidence section", e.SchemaVersion)
 	}
 	if e.Registration != nil {
 		strategy := strings.ToLower(strings.TrimSpace(e.Registration.Strategy))
@@ -220,6 +278,31 @@ func (e ChatGPTRuntimeEvidence) EffectiveRegistrationStrategy() string {
 	return "unknown"
 }
 
+func (e ChatGPTRuntimeEvidence) effectiveToolMetadata() *ToolMetadataEvidence {
+	if e.SchemaVersion == runtimeEvidenceSchemaV3 || e.ToolMetadata != nil || e.ToolChallenge != nil {
+		return e.ToolMetadata
+	}
+	if e.ToolAuth == nil {
+		return nil
+	}
+	return &ToolMetadataEvidence{OAuth2SecuritySchemePresent: e.ToolAuth.OAuth2SecuritySchemePresent}
+}
+
+func (e ChatGPTRuntimeEvidence) effectiveToolChallenge() *ToolChallengeEvidence {
+	if e.SchemaVersion == runtimeEvidenceSchemaV3 || e.ToolMetadata != nil || e.ToolChallenge != nil {
+		return e.ToolChallenge
+	}
+	if e.ToolAuth == nil {
+		return nil
+	}
+	return &ToolChallengeEvidence{
+		Expected:                           e.ToolAuth.ChallengeExpected,
+		WWWAuthenticatePresent:             e.ToolAuth.WWWAuthenticatePresent,
+		WWWAuthenticateHasError:            e.ToolAuth.WWWAuthenticateHasError,
+		WWWAuthenticateHasErrorDescription: e.ToolAuth.WWWAuthenticateHasErrorDescription,
+	}
+}
+
 type RuntimeCheck struct {
 	ID         string             `json:"id"`
 	Status     Status             `json:"status"`
@@ -260,9 +343,12 @@ func (r RuntimeEvidenceReport) Passed() bool {
 
 func evaluateRuntimeEvidence(report *Report, evidence ChatGPTRuntimeEvidence) {
 	if evidence.SchemaVersion == 0 {
-		if evidence.Registration != nil || evidence.AuthorizationRequest != nil || evidence.TokenRequest != nil || evidence.ResourceRequest != nil || evidence.ToolAuth != nil {
+		switch {
+		case evidence.ToolMetadata != nil || evidence.ToolChallenge != nil:
+			evidence.SchemaVersion = runtimeEvidenceSchemaV3
+		case evidence.Registration != nil || evidence.AuthorizationRequest != nil || evidence.TokenRequest != nil || evidence.ResourceRequest != nil || evidence.ToolAuth != nil:
 			evidence.SchemaVersion = runtimeEvidenceSchemaV2
-		} else {
+		default:
 			evidence.SchemaVersion = 1
 			evidence.normalizeLegacy()
 		}
@@ -280,7 +366,7 @@ func evaluateRuntimeEvidence(report *Report, evidence ChatGPTRuntimeEvidence) {
 	evaluateAuthorizationRequest(runtime, evidence.AuthorizationRequest)
 	evaluateTokenRequest(report, runtime, evidence)
 	evaluateResourceRequest(runtime, evidence.ResourceRequest)
-	evaluateToolAuth(runtime, evidence.ToolAuth)
+	evaluateToolAuth(runtime, evidence.effectiveToolMetadata(), evidence.effectiveToolChallenge())
 	runtime.Coverage = coverageForChecks(runtime.Checks)
 	runtime.OpenAIReference = buildOpenAIReferencePattern(runtime)
 	report.RuntimeEvidence = runtime
@@ -393,44 +479,45 @@ func evaluateResourceRequest(runtime *RuntimeEvidenceReport, evidence *ResourceR
 	runtime.add(presenceCheck("resource_token_scopes", "sufficient", evidence.ScopesSufficient, interop.ReasonInsufficientScope, "Resource server should enforce scopes required for the MCP operation"))
 }
 
-func evaluateToolAuth(runtime *RuntimeEvidenceReport, evidence *ToolAuthEvidence) {
-	if evidence == nil {
+func evaluateToolAuth(runtime *RuntimeEvidenceReport, metadataEvidence *ToolMetadataEvidence, challengeEvidence *ToolChallengeEvidence) {
+	if metadataEvidence != nil {
+		metadata := RuntimeCheck{
+			ID:       "tool_oauth_security_scheme",
+			Expected: "oauth2 securitySchemes metadata for an OAuth-protected tool",
+			Observed: boolObservation(metadataEvidence.OAuth2SecuritySchemePresent),
+			Message:  "Per-tool OAuth metadata is independent of whether the current grant already satisfies the tool",
+		}
+		switch {
+		case metadataEvidence.OAuth2SecuritySchemePresent == nil:
+			metadata.Status = StatusWarn
+		case *metadataEvidence.OAuth2SecuritySchemePresent:
+			metadata.Status = StatusPass
+		default:
+			metadata.Status = StatusFail
+			metadata.ReasonCode = interop.ReasonToolOAuthMetadataMissing
+		}
+		runtime.add(metadata)
+	}
+
+	if challengeEvidence == nil {
 		return
 	}
-	challengeExpected := evidence.ChallengeExpected != nil && *evidence.ChallengeExpected
-
-	metadata := RuntimeCheck{
-		ID:       "tool_oauth_security_scheme",
-		Expected: "oauth2 securitySchemes metadata for an OAuth-protected tool",
-		Observed: boolObservation(evidence.OAuth2SecuritySchemePresent),
-		Message:  "Per-tool OAuth metadata is independent of whether the current grant already satisfies the tool",
-	}
-	switch {
-	case evidence.OAuth2SecuritySchemePresent == nil:
-		metadata.Status = StatusWarn
-	case *evidence.OAuth2SecuritySchemePresent:
-		metadata.Status = StatusPass
-	default:
-		metadata.Status = StatusFail
-		metadata.ReasonCode = interop.ReasonToolOAuthMetadataMissing
-	}
-	runtime.add(metadata)
-
+	challengeExpected := challengeEvidence.Expected != nil && *challengeEvidence.Expected
 	challenge := RuntimeCheck{
 		ID:       "tool_oauth_www_authenticate",
 		Expected: "mcp/www_authenticate challenge when reauthorization is required",
-		Observed: boolObservation(evidence.WWWAuthenticatePresent),
+		Observed: boolObservation(challengeEvidence.WWWAuthenticatePresent),
 		Message:  "Runtime tool errors use _meta[mcp/www_authenticate] to trigger ChatGPT's tool-level OAuth UI",
 	}
 	switch {
-	case evidence.ChallengeExpected != nil && !*evidence.ChallengeExpected:
+	case challengeEvidence.Expected != nil && !*challengeEvidence.Expected:
 		challenge.Status = StatusNA
 		challenge.Expected = "not required for the observed authorized tool call"
 		challenge.Observed = "not applicable"
 		challenge.Message = "The current authorization already satisfied the tool, so no reauthorization challenge was expected"
-	case evidence.WWWAuthenticatePresent == nil:
+	case challengeEvidence.WWWAuthenticatePresent == nil:
 		challenge.Status = StatusWarn
-	case *evidence.WWWAuthenticatePresent:
+	case *challengeEvidence.WWWAuthenticatePresent:
 		challenge.Status = StatusPass
 	case challengeExpected:
 		challenge.Status = StatusFail
@@ -440,9 +527,9 @@ func evaluateToolAuth(runtime *RuntimeEvidenceReport, evidence *ToolAuthEvidence
 	}
 	runtime.add(challenge)
 
-	if challengeExpected && evidence.WWWAuthenticatePresent != nil && *evidence.WWWAuthenticatePresent {
-		validateToolChallenge(runtime, evidence.WWWAuthenticateHasError, "tool_oauth_challenge_error", "error parameter")
-		validateToolChallenge(runtime, evidence.WWWAuthenticateHasErrorDescription, "tool_oauth_challenge_error_description", "error_description parameter")
+	if challengeExpected && challengeEvidence.WWWAuthenticatePresent != nil && *challengeEvidence.WWWAuthenticatePresent {
+		validateToolChallenge(runtime, challengeEvidence.WWWAuthenticateHasError, "tool_oauth_challenge_error", "error parameter")
+		validateToolChallenge(runtime, challengeEvidence.WWWAuthenticateHasErrorDescription, "tool_oauth_challenge_error_description", "error_description parameter")
 	}
 }
 

@@ -173,7 +173,7 @@ mcp-interop diagnose https://example.com/mcp \
 
 ```json
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "registration": {
     "strategy": "cimd",
     "client_metadata_url": "https://chatgpt.com/oauth/.../client.json"
@@ -181,6 +181,12 @@ mcp-interop diagnose https://example.com/mcp \
   "token_request": {
     "resource_matches": true,
     "client_assertion_present": false
+  },
+  "tool_metadata": {
+    "oauth2_security_scheme_present": true
+  },
+  "tool_challenge": {
+    "expected": false
   }
 }
 ```

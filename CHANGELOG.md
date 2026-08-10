@@ -6,6 +6,8 @@ All notable project changes will be summarized here. GitHub Releases remain the 
 
 ### Added
 
+- Runtime Evidence schema v3 with independent `tool_metadata` and `tool_challenge` sections, while preserving v1/v2 input compatibility.
+- v2 `tool_auth` normalization to the same evaluation boundaries used by v3, with mixed v2/v3 tool shapes rejected.
 - Runtime Evidence coverage counters (`observed`, `passed`, `failed`, `unknown`, `not_applicable`) in JSON and text diagnostics.
 - Explicit `not_applicable` runtime-check status, rendered as `N/A`, for observations whose trigger condition did not occur in the captured flow.
 

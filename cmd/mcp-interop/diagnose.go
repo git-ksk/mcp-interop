@@ -270,7 +270,7 @@ Options:
   --profile           Diagnostic compatibility profile. Currently: chatgpt (default).
   --client-id         Optional observed ChatGPT client_id CIMD URL from a sanitized authorization request.
   --redirect-uri      Optional observed ChatGPT redirect_uri; can also be paired with a CIMD registration in runtime evidence.
-  --runtime-evidence  JSON file (or - for stdin) containing only secret-free runtime presence/match observations. Legacy v1 and structured v2 schemas are accepted.
+  --runtime-evidence  JSON file (or - for stdin) containing only secret-free runtime presence/match observations. Legacy v1 plus structured v2/v3 schemas are accepted.
   --json              Print machine-readable JSON.
 
 This command performs server/OAuth preflight checks and can correlate explicitly
