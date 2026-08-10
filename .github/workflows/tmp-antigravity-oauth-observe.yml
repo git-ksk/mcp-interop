@@ -26,14 +26,15 @@ jobs:
         run: |
           set -eu
           work="$(mktemp -d)"
-          trap 'kill "${fixture_pid:-}" 2>/dev/null || true; rm -rf "$work"' EXIT
+          trap 'kill "${fixture_pid:-}" "${agy_pid:-}" 2>/dev/null || true; rm -rf "$work"' EXIT
           go build -o "$work/oauth-fixture" ./internal/e2e/oauthfixture
           "$work/oauth-fixture" --listen 127.0.0.1:0 --ready-file "$work/ready" --log-file "$work/trace" &
           fixture_pid=$!
           for _ in {1..100}; do [[ -s "$work/ready" ]] && break; sleep 0.05; done
           endpoint="$(tr -d '\r\n' < "$work/ready")"
+          origin="${endpoint%/mcp}"
           probehome="$work/home"
-          mkdir -p "$probehome/.gemini/config" "$probehome/.gemini/antigravity-cli" "$work/bin"
+          mkdir -p "$probehome/.gemini/config" "$probehome/.gemini/antigravity-cli"
           python3 - "$endpoint" "$probehome/.gemini/config/mcp_config.json" <<'PY'
           import json,sys
           endpoint,path=sys.argv[1:]
@@ -41,68 +42,76 @@ jobs:
               json.dump({'mcpServers':{'mcp-interop-target':{'serverUrl':endpoint}}},f)
           PY
           printf '%s\n' '{"altScreenMode":"never","showTips":false,"showFeedbackSurvey":false}' > "$probehome/.gemini/antigravity-cli/settings.json"
-          cat > "$work/bin/loopback-browser" <<'BROWSER'
-          #!/usr/bin/env bash
-          set -eu
-          url=""
-          for arg in "$@"; do
-            case "$arg" in http://*) url="$arg" ;; esac
+
+          mkfifo "$work/input"
+          HOME="$probehome" SSH_CONNECTION='127.0.0.1 54321 127.0.0.1 22' SSH_TTY='/dev/pts/1' \
+            perl -e '$t=shift; alarm $t; exec @ARGV' 35 \
+            /usr/bin/script -q "$work/transcript" "$(command -v agy)" < "$work/input" >/dev/null 2>&1 &
+          agy_pid=$!
+          exec 3> "$work/input"
+          sleep 4
+          printf '/mcp\r' >&3
+          sleep 4
+          printf '\r' >&3
+
+          auth_url_file="$work/auth-url"
+          for _ in {1..120}; do
+            python3 - "$work/transcript" "$origin" "$auth_url_file" <<'PY'
+          import os,re,sys,urllib.parse
+          transcript,origin,out=sys.argv[1:]
+          try: data=open(transcript,'rb').read().decode('utf-8','ignore')
+          except FileNotFoundError: raise SystemExit(0)
+          expected=urllib.parse.urlparse(origin)
+          for raw in re.findall(r'https?://[^\s\x1b<>"\']+',data):
+              raw=raw.rstrip(').,;]}')
+              u=urllib.parse.urlparse(raw)
+              if u.scheme=='http' and u.hostname==expected.hostname and u.port==expected.port and u.path=='/authorize':
+                  fd=os.open(out,os.O_WRONLY|os.O_CREAT|os.O_TRUNC,0o600)
+                  with os.fdopen(fd,'w') as f: f.write(raw)
+                  break
+          PY
+            [[ -s "$auth_url_file" ]] && break
+            sleep 0.1
           done
-          [[ -n "$url" ]] || exit 64
-          python3 - "$url" "${MCP_INTEROP_E2E_AUTH_CODE_FILE:?}" "${MCP_INTEROP_E2E_BROWSER_MARKER:?}" <<'PY'
-          import ipaddress,os,re,sys,urllib.error,urllib.parse,urllib.request
-          raw,code_path,marker_path=sys.argv[1:]
-          u=urllib.parse.urlparse(raw)
-          try:
-              loopback=ipaddress.ip_address(u.hostname or '').is_loopback
-          except ValueError:
-              loopback=(u.hostname or '').lower()=='localhost'
-          if u.scheme!='http' or not loopback:
+
+          code_file="$work/auth-code"
+          marker="$work/marker"
+          if [[ -s "$auth_url_file" ]]; then
+            python3 - "$auth_url_file" "$origin" "$code_file" "$marker" <<'PY'
+          import os,sys,urllib.error,urllib.parse,urllib.request
+          url_path,origin,code_path,marker_path=sys.argv[1:]
+          raw=open(url_path).read()
+          u=urllib.parse.urlparse(raw); expected=urllib.parse.urlparse(origin)
+          if u.scheme!='http' or u.hostname!=expected.hostname or u.port!=expected.port or u.path!='/authorize':
               raise SystemExit(65)
-          q=urllib.parse.parse_qs(u.query)
-          redirect=urllib.parse.urlparse(q.get('redirect_uri',[''])[0])
           class NoRedirect(urllib.request.HTTPRedirectHandler):
               def redirect_request(self,req,fp,code,msg,headers,newurl): return None
           opener=urllib.request.build_opener(NoRedirect)
-          status=0; location=''; body=b''
           try:
-              resp=opener.open(raw,timeout=15)
-              status=resp.status; location=resp.headers.get('Location',''); body=resp.read(65536)
+              resp=opener.open(raw,timeout=15); status=resp.status; location=resp.headers.get('Location','')
           except urllib.error.HTTPError as e:
-              status=e.code; location=e.headers.get('Location',''); body=e.read(65536)
-          code=''
-          if location:
-              code=urllib.parse.parse_qs(urllib.parse.urlparse(location).query).get('code',[''])[0]
-          if not code:
-              m=re.search(rb'fixture-code-[A-Za-z0-9_-]+',body)
-              if m: code=m.group(0).decode()
+              status=e.code; location=e.headers.get('Location','')
+          code=urllib.parse.parse_qs(urllib.parse.urlparse(location).query).get('code',[''])[0]
           with open(marker_path,'w') as f:
-              f.write(f'auth_host={u.hostname}\nredirect_scheme={redirect.scheme}\nredirect_host={redirect.hostname}\nstatus={status}\ncode_observed={bool(code)}\n')
+              f.write(f'authorization_url_observed=true\nauthorize_status={status}\ncode_observed={bool(code)}\n')
           if code:
               fd=os.open(code_path,os.O_WRONLY|os.O_CREAT|os.O_TRUNC,0o600)
               with os.fdopen(fd,'w') as f: f.write(code)
           PY
-          BROWSER
-          chmod 700 "$work/bin/loopback-browser"
-          ln -s loopback-browser "$work/bin/open"
-          code_file="$work/auth-code"
-          marker_file="$work/browser-marker"
-          set +e
-          (
-            sleep 4
-            printf '/mcp\r'
-            sleep 4
-            printf '\r'
-            for _ in {1..100}; do [[ -s "$code_file" ]] && break; sleep 0.1; done
-            if [[ -s "$code_file" ]]; then
-              cat "$code_file"
-              printf '\r'
-              sleep 6
-            fi
-          ) | HOME="$probehome" PATH="$work/bin:$PATH" BROWSER="$work/bin/loopback-browser" MCP_INTEROP_E2E_AUTH_CODE_FILE="$code_file" MCP_INTEROP_E2E_BROWSER_MARKER="$marker_file" perl -e '$t=shift; alarm $t; exec @ARGV' 25 /usr/bin/script -q "$work/transcript" "$(command -v agy)" >/dev/null 2>&1
-          set -e
-          echo "--- browser observation (secret-free) ---"
-          cat "$marker_file" 2>/dev/null || echo "browser wrapper not invoked"
+          else
+            printf '%s\n' 'authorization_url_observed=false' > "$marker"
+          fi
+
+          if [[ -s "$code_file" ]]; then
+            cat "$code_file" >&3
+            printf '\r' >&3
+            sleep 8
+          fi
+          exec 3>&-
+          wait "$agy_pid" 2>/dev/null || true
+
+          echo "--- OAuth observation (secret-free) ---"
+          cat "$marker"
           token_file="$probehome/.gemini/antigravity/mcp_oauth_tokens.json"
           if [[ -s "$token_file" ]]; then echo "isolated_token_file=present"; else echo "isolated_token_file=absent"; fi
           echo "--- secret-free fixture trace ---"
