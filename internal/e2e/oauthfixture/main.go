@@ -193,11 +193,20 @@ func (s *server) register(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "redirect_uris required", http.StatusBadRequest)
 		return
 	}
+	loopbackAvailable := false
 	for _, raw := range input.RedirectURIs {
-		if !safeLoopbackRedirect(raw) {
-			http.Error(w, "only loopback redirect URIs are allowed by fixture", http.StatusBadRequest)
+		u, err := url.Parse(raw)
+		if err != nil || u.Scheme == "" || u.User != nil || u.Fragment != "" {
+			http.Error(w, "invalid redirect URI", http.StatusBadRequest)
 			return
 		}
+		if safeLoopbackRedirect(raw) {
+			loopbackAvailable = true
+		}
+	}
+	if !loopbackAvailable {
+		http.Error(w, "at least one loopback redirect URI is required by this fixture", http.StatusBadRequest)
+		return
 	}
 	clientID := "fixture-client-" + randomValue()
 	s.mu.Lock()
@@ -223,8 +232,8 @@ func (s *server) authorize(w http.ResponseWriter, r *http.Request) {
 	s.mu.Lock()
 	redirects := append([]string(nil), s.clients[clientID]...)
 	s.mu.Unlock()
-	if !contains(redirects, redirectURI) {
-		http.Error(w, "redirect_uri not registered", http.StatusBadRequest)
+	if !contains(redirects, redirectURI) || !safeLoopbackRedirect(redirectURI) {
+		http.Error(w, "only a registered loopback redirect URI may be authorized by fixture", http.StatusBadRequest)
 		return
 	}
 	code := "fixture-code-" + randomValue()
@@ -329,7 +338,10 @@ func safeLoopbackRedirect(raw string) bool {
 	if err != nil || u.Scheme != "http" || u.User != nil || u.Fragment != "" {
 		return false
 	}
-	host := u.Hostname()
+	host := strings.ToLower(u.Hostname())
+	if host == "localhost" {
+		return true
+	}
 	ip := net.ParseIP(host)
 	return ip != nil && ip.IsLoopback()
 }
