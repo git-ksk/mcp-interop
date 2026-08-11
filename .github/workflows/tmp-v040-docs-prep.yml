@@ -1,0 +1,52 @@
+name: Prepare v0.4.0 release docs
+
+on:
+  push:
+    branches:
+      - release/v0.4.0-prep
+    paths:
+      - scripts/tmp_prepare_v040_docs.py
+      - .github/workflows/tmp-v040-docs-prep.yml
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out release-prep branch
+        uses: actions/checkout@v4
+        with:
+          ref: release/v0.4.0-prep
+          fetch-depth: 0
+
+      - name: Apply strict release-doc replacements
+        run: python3 scripts/tmp_prepare_v040_docs.py
+
+      - name: Verify expected release boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -F '**v0.4.0 is the current published release.**' README.md
+          grep -F '**現在の公開releaseはv0.4.0です。**' README.ja.md
+          grep -F '## v0.4.0 — 2026-08-11' CHANGELOG.md
+          ! grep -Fq 'current main after v0.3.0' docs/architecture.md
+          ! grep -Fq 'v0.3.0以降のcurrent main' docs/architecture.ja.md
+          ! grep -Fq 'On current main, Cursor OAuth' docs/troubleshooting.md
+          ! grep -Fq 'current mainではCursor OAuth' docs/troubleshooting.ja.md
+          git diff --check
+
+      - name: Commit prepared documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add CHANGELOG.md README.md README.ja.md docs/architecture.md docs/architecture.ja.md docs/troubleshooting.md docs/troubleshooting.ja.md
+          if git diff --cached --quiet; then
+            echo 'No release documentation changes were produced.' >&2
+            exit 1
+          fi
+          git commit -m 'Prepare v0.4.0 release documentation'
+          git push origin HEAD:release/v0.4.0-prep
