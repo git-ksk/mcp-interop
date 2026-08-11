@@ -57,6 +57,52 @@ serverとclientが個別には仕様適合しているように見えても、�
 
 そのため`mcp-interop`では、**client productとversion自体がinterop evidenceの一部**です。
 
+## Static client compatibility matrixではない
+
+client capability matrixが答えるのは「product/version Xが一般に何をsupportするか」です。これは有用ですが、`mcp-interop` は別のuniversal feature tableを手作業で競うべきではありません。
+
+このprojectが最も強く証明できるのは、deployment-specificで再現可能なevidenceです。
+
+```text
+endpoint A + client X version 1 -> PASS
+endpoint A + client X version 2 -> AUTH FAIL
+endpoint A + client Y version 7 -> PASS
+```
+
+つまりversion間のregression detectionをfirst-class use caseとして扱います。resultは必ず、実際にtestしたendpoint、client product、client version、必要に応じてOS/runtime context、そしてそのrunで観測したevidenceにscopeします。実行していないproduct/versionへの互換性へ一般化しません。
+
+static compatibility documentationは「どのtestを走らせるか」を決める材料にはなりますが、対象deploymentに対するlive resultの代わりにはなりません。
+
+## Evidence hierarchy
+
+次のevidence layerを分離します。
+
+1. specification / conformance evidence
+2. direct server inspection / debugging
+3. product-profile preflight metadata
+4. deploymentから提供されたsanitized Runtime Evidence
+5. **live deployment-specific real-client evidence**
+
+対象deploymentについて`mcp-interop`のreal-client `reach/auth/init/tools` PASSを出せるのは5だけです。
+
+fixtureやlocalhost adapter self-testが証明するのはmeasurement pathの正しさです。別のproduction deploymentがPASSしたことまでは証明しません。
+
+## Adapter graduation criteria
+
+client名を増やすことより、evidenceの信頼性を守ることを優先します。live adapterをresearch/betaから昇格させる前に、measurement boundaryを明確に文書化・再現できる必要があります。
+
+少なくとも次を評価します。
+
+- **isolation** — 通常userのconfig / credentialを再利用・変更しない
+- **supportedまたは意図的に観測するclient surface** — coverage数を増やすためだけにprivate/minified UI internalsへ依存しない
+- **no-model core path** — core interop evidenceをLLMのtool選択正しさへ依存させない
+- **machine-readableまたは保守的に解釈可能なevidence** — evidence不足は`unknown`であり、PASSを推測しない
+- **cleanup** — temporary credential / config / process / stateを除去、または独立確認する
+- **version context** — shipping client versionと関連platform contextを記録する
+- **deterministic fixture proof** — controlled E2Eでadapterが主張どおりreal client pathを観測していることを示す
+
+この境界を満たせないclientは、project全体のPASS意味を弱めるよりresearch-onlyに維持します。
+
 ## 両方を使う理由
 
 release pipelineでは、次のように二段階で使えます。
