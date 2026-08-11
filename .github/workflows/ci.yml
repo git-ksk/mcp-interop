@@ -48,6 +48,7 @@ jobs:
           bash -n scripts/e2e-cursor-oauth.sh
           bash -n scripts/e2e-antigravity-oauth.sh
           bash -n scripts/poc-copilot-cli-mcp.sh
+          bash -n scripts/poc-copilot-cli-startup.sh
           go test ./internal/e2e/fixture
           go build ./internal/e2e/fixture
 
