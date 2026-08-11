@@ -48,6 +48,31 @@ fixture_trace() {
   if [[ -s "$trace" ]]; then cat "$trace" >&2; else echo "(no fixture requests observed)" >&2; fi
 }
 
+safe_terminal_state() {
+  echo "--- secret-safe Antigravity terminal state ---" >&2
+  python3 - "$terminal" <<'PY'
+import re,sys
+try:
+    data=open(sys.argv[1],'rb').read().decode('utf-8','ignore')
+except FileNotFoundError:
+    raise SystemExit(0)
+data=re.sub(r'\x1b\[[0-?]*[ -/]*[@-~]','',data)
+data=re.sub(r'\x1b\][^\x07]*(?:\x07|\x1b\\)','',data)
+data=re.sub(r'https?://\S+','[URL]',data)
+data=re.sub(r'fixture-(?:code|token|refresh)-[A-Za-z0-9_-]+','[SECRET]',data)
+data=re.sub(r'\b[A-Za-z0-9_-]{32,}\b','[LONG_VALUE]',data)
+seen=set()
+for raw in data.splitlines():
+    line=' '.join(raw.split())
+    low=line.lower()
+    if line and any(k in low for k in ('mcp-interop-target','tool','authenticated','authentication','connected','ready','success')):
+        line=line[:700]
+        if line not in seen:
+            print(line)
+            seen.add(line)
+PY
+}
+
 go build -o "$interop_bin" ./cmd/mcp-interop || exit 1
 go build -o "$fixture_bin" ./internal/e2e/oauthfixture || exit 1
 before="$work_root/before"
@@ -55,9 +80,6 @@ after="$work_root/after"
 snapshot "$before"
 before_pids="$(pgrep -x agy 2>/dev/null | sort -n | tr '\n' ' ' || true)"
 
-# The private authorization-code file is a localhost-fixture test hook. It is
-# written only after the real Antigravity/browser path reaches /authorize and
-# is never included in fixture logs or mcp-interop diagnostics.
 "$fixture_bin" --listen 127.0.0.1:0 --ready-file "$ready" --log-file "$trace" --authorization-code-file "$code_file" &
 fixture_pid=$!
 for _ in {1..100}; do
@@ -82,6 +104,7 @@ for _ in {1..300}; do
 done
 if [[ ! -s "$code_file" ]]; then
   echo "Antigravity/browser path did not reach the fixture authorization endpoint" >&2
+  safe_terminal_state
   fixture_trace
   exit 1
 fi
@@ -97,20 +120,61 @@ interop_pid=""
 /usr/bin/osascript -e 'tell application "Safari" to quit' >/dev/null 2>&1 || true
 
 cat "$result"
-if [[ "$rc" -ne 0 ]]; then
-  echo "Antigravity OAuth test returned $rc" >&2
+python3 - "$result" "$trace" "$rc" <<'PY'
+import json, re, sys
+result_path, trace_path, rc_raw = sys.argv[1:]
+rc = int(rc_raw)
+results = json.load(open(result_path))
+if len(results) != 1:
+    raise SystemExit(f"expected one result, got {len(results)}")
+result = results[0]
+stages = {item["stage"]: item for item in result.get("stages", [])}
+for name in ("reach", "auth", "init", "tools"):
+    if name not in stages:
+        raise SystemExit(f"missing stage {name}")
+if stages["reach"]["status"] != "pass" or stages["auth"]["status"] != "pass":
+    raise SystemExit(f"reach/auth must pass: {stages}")
+terminal_pair = (stages["init"]["status"], stages["tools"]["status"])
+if terminal_pair not in (("unknown", "unknown"), ("pass", "pass")):
+    raise SystemExit(f"unexpected init/tools states: {terminal_pair}")
+if terminal_pair == ("unknown", "unknown") and rc != 1:
+    raise SystemExit(f"conservative UNKNOWN result should exit 1, got {rc}")
+if terminal_pair == ("pass", "pass") and rc != 0:
+    raise SystemExit(f"fully observed PASS result should exit 0, got {rc}")
+auth_message = stages["auth"].get("message", "").lower()
+if "isolated" not in auth_message or "oauth" not in auth_message:
+    raise SystemExit("isolated OAuth persistence evidence missing from auth stage")
+
+events=[]
+with open(trace_path) as handle:
+    for line in handle:
+        line=line.strip()
+        if line:
+            events.append(json.loads(line))
+def request(path, method):
+    return any(e.get("path")==path and e.get("method")==method for e in events)
+def observed(method):
+    return any(e.get("event")=="mcp_observation" and e.get("authorized") is True and e.get("rpc_method")==method for e in events)
+for path,method,label in (
+    ("/register","POST","DCR"),
+    ("/authorize","GET","authorization request"),
+    ("/token","POST","token exchange"),
+):
+    if not request(path,method):
+        raise SystemExit(f"{label} not observed")
+for method in ("initialize","notifications/initialized","tools/list"):
+    if not observed(method):
+        raise SystemExit(f"authenticated {method} not observed")
+
+persisted = open(result_path,'rb').read() + open(trace_path,'rb').read()
+if re.search(rb'fixture-(?:code|token|refresh)-', persisted):
+    raise SystemExit("OAuth secret material leaked into persisted E2E evidence")
+PY
+parser_rc=$?
+if [[ "$parser_rc" -ne 0 ]]; then
+  safe_terminal_state
   fixture_trace
-  exit 1
-fi
-[[ "$(grep -c '"status": "pass"' "$result" || true)" -eq 4 ]] || { echo "Antigravity did not pass all four stages" >&2; fixture_trace; exit 1; }
-grep -Fq 'persisted MCP OAuth state only inside the isolated HOME' "$result" || { echo "isolated OAuth persistence evidence missing" >&2; exit 1; }
-grep -Fq '"method":"POST","path":"/register"' "$trace" || { echo "DCR not observed" >&2; fixture_trace; exit 1; }
-grep -Fq '"method":"GET","path":"/authorize"' "$trace" || { echo "authorization request not observed" >&2; fixture_trace; exit 1; }
-grep -Fq '"method":"POST","path":"/token"' "$trace" || { echo "token exchange not observed" >&2; fixture_trace; exit 1; }
-grep -Fq '"method":"POST","path":"/mcp"' "$trace" || { echo "MCP request not observed" >&2; fixture_trace; exit 1; }
-if grep -Eq 'fixture-(code|token)-' "$result" "$trace" 2>/dev/null; then
-  echo "OAuth secret material leaked into persisted E2E evidence" >&2
-  exit 1
+  exit "$parser_rc"
 fi
 
 sleep 0.3

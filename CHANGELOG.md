@@ -4,6 +4,18 @@ All notable project changes will be summarized here. GitHub Releases remain the 
 
 ## Unreleased
 
+### Fixed
+
+- Aligned the Antigravity OAuth real-client E2E gate with conservative live-result semantics: `reach` / `auth` must pass, `init` / `tools` may remain unknown when client-side cache evidence is absent, and the controlled fixture independently requires authenticated `initialize`, `notifications/initialized`, and `tools/list` observations.
+- Removed completed temporary Antigravity OAuth workflows and the superseded authorization-URL capture helper so unrelated pull requests no longer run obsolete OAuth scaffolding.
+
+### Added
+
+- Secret-free OAuth capability enrichment for real-client `DCR_UNSUPPORTED` / `DCR_FAILED` failures, correlating proven CIMD/DCR server metadata without changing the four-stage interoperability verdict.
+- Cursor OAuth completion and authenticated tool discovery through the supported Cursor MCP CLI surface, with isolated state, callback-port conflict classification, DCR + Authorization Code/PKCE fixture coverage, and real-client macOS validation.
+- Antigravity OAuth completion on the tested macOS `agy 1.1.11` baseline using isolated temporary HOME/token persistence, secret-safe authorization-code forwarding, and authenticated server-side MCP evidence.
+- CI shell-syntax checks for the Cursor and Antigravity OAuth real-client harnesses.
+
 ## v0.3.0 — 2026-08-10
 
 ### Fixed
