@@ -57,7 +57,30 @@ Keep diagnostics when needed:
 MCP_INTEROP_KEEP_VSCODE_POC_TMP=1 bash scripts/poc-vscode-agent-plugin.sh
 ```
 
-The branch also contains a temporary self-hosted macOS workflow so the same PoC can be exercised on the existing `mcp-interop-e2e` runner.
+The temporary self-hosted PoC workflow used during initial research was removed after the result was captured; the harness remains available for explicit local reruns.
+
+
+## Tested result — 2026-08-11
+
+Tested on the maintainer macOS machine with:
+
+```text
+VS Code 1.132.0
+df53daabb18cd157bdb08c7f01c34df936cf12f4
+arm64
+```
+
+The isolated local plugin was discovered: VS Code created a dedicated `mcpServer.plugin...mcp-interop-vscode-poc.log` for the plugin-provided server and initialized `mcpGateway.log`. However, repeated no-input launches produced **zero MCP requests** at the controlled fixture. No `initialize`, `notifications/initialized`, `tools/list`, or `tools/call` was observed.
+
+The result was unchanged after explicitly setting `chat.mcp.access` to `true` and `chat.mcp.autoStart` to `newAndOutdated`. A diagnostic run without the closed outbound proxy also produced zero fixture traffic, so the network-isolation proxy is not the blocker.
+
+### Current verdict
+
+**BLOCKED for the direct no-model adapter contract.**
+
+For this tested stable build, local Agent Plugin discovery is not sufficient to make a no-input VS Code launch start the plugin MCP server. The public documentation says plugin MCP servers start automatically when the plugin is enabled, but the tested launch path leaves the discovered server without wire activity. This can reflect an additional product lifecycle condition (for example, chat/workbench activation) rather than a protocol failure; the PoC intentionally does not replace the missing direct lifecycle with Command Palette/UI automation.
+
+Keep #6 open. Re-run this harness when VS Code exposes or fixes a deterministic supported startup/status/tool-discovery path that works without a model prompt or brittle UI control.
 
 ## PASS meaning
 

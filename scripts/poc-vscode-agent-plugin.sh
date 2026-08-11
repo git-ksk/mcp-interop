@@ -214,6 +214,8 @@ JSON
 cat > "$user_data/User/settings.json" <<JSON
 {
   "chat.plugins.enabled": true,
+  "chat.mcp.access": true,
+  "chat.mcp.autoStart": "newAndOutdated",
   "chat.pluginLocations": {
     "$plugin_root": true
   },
