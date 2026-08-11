@@ -77,13 +77,12 @@ First public release of `mcp-interop`.
 
 - Real-client interoperability testing for Remote MCP servers across Codex CLI, Cursor CLI (beta), and Antigravity CLI on macOS (beta).
 - Four-stage `reach` / `auth` / `init` / `tools` result model with conservative `pass` / `fail` / `skip` / `unknown` semantics.
-- Codex CLI live inventory adapter.
-- Codex OAuth live flow.
-- Cursor CLI no-auth live adapter (beta).
-- Antigravity CLI no-auth live adapter (beta, macOS).
-- Cross-client combined text report.
-- Repeatable real-client macOS E2E harness.
-- Versioned release build/release automation.
+- Codex OAuth flow with isolated file-backed credential storage.
+- Isolated temporary client configuration and state with secret redaction.
+- Cross-client text summary and machine-readable JSON output.
+- Repeatable real-client macOS E2E harness using a localhost MCP fixture and cleanup/isolation gates.
+- Three-OS CI plus release-build smoke testing.
+- Automated checksummed release archives for macOS, Linux, and Windows on amd64 and arm64.
 
 ### Current limitations
 
