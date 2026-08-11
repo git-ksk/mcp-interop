@@ -45,6 +45,7 @@ jobs:
         shell: bash
         run: |
           bash -n scripts/e2e-real-clients.sh
+          bash -n scripts/poc-vscode-agent-plugin.sh
           go test ./internal/e2e/fixture
           go build ./internal/e2e/fixture
 
