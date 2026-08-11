@@ -4,7 +4,7 @@
 
 This guide covers common failure modes when running `mcp-interop` against real MCP clients and profile-based preflight diagnostics.
 
-The published stable release is still v0.3.0. Cursor and Antigravity OAuth support described below is available on **current main after v0.3.0** and is not part of the v0.3.0 release artifact.
+The current stable release is v0.4.0. Cursor and Antigravity OAuth support described below is included in v0.4.0.
 
 ## Start with client detection
 
@@ -60,7 +60,7 @@ See [Reason codes](reason-codes.md) for the stable classification rules.
 
 ### Cursor
 
-On current main, Cursor OAuth is explicit opt-in:
+In v0.4.0 and later, Cursor OAuth is explicit opt-in:
 
 ```console
 mcp-interop test https://example.com/mcp --client cursor --oauth
@@ -72,7 +72,7 @@ If OAuth fails around the localhost callback, do not assume a fixed port. Record
 
 ### Antigravity
 
-On current main, Antigravity OAuth is explicit opt-in on macOS:
+In v0.4.0 and later, Antigravity OAuth is explicit opt-in on macOS:
 
 ```console
 mcp-interop test https://example.com/mcp --client antigravity --oauth
@@ -226,7 +226,7 @@ Include:
 - operating system and architecture;
 - exact MCP client version when a live adapter is involved;
 - selected adapter or diagnostic profile;
-- whether the checkout is the published v0.3.0 release or current main when reporting Cursor/Antigravity OAuth behavior;
+- the exact `mcp-interop` version when reporting Cursor/Antigravity OAuth behavior;
 - stage results and any `reason_code`, or preflight checks;
 - sanitized error/diagnostic output;
 - whether the server requires OAuth;
