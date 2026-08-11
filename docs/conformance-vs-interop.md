@@ -59,6 +59,52 @@ A client-specific failure is useful even when both sides appear individually spe
 
 The client product and its version are therefore part of the interoperability evidence, not incidental metadata.
 
+## Not a static client compatibility matrix
+
+A client capability matrix answers a useful but different question: **what does product/version X generally support?** `mcp-interop` should not compete by manually curating another universal feature table.
+
+Its strongest evidence is deployment-specific and reproducible:
+
+```text
+endpoint A + client X version 1 -> PASS
+endpoint A + client X version 2 -> AUTH FAIL
+endpoint A + client Y version 7 -> PASS
+```
+
+That makes version-to-version regression detection a first-class use case. A result must remain scoped to the endpoint, client product, client version, operating-system/runtime context where relevant, and evidence actually observed during that run. It must never be generalized into compatibility with products or versions that were not executed.
+
+Static compatibility documentation can help decide **which tests to run**; it is not a substitute for a live result against the deployment under test.
+
+## Evidence hierarchy
+
+Keep these evidence layers distinct:
+
+1. specification/conformance evidence;
+2. direct server inspection/debugging;
+3. product-profile preflight metadata;
+4. sanitized Runtime Evidence supplied from a deployment;
+5. **live deployment-specific real-client evidence**.
+
+Only the fifth layer can produce an `mcp-interop` real-client `reach/auth/init/tools` PASS for the target deployment.
+
+A fixture or localhost adapter self-test proves that the measurement path works. It does not prove that a different production deployment passed.
+
+## Adapter graduation criteria
+
+Adding more client names is less important than preserving trustworthy evidence. A live adapter should graduate from research/beta only when its measurement boundary is clear enough to document and reproduce.
+
+At minimum, evaluate:
+
+- **isolation** — normal user configuration/credentials are not reused or mutated;
+- **supported or deliberately observed client surface** — no private/minified UI internals merely to increase coverage;
+- **no-model core path** — core interoperability evidence does not depend on an LLM choosing a tool correctly;
+- **machine-readable or conservatively interpretable evidence** — absence of evidence becomes `unknown`, not an invented PASS;
+- **cleanup** — temporary credentials, config, processes, and state are removed or independently checked;
+- **version context** — the shipping client version and relevant platform context are recorded;
+- **deterministic fixture proof** — controlled E2E demonstrates that the adapter is observing the real client path it claims to measure.
+
+If a client cannot meet this boundary, keep it research-only rather than weakening the project-wide meaning of PASS.
+
 ## Why both layers matter
 
 A useful release pipeline can treat the two projects as sequential quality gates:

@@ -4,6 +4,27 @@ All notable project changes will be summarized here. GitHub Releases remain the 
 
 ## Unreleased
 
+## v0.4.0 — 2026-08-11
+
+### Fixed
+
+- Fixed Codex CLI 0.147.0 compatibility by treating successful real tool discovery as proof that no unresolved authentication gate remains even when app-server returns a previously unknown auth-status value; empty inventories remain conservative `unknown`.
+- Aligned the Antigravity OAuth real-client E2E gate with conservative live-result semantics: `reach` / `auth` must pass, `init` / `tools` may remain unknown when client-side cache evidence is absent, and the controlled fixture independently requires authenticated `initialize`, `notifications/initialized`, and `tools/list` observations.
+- Removed completed temporary Antigravity OAuth workflows and the superseded authorization-URL capture helper so unrelated pull requests no longer run obsolete OAuth scaffolding.
+- Synchronized English/Japanese README, architecture, troubleshooting, and reason-code documentation with the post-v0.3.0 Cursor/Antigravity OAuth implementation while keeping the published v0.3.0 boundary explicit.
+
+### Added
+
+- Secret-free OAuth capability enrichment for real-client `DCR_UNSUPPORTED` / `DCR_FAILED` failures, correlating proven CIMD/DCR server metadata without changing the four-stage interoperability verdict.
+- Cursor OAuth completion and authenticated tool discovery through the supported Cursor MCP CLI surface, with isolated state, callback-port conflict classification, DCR + Authorization Code/PKCE fixture coverage, and real-client macOS validation.
+- Antigravity OAuth completion on the tested macOS `agy 1.1.11` baseline using isolated temporary HOME/token persistence, secret-safe authorization-code forwarding, and authenticated server-side MCP evidence.
+- CI shell-syntax checks for the Cursor and Antigravity OAuth real-client harnesses.
+
+### Changed
+
+- Sharpened the deployment-specific interoperability boundary: a live PASS must come from the same real client under test, while synthetic fixtures remain adapter self-tests/release gates and metadata/runtime diagnostics remain separate evidence layers.
+- Hardened tag-triggered releases by requiring the tagged commit to be contained in `main` history and re-running `go vet ./...` plus `go test ./...` against the exact tagged source before publishing artifacts.
+
 ## v0.3.0 — 2026-08-10
 
 ### Fixed

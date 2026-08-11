@@ -18,28 +18,28 @@
 
 ## Status
 
-**現在のreleaseはv0.3.0です。**
+**現在の公開releaseはv0.4.0です。**
 
-Release: [v0.3.0](https://github.com/git-ksk/mcp-interop/releases/tag/v0.3.0)
+Release: [v0.4.0](https://github.com/git-ksk/mcp-interop/releases/tag/v0.4.0)
 
-現在のlive adapter:
+v0.4.0で提供するlive adapterは次の通りです。
 
 - **Codex CLI** — live inventory + 明示的opt-in OAuth
-- **Cursor CLI (beta)** — dedicated MCP management commandを使うno-auth live inventory。OAuth完遂は未対応
-- **Antigravity CLI (beta, macOS)** — isolated no-prompt PTY startupとmachine-readable MCP tool cacheを使うno-auth live inventory。OAuth完遂は意図的に無効
+- **Cursor CLI (beta)** — dedicated MCP management commandを使うno-auth live inventory + 実Cursor MCP login pathを使う明示的opt-in OAuth。controlled fixtureでauthenticated `mcp list-tools`まで検証済み
+- **Antigravity CLI (beta, macOS)** — isolated no-prompt PTY/tool cacheを使うno-auth live inventory + isolated PTY内の実`/mcp` managerを使う明示的opt-in OAuth。authenticationとclient-side tool-cache観測を分離し、generic `init/tools`は必要に応じてconservativeに`unknown`を維持する
 
-v0.3.0には、**ChatGPT OAuth/server preflight、Runtime Evidence v3、secret-free evidence utilities、controlled insufficient-scope OAuth fixture、versioned OpenAI reference-pattern diagnostics**が含まれます。Runtime Evidence v3はstatic tool metadataとruntime reauthorization challengeを分離しつつ、v1/v2 input互換を維持します。公開metadataと明示的に渡されたsanitized runtime observationを診断しますが、実ChatGPT clientを動かしたとは主張しません。
+v0.4.0では、**Cursor OAuth完遂、tested macOS baselineでのAntigravity OAuth完遂、secret-free real-client OAuth capability enrichment、deployment固有のlive-evidence境界の明確化、release provenance gateの強化**を追加します。v0.3.0ではChatGPT OAuth/server preflight、Runtime Evidence v3、secret-free evidence utilities、controlled insufficient-scope OAuth fixture、versioned OpenAI reference-pattern diagnosticsを導入しました。
 
-VS Codeは、stableなno-model server-start/tool-discovery surfaceが確認できるまでresearch-onlyです。
+VS Codeは、別途進めているlifecycle/tool-discovery automation researchがstable live adapterへ昇格するまでresearch-onlyです。
 
-GitHub Copilot CLIは今後の候補です。Claude Code対応は現時点では優先していません。
+GitHub Copilot CLIはresearch-onlyです。現在の検証では実clientのMCP initializationまでは証明できましたが、projectのno-model evidence contractで`tools/list`までは未証明です ([#48](https://github.com/git-ksk/mcp-interop/issues/48))。Claude Code対応は現時点では優先していません。
 
 ## Install
 
 Go 1.24以降で、現在のstable releaseを固定して入れる場合:
 
 ```console
-go install github.com/git-ksk/mcp-interop/cmd/mcp-interop@v0.3.0
+go install github.com/git-ksk/mcp-interop/cmd/mcp-interop@v0.4.0
 ```
 
 最新の公開module versionを追う場合:
@@ -56,7 +56,7 @@ mcp-interop version
 mcp-interop --version
 ```
 
-[v0.3.0 GitHub Release](https://github.com/git-ksk/mcp-interop/releases/tag/v0.3.0)には、macOS / Linux / Windows向けのamd64 / arm64 archiveと`checksums.txt`があります。
+[v0.4.0 GitHub Release](https://github.com/git-ksk/mcp-interop/releases/tag/v0.4.0)には、macOS / Linux / Windows向けのamd64 / arm64 archiveと`checksums.txt`があります。
 
 ## 何を証明するテストか
 
@@ -115,19 +115,19 @@ Antigravity CLI  PASS   PASS  PASS  PASS   1.1.11
 
 JSON outputはarrayです。
 
-## Codex OAuth
-
-OAuthが必要なtargetをCodexで検証する場合は明示的にopt-inします。
+OAuth flowは常に明示的opt-inです。
 
 ```console
 mcp-interop test https://example.com/mcp --client codex --oauth
+mcp-interop test https://example.com/mcp --client cursor --oauth
+mcp-interop test https://example.com/mcp --client antigravity --oauth
 ```
 
-`--oauth`を付けてもbrowserを勝手には開きません。authorization URLをstderrへ表示し、実Codex OAuth callbackを待ちます。
+Codexはauthorization URLをstderrへ表示し、実Codex OAuth callbackを待ちます。URLには短時間有効なOAuth stateが含まれるため共有しないでください。
 
-URLには短時間有効なOAuth stateが含まれるため、Issueやlog共有時に貼らないでください。
+Cursorはisolated temporary HOME/workspace内で実Cursor MCP login pathを使い、authenticated `mcp list-tools`でtool discoveryを証明します。callback detailはversion-specificであり、固定portをhard-codeしません。
 
-Cursor / AntigravityのOAuth完遂はv0.3.0でも未対応です。
+Antigravityはisolated PTY内で実`/mcp` managerへ入り、OAuth token persistenceをtemporary HOME内に閉じ込めます。authorization codeやtoken内容は`mcp-interop` evidenceへpersistしません。詳細は[Antigravity OAuth live-test boundary](docs/antigravity-oauth.md)を参照してください。
 
 ## ChatGPT OAuth/server preflight
 
@@ -241,18 +241,18 @@ Cursor adapterは:
 - `<workspace>/.cursor/mcp.json`へtest endpointだけを書く
 - 実Cursor CLIのMCP management surfaceを使う
 - `mcp enable` → `mcp list` → `mcp list-tools`を使う
-- successful `mcp list-tools`をreal-client evidenceとして扱う
+- `--oauth`指定時はisolated session内で実Cursor MCP login pathを起動する
+- authenticated `mcp list-tools`成功をreal-client evidenceとして扱う
 - temporary Cursor stateをcleanupする
 
 Cursor model promptは送信しません。
 
 ### 現在の制限
 
-- OAuth discovery/DCR/PKCE flow start/local callbackまではmaintainer PoCで確認済み
-- token exchange + authenticated `tools/list`は未完了
-- OAuth-required targetでは自動`mcp login`を実行せずincomplete resultにする
+- OAuthは明示的opt-inで、`--oauth`なしにloginを勝手に開始しない
+- callback addressはversion-specificで固定portを永久仕様として扱わない
 - MCP command outputは専用JSON contractではなくhuman-readable
-- 初期live validationはmacOS中心
+- 実OAuth validationは検証済みCursor CLIのmacOS pathで完了済み。今後は追加version/OS evidenceを増やす
 
 ## Antigravity adapter (beta, macOS)
 
@@ -260,18 +260,19 @@ Antigravity adapterは:
 
 - isolated temporary `HOME` + workspaceを作る
 - temporary `~/.gemini/config/mcp_config.json`へ`serverUrl`形式でtargetを書く
-- 入力/model promptなしで実`agy`をPTY起動する
-- isolated `~/.gemini/antigravity-cli/mcp/<server>/` tool cacheを観測する
-- valid tool schemaをreach/init/tools evidenceとして扱う
+- model promptなしで実`agy`をPTY起動する
+- no-authではisolated `~/.gemini/antigravity-cli/mcp/<server>/` tool cacheを観測する
+- `--oauth`指定時はisolated PTY内で実Antigravity `/mcp` managerへ入る
+- OAuth token persistenceはisolated `~/.gemini/antigravity/mcp_oauth_tokens.json`のmetadataだけを観測し、token file内容は開かない
 - test PTY wrapper由来と証明できるdescendant processだけを回収する
 - temporary HOME/workspaceをcleanupする
 
 ### 現在の制限
 
 - live adapterはmacOSのみ
-- OAuth-required discovery/DCRは観測済み
-- macOS Keychainと完全に隔離できるsupported mechanismが未確立のためauthorization/token exchangeは無効
-- tool cacheが確認できない場合は成功を推測せず`unknown`
+- OAuthは明示的opt-inで、検証済みAntigravityのinteractive `/mcp` surfaceに依存する
+- 検証済み`agy 1.1.11`のOAuth pathではauthenticated `initialize` / `tools/list`が完了しても、no-auth時と同じclient-side tool cacheが生成されない場合がある。その場合generic `init/tools`はauthenticationから推測せず`unknown`を維持する
+- controlled localhost OAuth E2Eでは別途authenticated `initialize` / `notifications/initialized` / `tools/list`のserver-side evidenceを必須にする。詳細は[Antigravity OAuth live-test boundary](docs/antigravity-oauth.md)
 - tool cacheはcross-vendor stable APIではなく、Antigravity clientのobserved surface
 
 ## Safety / isolation
@@ -314,6 +315,8 @@ harnessは:
 - 新規leaked `codex` / `cursor-agent` / `agy` processを検出
 - 新規`mcp-interop-*` temporary session漏れを検出
 
+Cursor/AntigravityのOAuth専用harnessはcontrolled loopback fixtureに対して実OAuth pathも検証し、authorization code/tokenをpersisted evidenceへ含めません。
+
 通常のGitHub-hosted CIは外部clientをインストールしません。実client E2E用にはself-hosted macOS ARM64向けmanual workflowがあります。
 
 ## ドキュメント
@@ -348,13 +351,17 @@ harnessは:
 - [x] static metadata未観測を`N/A`に過大評価せず`WARN`として扱うpartial tool OAuth aggregation
 - [x] versioned OpenAI reference profile metadataとmanual real-ChatGPT secret-free dogfood workflow
 
-### v0.3.0以降もopen
+### v0.4.0で提供
 
-- [ ] real-client OAuth failureとprofile/runtime capability evidenceの自動相関を完成 ([#19](https://github.com/git-ksk/mcp-interop/issues/19))
-- [ ] Cursor OAuth token exchange + authenticated tool discovery ([#3](https://github.com/git-ksk/mcp-interop/issues/3))
-- [ ] Antigravity OAuthを安全に完遂できるcredential isolation boundaryの確立 ([#5](https://github.com/git-ksk/mcp-interop/issues/5))
+- [x] 明示的real-client DCR failureとdiscovered CIMD/DCR server capability evidenceを相関しつつ、4-stage verdictとは分離する ([#19](https://github.com/git-ksk/mcp-interop/issues/19))
+- [x] Cursorの明示的opt-in OAuth、token exchange、authenticated `mcp list-tools`をisolated stateで完遂 ([#3](https://github.com/git-ksk/mcp-interop/issues/3))
+- [x] Antigravityの明示的opt-in OAuth、isolated token persistence、conservative generic stage semantics、controlled authenticated wire-evidence E2Eを完遂 ([#5](https://github.com/git-ksk/mcp-interop/issues/5))
+
+### v0.4.0以降もopen
+
 - [ ] real ChatGPT adapter前にsupportedなheadless ChatGPT MCP/app-management surfaceを調査し、brittle DOM scrapingはinterop contractに使わない ([#20](https://github.com/git-ksk/mcp-interop/issues/20))
-- [ ] supported direct lifecycle/tool-discovery surfaceが利用可能になったらVS Codeを再検討 ([#6](https://github.com/git-ksk/mcp-interop/issues/6))
+- [ ] project's no-model evidence contractを満たすsupported direct lifecycle/tool-discovery surfaceが利用可能になったらVS Codeを再検討 ([#6](https://github.com/git-ksk/mcp-interop/issues/6))
+- [ ] GitHub Copilot CLIのtool discovery/auth isolation researchを完了してからlive adapter化を判断 ([#48](https://github.com/git-ksk/mcp-interop/issues/48))
 - [ ] stable automatable lifecycle/tool-discovery surfaceを持つ追加real MCP clientを評価
 
 ### v0.1.0で提供済み

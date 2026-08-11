@@ -67,25 +67,31 @@ processについても同じ原則を適用します。adapterが終了させて
 
 ## 提供中のadapter
 
+現在のstable releaseはv0.4.0です。以下のCursor/Antigravity OAuth pathはv0.4.0に含まれます。
+
 ### Codex CLI
 
 現在最も完成度の高いadapterです。isolated `CODEX_HOME`、実`codex app-server`のMCP status surface、明示的なopt-in OAuth flowを使用します。OAuth credential storageはtemporary HOME内のfileへ強制し、通常のkeyring経路を使いません。
 
 ### Cursor CLI (beta)
 
-isolated temporary `HOME`とworkspaceを作り、実Cursor CLIの`mcp enable`、`mcp list`、`mcp list-tools`を使います。model promptなしでno-auth Remote MCPのlive interoperabilityを確認できます。OAuth token exchangeとauthenticated tool discoveryは、isolated fixture pathで完全に検証できるまで未提供のままです。
+isolated temporary `HOME`とworkspaceを作り、実Cursor CLIの`mcp enable`、`mcp list`、`mcp list-tools`を使います。model promptなしでno-auth Remote MCPのlive interoperabilityを確認できます。
+
+v0.4.0では、明示的な`--oauth`によりisolated session内で実Cursor MCP login pathを起動します。controlled OAuth fixtureでDCR、Authorization Code + PKCE、token exchange、Bearer付きMCP request、authenticated `mcp list-tools`まで検証済みです。authenticated `mcp list-tools`成功を、tested Cursor CLI surfaceにおける`reach/auth/init/tools`の直接evidenceとして扱います。callback addressはversion-specificとして扱い、固定portをhard-codeしません。
 
 ### Antigravity CLI (beta, macOS)
 
-isolated temporary `HOME`、現在の`~/.gemini/config/mcp_config.json`形式、入力を送らないPTY startupを使います。実クライアントが生成するmachine-readable tool cacheを観測し、cleanup前にはtest PTY wrapperのdescendantだけを回収します。macOS Keychainから安全に隔離できることが証明されるまで、自動OAuth完遂は無効です。
+isolated temporary `HOME`、現在の`~/.gemini/config/mcp_config.json`形式、PTYを使ったreal-client pathを使用します。no-auth modeでは実クライアントが生成するmachine-readable tool cacheを観測し、cleanup前にはtest PTY wrapperのdescendantだけを回収します。
+
+v0.4.0では、明示的な`--oauth`によりisolated PTY内で実Antigravity `/mcp` managerへ入ります。OAuth tokenはisolated `~/.gemini/antigravity/mcp_oauth_tokens.json`に閉じ込め、`mcp-interop`はfile metadataだけを観測し、token内容を開いたり保存したりしません。generic resultはconservativeなままで、authenticationを証明できてもOAuth pathでno-auth時と同じtool cacheが生成されなければ`init/tools=unknown`を維持します。controlled localhost E2Eでは別途、authenticated `initialize`、`notifications/initialized`、`tools/list`のserver-side evidenceを必須にします。詳細は[Antigravity OAuth live-test boundary](antigravity-oauth.md)を参照してください。
 
 ### VS Code (research)
 
-isolated user-data directoryへのMCP設定登録は安全にできますが、検証時点のCLIにはserver start/status/tool discoveryを直接観測できるsupported pathがありません。**登録できたことだけでは互換性PASSにしません。** no-modelで安定したlifecycle surfaceが利用可能になるまでresearch-onlyです。
+isolated user-data directoryへのMCP設定登録は安全にできますが、stableなsupported direct lifecycle/tool-discovery automation boundaryはまだlive adapterへ昇格していません。**登録できたことだけでは互換性PASSにしません。** researchはshipped adapter contractとは分離して継続します。
 
-### GitHub Copilot CLI (candidate)
+### GitHub Copilot CLI (research)
 
-model promptなしで同等のblack-box evidenceを得られる安定したMCP inventory/lifecycle surfaceが確認できれば、v0.3での候補になります。
+GitHub Copilot CLIはresearch-onlyです。現在のPoCではno-input startupで実clientの`initialize` / `notifications/initialized`までは確認できましたが、authenticated/model backendなしの`tools/list`は未証明です。詳細は#48を参照してください。
 
 ## Real-client E2E境界
 
@@ -100,6 +106,8 @@ tools/list
 ```
 
 `tools/call`が発生した場合はFAILです。また、実行前後でuser config metadata、login Keychain DB、新規残存client process、temporary session directoryを比較します。
+
+Cursor/AntigravityのOAuth専用E2E harnessも同じisolation原則を使い、controlled loopback fixtureに対して実OAuth client pathを検証します。authorization codeやtokenなどのsecret-bearing materialはpersisted evidenceへ含めません。
 
 このfixtureは**adapterのself-test / release gate**であり、一般的なMCP conformance suiteではありません。目的は、`mcp-interop`のmeasurement pathが本当に実clientを観測でき、isolation guaranteeを維持していることを確認することです。
 

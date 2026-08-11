@@ -67,25 +67,31 @@ Process ownership follows the same rule: an adapter may reap only processes it c
 
 ## Shipped adapters
 
+The current stable release is v0.4.0. The Cursor and Antigravity OAuth paths below are included in v0.4.0.
+
 ### Codex CLI
 
 The Codex adapter is currently the most complete implementation. It uses an isolated `CODEX_HOME`, the real `codex app-server` MCP status surface, and an explicit opt-in OAuth flow. OAuth credentials are forced into file storage inside the temporary home rather than the normal keyring path.
 
 ### Cursor CLI (beta)
 
-The Cursor adapter uses an isolated temporary `HOME` and workspace plus the real CLI MCP management commands (`mcp enable`, `mcp list`, and `mcp list-tools`). It supports live no-auth interoperability testing without model prompts. OAuth completion remains unshipped until authenticated token exchange and tool discovery are fully verified in the isolated fixture path.
+The Cursor adapter uses an isolated temporary `HOME` and workspace plus the real CLI MCP management commands (`mcp enable`, `mcp list`, and `mcp list-tools`). It supports live no-auth interoperability testing without model prompts.
+
+In v0.4.0, explicit `--oauth` invokes the real Cursor MCP login path inside the isolated session. The controlled OAuth fixture verifies DCR, Authorization Code + PKCE, token exchange, bearer-authenticated MCP, and authenticated `mcp list-tools`. A successful authenticated `mcp list-tools` directly proves `reach/auth/init/tools` for the tested Cursor CLI surface. Callback addresses remain version-specific and are not hard-coded.
 
 ### Antigravity CLI (beta, macOS)
 
-The Antigravity adapter uses an isolated temporary `HOME`, the current `~/.gemini/config/mcp_config.json` format, and a no-input PTY startup. It observes machine-readable tool-cache state produced by the real client and reaps only descendants of the test PTY wrapper before session cleanup. Automated OAuth completion remains disabled until credential isolation from the macOS Keychain can be proven.
+The Antigravity adapter uses an isolated temporary `HOME`, the current `~/.gemini/config/mcp_config.json` format, and a PTY-based real-client path. The no-auth mode observes machine-readable tool-cache state produced by the real client and reaps only descendants of the test PTY wrapper before session cleanup.
+
+In v0.4.0, explicit `--oauth` enters the real Antigravity `/mcp` manager inside the isolated PTY. OAuth token persistence is confined to the isolated `~/.gemini/antigravity/mcp_oauth_tokens.json`; `mcp-interop` observes only file metadata and never opens or persists token contents. The generic result remains conservative: authentication can be proven while `init/tools` stay `unknown` if the OAuth path does not materialize the same client-side tool cache. The controlled localhost E2E separately requires authenticated `initialize`, `notifications/initialized`, and `tools/list` server-side evidence. See [Antigravity OAuth live-test boundary](antigravity-oauth.md).
 
 ### VS Code (research)
 
-VS Code can safely register MCP configuration in an isolated user-data directory, but the tested CLI does not expose a supported direct path for MCP server start/status/tool discovery. Registration alone is not treated as interoperability success. The adapter remains research-only until a stable no-model lifecycle surface exists.
+VS Code can safely register MCP configuration in an isolated user-data directory, but a stable supported direct lifecycle/tool-discovery automation boundary has not yet been promoted into a live adapter. Registration alone is not treated as interoperability success. Research continues separately from the shipped adapter contract.
 
-### GitHub Copilot CLI (candidate)
+### GitHub Copilot CLI (research)
 
-GitHub Copilot CLI is a follow-up candidate for v0.3 if a stable automatable MCP inventory/lifecycle surface can provide the same black-box evidence without model prompts.
+GitHub Copilot CLI remains research-only. Current PoC evidence shows real-client `initialize` / `notifications/initialized` on no-input startup, but not `tools/list` without an authenticated/model backend; see #48.
 
 ## Real-client E2E boundary
 
@@ -100,6 +106,8 @@ tools/list
 ```
 
 and fails if `tools/call` occurs. It also checks user configuration metadata, the login Keychain database, leaked client processes, and temporary session directories before/after the run.
+
+OAuth-specific Cursor and Antigravity E2E harnesses use the same isolation principle but additionally exercise their real OAuth client paths against controlled loopback fixtures. Secret-bearing authorization codes and tokens are excluded from persisted evidence.
 
 The fixture is an **adapter self-test and release gate**, not a general MCP conformance suite. Its job is to prove that the `mcp-interop` measurement path actually observes the real clients and preserves the project's isolation guarantees.
 

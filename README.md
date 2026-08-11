@@ -16,28 +16,28 @@ It also includes profile-based **preflight diagnostics** for client surfaces tha
 
 ## Status
 
-**v0.3.0 is the current release.**
+**v0.4.0 is the current published release.**
 
-Release: [v0.3.0](https://github.com/git-ksk/mcp-interop/releases/tag/v0.3.0)
+Release: [v0.4.0](https://github.com/git-ksk/mcp-interop/releases/tag/v0.4.0)
 
-Live adapters currently exist for:
+The live adapters in v0.4.0 are:
 
 - **Codex CLI** — live inventory and explicit opt-in OAuth flow.
-- **Cursor CLI (beta)** — live no-auth inventory via dedicated MCP management commands; OAuth completion is still pending maintainer E2E verification.
-- **Antigravity CLI (beta, macOS)** — live no-auth inventory through an isolated no-prompt PTY startup and machine-readable MCP tool cache; automated OAuth completion is intentionally disabled.
+- **Cursor CLI (beta)** — live no-auth inventory plus explicit opt-in OAuth through the real Cursor MCP login path; authenticated `mcp list-tools` has been validated with the controlled fixture.
+- **Antigravity CLI (beta, macOS)** — live no-auth inventory plus explicit opt-in OAuth through the real `/mcp` manager in an isolated PTY. Authentication can be proven independently of client-side tool-cache observation, so generic `init/tools` may conservatively remain `unknown` while controlled E2E proves the authenticated MCP exchange.
 
-v0.3.0 includes **ChatGPT OAuth/server preflight, Runtime Evidence v3, secret-free evidence utilities, controlled insufficient-scope OAuth fixtures, and versioned OpenAI reference-pattern diagnostics**. Runtime Evidence v3 separates static tool metadata from runtime reauthorization challenges while preserving v1/v2 input compatibility. These diagnostics validate published metadata and explicitly supplied sanitized runtime observations without claiming that the real ChatGPT client ran.
+v0.4.0 adds **Cursor OAuth completion, Antigravity OAuth completion on the tested macOS baseline, secret-free real-client OAuth capability enrichment, stricter deployment-specific live-evidence boundaries, and hardened release provenance gates**. v0.3.0 introduced ChatGPT OAuth/server preflight, Runtime Evidence v3, secret-free evidence utilities, controlled insufficient-scope OAuth fixtures, and versioned OpenAI reference-pattern diagnostics.
 
-VS Code remains research-only until a stable no-model server-start/tool-discovery surface is available.
+VS Code remains research-only until its separate lifecycle/tool-discovery automation research is promoted into a stable live adapter.
 
-GitHub Copilot CLI is a follow-up candidate. Claude Code support is intentionally deferred.
+GitHub Copilot CLI remains research-only: current testing proves real-client MCP initialization but has not yet proven `tools/list` under the project's no-model evidence contract ([#48](https://github.com/git-ksk/mcp-interop/issues/48)). Claude Code support is intentionally deferred.
 
 ## Install
 
 With Go 1.24 or newer, install the current stable release explicitly:
 
 ```console
-go install github.com/git-ksk/mcp-interop/cmd/mcp-interop@v0.3.0
+go install github.com/git-ksk/mcp-interop/cmd/mcp-interop@v0.4.0
 ```
 
 To track the newest published module version instead:
@@ -54,7 +54,7 @@ mcp-interop version
 mcp-interop --version
 ```
 
-The [v0.3.0 GitHub Release](https://github.com/git-ksk/mcp-interop/releases/tag/v0.3.0) provides checksummed archives for macOS, Linux, and Windows on both amd64 and arm64.
+The [v0.4.0 GitHub Release](https://github.com/git-ksk/mcp-interop/releases/tag/v0.4.0) provides checksummed archives for macOS, Linux, and Windows on both amd64 and arm64.
 
 ## What a test proves
 
@@ -106,15 +106,19 @@ Antigravity CLI  PASS   PASS  PASS  PASS   1.1.11
 
 JSON output remains an array, preserving the existing machine-readable contract.
 
-If a Codex target requires OAuth, opt in explicitly:
+OAuth flows are always explicit opt-in:
 
 ```console
 mcp-interop test https://example.com/mcp --client codex --oauth
+mcp-interop test https://example.com/mcp --client cursor --oauth
+mcp-interop test https://example.com/mcp --client antigravity --oauth
 ```
 
-`--oauth` does not silently open a browser. For Codex, `mcp-interop` prints the authorization URL to stderr and waits for the real Codex OAuth callback. Open that URL in a browser to continue. The URL contains short-lived OAuth state and should not be shared.
+For Codex, `mcp-interop` prints the authorization URL to stderr and waits for the real Codex OAuth callback. The URL contains short-lived OAuth state and should not be shared.
 
-Cursor and Antigravity OAuth completion are not enabled yet. Their beta adapters return incomplete/inconclusive authentication results rather than starting an unverified credential flow.
+Cursor uses the real Cursor MCP login path inside an isolated temporary HOME/workspace and proves authenticated discovery with `mcp list-tools`. Callback details are version-specific and are not hard-coded.
+
+Antigravity enters the real `/mcp` manager inside an isolated PTY. OAuth token persistence is confined to the isolated temporary HOME; authorization codes and token contents are not persisted in `mcp-interop` evidence. See [Antigravity OAuth live-test boundary](docs/antigravity-oauth.md).
 
 ### ChatGPT OAuth/server preflight
 
@@ -229,34 +233,37 @@ The Cursor adapter:
 2. writes only the target Remote MCP endpoint to `<workspace>/.cursor/mcp.json`;
 3. invokes the installed Cursor CLI's MCP management surface;
 4. attempts `mcp enable`, then queries `mcp list` and `mcp list-tools`;
-5. treats a successful `mcp list-tools` as direct evidence from Cursor's real MCP client;
-6. removes all temporary Cursor state during shared session cleanup.
+5. when `--oauth` is explicit, invokes the real Cursor MCP login path inside the isolated session;
+6. treats successful authenticated `mcp list-tools` as direct evidence from Cursor's real MCP client;
+7. removes all temporary Cursor state during shared session cleanup.
 
 The adapter never sends a Cursor model prompt. A fresh isolated HOME prevents the test from reusing normal Cursor MCP auth/config state.
 
 ### Current Cursor limitations
 
-- Maintainer PoC has verified OAuth discovery, DCR, PKCE flow start, and the local callback listener, but token exchange plus authenticated `tools/list` has not yet been completed with the localhost fixture.
-- Until that verification is complete, an OAuth-required target returns an incomplete auth result rather than invoking `mcp login` automatically.
+- OAuth is explicit opt-in; the adapter does not silently start login for an OAuth-required target without `--oauth`.
+- Callback addresses are version-specific and must not be treated as a permanent fixed port.
 - MCP management output is human-readable rather than a dedicated JSON contract, so the adapter keeps interpretation deliberately conservative.
-- Initial live validation is macOS-specific; additional client-version/OS evidence should be added as the adapter matures.
+- Real OAuth validation has been completed on macOS for the tested Cursor CLI version; additional client-version/OS evidence should be added as the adapter matures.
 
 ## Antigravity adapter (beta)
 
-The Antigravity adapter currently ships a live implementation for macOS only:
+The Antigravity adapter currently has a live implementation for macOS only:
 
 1. creates an isolated temporary `HOME` and workspace;
 2. writes the target Remote MCP endpoint to the temporary `~/.gemini/config/mcp_config.json` using the current `serverUrl` field;
-3. starts the installed `agy` process under a PTY without sending TUI input or a model prompt;
-4. observes machine-readable tool schema state under the isolated `~/.gemini/antigravity-cli/mcp/<server>/` cache;
-5. treats valid tool schema files as evidence that the real client reached the server, initialized MCP, and completed tool discovery;
-6. captures and reaps only descendants of the test PTY wrapper before shared session cleanup, then removes the temporary HOME/workspace.
+3. starts the installed `agy` process under a PTY without a model prompt;
+4. in no-auth mode, observes machine-readable tool schema state under the isolated `~/.gemini/antigravity-cli/mcp/<server>/` cache;
+5. when `--oauth` is explicit, enters the real Antigravity `/mcp` manager and forwards authorization-code input directly to the isolated PTY;
+6. observes OAuth token persistence only through metadata for isolated `~/.gemini/antigravity/mcp_oauth_tokens.json`, never by opening the token file;
+7. captures and reaps only descendants of the test PTY wrapper before shared session cleanup, then removes the temporary HOME/workspace.
 
 ### Current Antigravity limitations
 
-- The no-prompt PTY/tool-cache path has been maintainer-validated on macOS and is deliberately `skip` on other operating systems until equivalent real-client evidence exists.
-- OAuth-required discovery and DCR have been observed in the maintainer fixture, but automated authorization/token exchange is disabled because credential storage has not yet been proven to remain fully isolated from the macOS Keychain.
-- If no isolated tool cache appears, the adapter returns `unknown` rather than treating configuration discovery as interoperability success.
+- The live adapter remains macOS-only until equivalent real-client evidence exists on other operating systems.
+- OAuth is explicit opt-in and still depends on the tested Antigravity interactive `/mcp` surface.
+- On the tested `agy 1.1.11` OAuth path, authenticated `initialize` and `tools/list` can complete without materializing the same client-side tool cache used by no-auth mode. The generic result therefore keeps `init/tools=unknown` rather than inferring pass from authentication alone.
+- The controlled localhost OAuth E2E independently requires authenticated `initialize`, `notifications/initialized`, and `tools/list` server-side evidence. See [Antigravity OAuth live-test boundary](docs/antigravity-oauth.md).
 - The tool cache is an observed Antigravity client surface rather than a stable cross-vendor protocol API, so version information must remain part of every result.
 
 ## Safety and isolation
@@ -295,6 +302,8 @@ The harness:
 - compares curated user MCP/config/credential metadata before and after the run, including the login Keychain database by default;
 - detects newly leaked `codex`, `cursor-agent`, or `agy` processes without killing processes by name;
 - detects newly leaked `mcp-interop-*` temporary session directories.
+
+OAuth-specific Cursor and Antigravity harnesses additionally exercise their real OAuth paths against controlled loopback fixtures and keep authorization codes/tokens out of persisted evidence.
 
 The network controls are defense in depth, not a packet-capture proof that a client implementation cannot bypass proxy settings. The core adapter paths used by this harness do not submit model prompts.
 
@@ -354,13 +363,17 @@ Published release history is summarized in [CHANGELOG.md](CHANGELOG.md).
 - [x] Partial tool OAuth aggregation that keeps unobserved static metadata as `WARN` rather than over-reporting `N/A`.
 - [x] Versioned OpenAI reference profile metadata and a documented manual real-ChatGPT secret-free dogfood workflow.
 
-### Open after v0.3.0
+### Shipped in v0.4.0
 
-- [ ] Complete automatic correlation between real-client OAuth failures and profile/runtime capability evidence ([#19](https://github.com/git-ksk/mcp-interop/issues/19)).
-- [ ] Complete Cursor OAuth token exchange + authenticated tool discovery ([#3](https://github.com/git-ksk/mcp-interop/issues/3)).
-- [ ] Establish a safe Antigravity OAuth completion boundary before enabling authorization/token exchange ([#5](https://github.com/git-ksk/mcp-interop/issues/5)).
+- [x] Correlate explicit real-client DCR failures with discovered CIMD/DCR server capability evidence while keeping the four-stage verdict separate ([#19](https://github.com/git-ksk/mcp-interop/issues/19)).
+- [x] Complete Cursor explicit opt-in OAuth, token exchange, and authenticated `mcp list-tools` validation with isolated state ([#3](https://github.com/git-ksk/mcp-interop/issues/3)).
+- [x] Complete Antigravity explicit opt-in OAuth with isolated token persistence, conservative generic stage semantics, and controlled authenticated wire-evidence E2E ([#5](https://github.com/git-ksk/mcp-interop/issues/5)).
+
+### Open after v0.4.0
+
 - [ ] Research a supported headless ChatGPT MCP/app-management surface before any real ChatGPT adapter; do not use brittle DOM scraping as the compatibility contract ([#20](https://github.com/git-ksk/mcp-interop/issues/20)).
-- [ ] Revisit VS Code when a supported direct lifecycle/tool-discovery surface exists ([#6](https://github.com/git-ksk/mcp-interop/issues/6)).
+- [ ] Revisit VS Code when a supported direct lifecycle/tool-discovery surface can satisfy the project's no-model evidence contract ([#6](https://github.com/git-ksk/mcp-interop/issues/6)).
+- [ ] Complete GitHub Copilot CLI tool-discovery/auth-isolation research before any live adapter ([#48](https://github.com/git-ksk/mcp-interop/issues/48)).
 - [ ] Evaluate additional real MCP clients when they expose stable automatable lifecycle/tool-discovery surfaces.
 
 ### Shipped in v0.1.0

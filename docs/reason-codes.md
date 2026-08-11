@@ -23,6 +23,12 @@ A guessed `/register` or `/oauth/register` returning `404` is **not** sufficient
 
 The real client explicitly reports that it attempted DCR and the registration attempt failed for a reason other than unsupported.
 
+### `OAUTH_CALLBACK_PORT_CONFLICT`
+
+The real client explicitly reports that its loopback OAuth callback listener could not bind the callback address/port selected for that flow.
+
+This code is based on client-observable bind-conflict evidence. It must not be inferred merely because a guessed or previously observed callback port is occupied. Callback addresses are client-version-specific and should not be hard-coded as a permanent contract.
+
 ## Runtime registration / token request codes
 
 ### `REGISTRATION_STRATEGY_UNSUPPORTED`
