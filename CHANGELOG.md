@@ -4,8 +4,11 @@ All notable project changes will be summarized here. GitHub Releases remain the 
 
 ## Unreleased
 
+## v0.4.0 — 2026-08-11
+
 ### Fixed
 
+- Fixed Codex CLI 0.147.0 compatibility by treating successful real tool discovery as proof that no unresolved authentication gate remains even when app-server returns a previously unknown auth-status value; empty inventories remain conservative `unknown`.
 - Aligned the Antigravity OAuth real-client E2E gate with conservative live-result semantics: `reach` / `auth` must pass, `init` / `tools` may remain unknown when client-side cache evidence is absent, and the controlled fixture independently requires authenticated `initialize`, `notifications/initialized`, and `tools/list` observations.
 - Removed completed temporary Antigravity OAuth workflows and the superseded authorization-URL capture helper so unrelated pull requests no longer run obsolete OAuth scaffolding.
 - Synchronized English/Japanese README, architecture, troubleshooting, and reason-code documentation with the post-v0.3.0 Cursor/Antigravity OAuth implementation while keeping the published v0.3.0 boundary explicit.
