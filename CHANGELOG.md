@@ -8,6 +8,7 @@ All notable project changes will be summarized here. GitHub Releases remain the 
 
 - Aligned the Antigravity OAuth real-client E2E gate with conservative live-result semantics: `reach` / `auth` must pass, `init` / `tools` may remain unknown when client-side cache evidence is absent, and the controlled fixture independently requires authenticated `initialize`, `notifications/initialized`, and `tools/list` observations.
 - Removed completed temporary Antigravity OAuth workflows and the superseded authorization-URL capture helper so unrelated pull requests no longer run obsolete OAuth scaffolding.
+- Synchronized English/Japanese README, architecture, troubleshooting, and reason-code documentation with the post-v0.3.0 Cursor/Antigravity OAuth implementation while keeping the published v0.3.0 boundary explicit.
 
 ### Added
 
@@ -15,6 +16,11 @@ All notable project changes will be summarized here. GitHub Releases remain the 
 - Cursor OAuth completion and authenticated tool discovery through the supported Cursor MCP CLI surface, with isolated state, callback-port conflict classification, DCR + Authorization Code/PKCE fixture coverage, and real-client macOS validation.
 - Antigravity OAuth completion on the tested macOS `agy 1.1.11` baseline using isolated temporary HOME/token persistence, secret-safe authorization-code forwarding, and authenticated server-side MCP evidence.
 - CI shell-syntax checks for the Cursor and Antigravity OAuth real-client harnesses.
+
+### Changed
+
+- Sharpened the deployment-specific interoperability boundary: a live PASS must come from the same real client under test, while synthetic fixtures remain adapter self-tests/release gates and metadata/runtime diagnostics remain separate evidence layers.
+- Hardened tag-triggered releases by requiring the tagged commit to be contained in `main` history and re-running `go vet ./...` plus `go test ./...` against the exact tagged source before publishing artifacts.
 
 ## v0.3.0 — 2026-08-10
 
@@ -71,12 +77,13 @@ First public release of `mcp-interop`.
 
 - Real-client interoperability testing for Remote MCP servers across Codex CLI, Cursor CLI (beta), and Antigravity CLI on macOS (beta).
 - Four-stage `reach` / `auth` / `init` / `tools` result model with conservative `pass` / `fail` / `skip` / `unknown` semantics.
-- Codex OAuth flow with isolated file-backed credential storage.
-- Isolated temporary client configuration and state with secret redaction.
-- Cross-client text summary and machine-readable JSON output.
-- Repeatable real-client macOS E2E harness using a localhost MCP fixture and cleanup/isolation gates.
-- Three-OS CI plus release-build smoke testing.
-- Automated checksummed release archives for macOS, Linux, and Windows on amd64 and arm64.
+- Codex CLI live inventory adapter.
+- Codex OAuth live flow.
+- Cursor CLI no-auth live adapter (beta).
+- Antigravity CLI no-auth live adapter (beta, macOS).
+- Cross-client combined text report.
+- Repeatable real-client macOS E2E harness.
+- Versioned release build/release automation.
 
 ### Current limitations
 
