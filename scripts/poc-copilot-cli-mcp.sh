@@ -29,8 +29,9 @@ fixture_bin="$work_root/mcp-interop-e2e-fixture"
 copilot_home="$work_root/copilot-home"
 copilot_cache="$work_root/copilot-cache"
 workspace="$work_root/workspace"
-result_json="$work_root/copilot-mcp-get.json"
-result_stderr="$work_root/copilot-mcp-get.stderr"
+list_json="$work_root/copilot-mcp-list.json"
+get_text="$work_root/copilot-mcp-get.txt"
+get_json="$work_root/copilot-mcp-get.json"
 mkdir -p "$copilot_home" "$copilot_cache" "$workspace"
 chmod 700 "$copilot_home" "$copilot_cache" "$workspace" 2>/dev/null || true
 
@@ -107,6 +108,7 @@ run_copilot_isolated() {
     -u OPENROUTER_API_KEY \
     COPILOT_HOME="$copilot_home" \
     COPILOT_CACHE_HOME="$copilot_cache" \
+    COPILOT_MCP_TOOL_CACHE=false \
     HTTP_PROXY='http://127.0.0.1:9' \
     HTTPS_PROXY='http://127.0.0.1:9' \
     ALL_PROXY='http://127.0.0.1:9' \
@@ -116,6 +118,43 @@ run_copilot_isolated() {
     NO_PROXY='127.0.0.1,localhost,::1' \
     no_proxy='127.0.0.1,localhost,::1' \
     "$@"
+}
+
+run_capture() {
+  local output="$1"
+  local error_output="$2"
+  shift 2
+
+  (
+    cd "$workspace" || exit 1
+    run_copilot_isolated "$@"
+  ) > "$output" 2> "$error_output" &
+  copilot_pid=$!
+
+  local completed=0
+  local attempt
+  for attempt in $(seq 1 300); do
+    if ! kill -0 "$copilot_pid" 2>/dev/null; then
+      completed=1
+      break
+    fi
+    sleep 0.1
+  done
+
+  if [[ "$completed" -ne 1 ]]; then
+    echo "$*: command did not finish within 30 seconds" >&2
+    kill "$copilot_pid" 2>/dev/null || true
+    wait "$copilot_pid" 2>/dev/null || true
+    copilot_pid=""
+    [[ -s "$error_output" ]] && cat "$error_output" >&2
+    return 124
+  fi
+
+  wait "$copilot_pid"
+  local rc=$?
+  copilot_pid=""
+  [[ -s "$error_output" ]] && cat "$error_output" >&2
+  return "$rc"
 }
 
 before_state="$work_root/user-state.before"
@@ -180,7 +219,8 @@ with open(path, "w", encoding="utf-8") as f:
                 "type": "http",
                 "url": url,
                 "headers": {},
-                "tools": ["*"]
+                "tools": ["*"],
+                "deferTools": "never"
             }
         }
     }, f, indent=2)
@@ -188,52 +228,44 @@ with open(path, "w", encoding="utf-8") as f:
 PY
 chmod 600 "$copilot_home/settings.json" "$copilot_home/mcp-config.json" 2>/dev/null || true
 
-echo "== Direct non-interactive MCP inventory =="
-(
-  cd "$workspace" || exit 1
-  run_copilot_isolated copilot mcp get "$server_name" --json
-) > "$result_json" 2> "$result_stderr" &
-copilot_pid=$!
+echo "== Terminal MCP management diagnostics =="
+list_err="$work_root/copilot-mcp-list.stderr"
+get_text_err="$work_root/copilot-mcp-get-text.stderr"
+get_json_err="$work_root/copilot-mcp-get-json.stderr"
 
-completed=0
-for _ in $(seq 1 300); do
-  if ! kill -0 "$copilot_pid" 2>/dev/null; then
-    completed=1
-    break
-  fi
-  sleep 0.1
-done
+run_capture "$list_json" "$list_err" copilot mcp list --json
+list_rc=$?
+run_capture "$get_text" "$get_text_err" copilot mcp get "$server_name"
+get_text_rc=$?
+run_capture "$get_json" "$get_json_err" copilot mcp get "$server_name" --json
+get_json_rc=$?
 
-if [[ "$completed" -ne 1 ]]; then
-  echo "copilot mcp get did not finish within 30 seconds" >&2
-  kill "$copilot_pid" 2>/dev/null || true
-  wait "$copilot_pid" 2>/dev/null || true
-  copilot_pid=""
-  [[ -s "$result_stderr" ]] && cat "$result_stderr" >&2
-  exit 1
-fi
+printf '%s\n' '-- copilot mcp list --json --'
+cat "$list_json" 2>/dev/null || true
+printf '%s\n' '-- copilot mcp get (text) --'
+cat "$get_text" 2>/dev/null || true
+printf '%s\n' '-- copilot mcp get --json --'
+cat "$get_json" 2>/dev/null || true
 
-wait "$copilot_pid"
-copilot_rc=$?
-copilot_pid=""
-
-if [[ -s "$result_stderr" ]]; then
-  cat "$result_stderr" >&2
-fi
-cat "$result_json"
-
-if [[ "$copilot_rc" -ne 0 ]]; then
-  echo "copilot mcp get failed with rc=$copilot_rc" >&2
-  exit 1
-fi
-
-if ! python3 - "$result_json" <<'PY'
+json_valid=0
+if [[ "$get_json_rc" -eq 0 ]] && python3 - "$get_json" <<'PY'
 import json
 import sys
+with open(sys.argv[1], encoding="utf-8") as f:
+    json.load(f)
+PY
+then
+  json_valid=1
+fi
 
+tool_inventory_observed=0
+if grep -Fq 'ping' "$get_text" 2>/dev/null; then
+  tool_inventory_observed=1
+elif [[ "$json_valid" -eq 1 ]] && python3 - "$get_json" <<'PY'
+import json
+import sys
 with open(sys.argv[1], encoding="utf-8") as f:
     data = json.load(f)
-
 def contains_ping(value):
     if value == "ping":
         return True
@@ -242,18 +274,16 @@ def contains_ping(value):
     if isinstance(value, list):
         return any(contains_ping(v) for v in value)
     return False
-
-if not contains_ping(data):
-    raise SystemExit("machine-readable Copilot MCP inventory did not contain fixture tool 'ping'")
+raise SystemExit(0 if contains_ping(data) else 1)
 PY
 then
-  exit 1
+  tool_inventory_observed=1
 fi
 
 protocol_ok=1
 for method in initialize notifications/initialized tools/list; do
   if ! method_seen "$protocol_path" "$method"; then
-    echo "fixture did not observe $method from Copilot CLI" >&2
+    echo "fixture did not observe $method from Copilot CLI terminal MCP management commands" >&2
     protocol_ok=0
   fi
 done
@@ -261,6 +291,9 @@ if method_seen "$protocol_path" 'tools/call'; then
   echo "unexpected tools/call observed; inventory PoC must not invoke tools" >&2
   protocol_ok=0
 fi
+
+printf '%s\n' '-- fixture wire log --'
+cat "$fixture_log" 2>/dev/null || true
 
 if [[ -n "$fixture_pid" ]] && kill -0 "$fixture_pid" 2>/dev/null; then
   kill "$fixture_pid" 2>/dev/null || true
@@ -286,18 +319,24 @@ if [[ -s "$new_pids" ]]; then
   cat "$new_pids" >&2
 fi
 
+commands_ok=0
+if [[ "$list_rc" -eq 0 && "$get_text_rc" -eq 0 && "$get_json_rc" -eq 0 && "$json_valid" -eq 1 ]]; then
+  commands_ok=1
+fi
+
 echo
 echo "== Copilot CLI MCP PoC result =="
-printf 'machine-readable fixture tool inventory\tPASS\n'
-printf 'initialize + initialized + tools/list\t%s\n' "$([[ "$protocol_ok" -eq 1 ]] && echo PASS || echo FAIL)"
+printf 'terminal mcp commands succeeded\t%s\n' "$([[ "$commands_ok" -eq 1 ]] && echo PASS || echo FAIL)"
+printf 'client output exposed fixture tool ping\t%s\n' "$([[ "$tool_inventory_observed" -eq 1 ]] && echo PASS || echo FAIL)"
+printf 'fixture initialize + initialized + tools/list\t%s\n' "$([[ "$protocol_ok" -eq 1 ]] && echo PASS || echo FAIL)"
 printf 'tools/call avoided\t%s\n' "$(! grep -Fq '\"method\":\"tools/call\"' "$fixture_log" && echo PASS || echo FAIL)"
 printf 'normal user state unchanged\t%s\n' "$config_gate"
 printf 'no leaked Copilot process\t%s\n' "$process_gate"
 
-if [[ "$protocol_ok" -eq 1 && "$config_gate" == PASS && "$process_gate" == PASS ]]; then
+if [[ "$commands_ok" -eq 1 && "$tool_inventory_observed" -eq 1 && "$protocol_ok" -eq 1 && "$config_gate" == PASS && "$process_gate" == PASS ]]; then
   echo "READY: Copilot CLI direct MCP inventory boundary passed."
   exit 0
 fi
 
-echo "NOT READY: one or more Copilot CLI MCP PoC gates failed." >&2
+echo "NOT READY: terminal MCP management output and/or wire evidence is insufficient for a direct adapter." >&2
 exit 1
