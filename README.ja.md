@@ -18,30 +18,28 @@
 
 ## Status
 
-**現在の公開releaseはv0.3.0です。**
+**現在の公開releaseはv0.4.0です。**
 
-Release: [v0.3.0](https://github.com/git-ksk/mcp-interop/releases/tag/v0.3.0)
+Release: [v0.4.0](https://github.com/git-ksk/mcp-interop/releases/tag/v0.4.0)
 
-current mainには、v0.3.0以降の**未release OAuth対応**も入っています。current mainのlive adapterは次の通りです。
+v0.4.0で提供するlive adapterは次の通りです。
 
 - **Codex CLI** — live inventory + 明示的opt-in OAuth
 - **Cursor CLI (beta)** — dedicated MCP management commandを使うno-auth live inventory + 実Cursor MCP login pathを使う明示的opt-in OAuth。controlled fixtureでauthenticated `mcp list-tools`まで検証済み
 - **Antigravity CLI (beta, macOS)** — isolated no-prompt PTY/tool cacheを使うno-auth live inventory + isolated PTY内の実`/mcp` managerを使う明示的opt-in OAuth。authenticationとclient-side tool-cache観測を分離し、generic `init/tools`は必要に応じてconservativeに`unknown`を維持する
 
-これらCursor/Antigravity OAuth pathは**v0.3.0の公開artifactには含まれません**。公開版の挙動はv0.3.0 releaseを、current mainの未release変更は[CHANGELOG.md](CHANGELOG.md)を参照してください。
-
-v0.3.0には、**ChatGPT OAuth/server preflight、Runtime Evidence v3、secret-free evidence utilities、controlled insufficient-scope OAuth fixture、versioned OpenAI reference-pattern diagnostics**が含まれます。Runtime Evidence v3はstatic tool metadataとruntime reauthorization challengeを分離しつつ、v1/v2 input互換を維持します。公開metadataと明示的に渡されたsanitized runtime observationを診断しますが、実ChatGPT clientを動かしたとは主張しません。
+v0.4.0では、**Cursor OAuth完遂、tested macOS baselineでのAntigravity OAuth完遂、secret-free real-client OAuth capability enrichment、deployment固有のlive-evidence境界の明確化、release provenance gateの強化**を追加します。v0.3.0ではChatGPT OAuth/server preflight、Runtime Evidence v3、secret-free evidence utilities、controlled insufficient-scope OAuth fixture、versioned OpenAI reference-pattern diagnosticsを導入しました。
 
 VS Codeは、別途進めているlifecycle/tool-discovery automation researchがstable live adapterへ昇格するまでresearch-onlyです。
 
-GitHub Copilot CLIは今後の候補です。Claude Code対応は現時点では優先していません。
+GitHub Copilot CLIはresearch-onlyです。現在の検証では実clientのMCP initializationまでは証明できましたが、projectのno-model evidence contractで`tools/list`までは未証明です ([#48](https://github.com/git-ksk/mcp-interop/issues/48))。Claude Code対応は現時点では優先していません。
 
 ## Install
 
 Go 1.24以降で、現在のstable releaseを固定して入れる場合:
 
 ```console
-go install github.com/git-ksk/mcp-interop/cmd/mcp-interop@v0.3.0
+go install github.com/git-ksk/mcp-interop/cmd/mcp-interop@v0.4.0
 ```
 
 最新の公開module versionを追う場合:
@@ -58,7 +56,7 @@ mcp-interop version
 mcp-interop --version
 ```
 
-[v0.3.0 GitHub Release](https://github.com/git-ksk/mcp-interop/releases/tag/v0.3.0)には、macOS / Linux / Windows向けのamd64 / arm64 archiveと`checksums.txt`があります。
+[v0.4.0 GitHub Release](https://github.com/git-ksk/mcp-interop/releases/tag/v0.4.0)には、macOS / Linux / Windows向けのamd64 / arm64 archiveと`checksums.txt`があります。
 
 ## 何を証明するテストか
 
@@ -117,7 +115,7 @@ Antigravity CLI  PASS   PASS  PASS  PASS   1.1.11
 
 JSON outputはarrayです。
 
-OAuth flowは常に明示的opt-inです。current mainでは次を使えます。
+OAuth flowは常に明示的opt-inです。
 
 ```console
 mcp-interop test https://example.com/mcp --client codex --oauth
@@ -353,16 +351,17 @@ Cursor/AntigravityのOAuth専用harnessはcontrolled loopback fixtureに対し�
 - [x] static metadata未観測を`N/A`に過大評価せず`WARN`として扱うpartial tool OAuth aggregation
 - [x] versioned OpenAI reference profile metadataとmanual real-ChatGPT secret-free dogfood workflow
 
-### v0.3.0以降のcurrent mainで完了（未release）
+### v0.4.0で提供
 
 - [x] 明示的real-client DCR failureとdiscovered CIMD/DCR server capability evidenceを相関しつつ、4-stage verdictとは分離する ([#19](https://github.com/git-ksk/mcp-interop/issues/19))
 - [x] Cursorの明示的opt-in OAuth、token exchange、authenticated `mcp list-tools`をisolated stateで完遂 ([#3](https://github.com/git-ksk/mcp-interop/issues/3))
 - [x] Antigravityの明示的opt-in OAuth、isolated token persistence、conservative generic stage semantics、controlled authenticated wire-evidence E2Eを完遂 ([#5](https://github.com/git-ksk/mcp-interop/issues/5))
 
-### v0.3.0以降もopen
+### v0.4.0以降もopen
 
 - [ ] real ChatGPT adapter前にsupportedなheadless ChatGPT MCP/app-management surfaceを調査し、brittle DOM scrapingはinterop contractに使わない ([#20](https://github.com/git-ksk/mcp-interop/issues/20))
 - [ ] project's no-model evidence contractを満たすsupported direct lifecycle/tool-discovery surfaceが利用可能になったらVS Codeを再検討 ([#6](https://github.com/git-ksk/mcp-interop/issues/6))
+- [ ] GitHub Copilot CLIのtool discovery/auth isolation researchを完了してからlive adapter化を判断 ([#48](https://github.com/git-ksk/mcp-interop/issues/48))
 - [ ] stable automatable lifecycle/tool-discovery surfaceを持つ追加real MCP clientを評価
 
 ### v0.1.0で提供済み

@@ -4,7 +4,7 @@
 
 このページでは、`mcp-interop`を実際のMCP clientに対して実行したときの問題と、profileベースpreflight診断の読み方をまとめます。
 
-現在のstable releaseはv0.3.0です。以下のCursor/Antigravity OAuth対応は**v0.3.0以降のcurrent main**で利用でき、v0.3.0の公開artifactには含まれません。
+現在のstable releaseはv0.4.0です。以下のCursor/Antigravity OAuth対応はv0.4.0に含まれます。
 
 ## まずclient detectionを確認する
 
@@ -62,7 +62,7 @@ stableな判定ルールは[Reason code](reason-codes.ja.md)を参照してく�
 
 ### Cursor
 
-current mainではCursor OAuthを明示的にopt-inできます。
+v0.4.0以降ではCursor OAuthを明示的にopt-inできます。
 
 ```console
 mcp-interop test https://example.com/mcp --client cursor --oauth
@@ -74,7 +74,7 @@ localhost callbackまわりで失敗した場合、固定portを前提にしな�
 
 ### Antigravity
 
-current mainではmacOS上でAntigravity OAuthを明示的にopt-inできます。
+v0.4.0以降ではmacOS上でAntigravity OAuthを明示的にopt-inできます。
 
 ```console
 mcp-interop test https://example.com/mcp --client antigravity --oauth
@@ -234,7 +234,7 @@ release candidate検証では、greenにするためだけに安全性gateを無
 - OS / architecture
 - live adapterの場合はMCP clientの正確なversion
 - 使用adapterまたはdiagnostic profile
-- Cursor/Antigravity OAuthを報告する場合、公開v0.3.0かcurrent mainか
+- Cursor/Antigravity OAuthを報告する場合、正確な`mcp-interop` version
 - stage resultと`reason_code`、またはpreflight checks
 - secretを除去したerror/diagnostic output
 - serverがOAuthを必要とするか

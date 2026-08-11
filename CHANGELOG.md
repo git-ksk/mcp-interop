@@ -4,6 +4,8 @@ All notable project changes will be summarized here. GitHub Releases remain the 
 
 ## Unreleased
 
+## v0.4.0 — 2026-08-11
+
 ### Fixed
 
 - Aligned the Antigravity OAuth real-client E2E gate with conservative live-result semantics: `reach` / `auth` must pass, `init` / `tools` may remain unknown when client-side cache evidence is absent, and the controlled fixture independently requires authenticated `initialize`, `notifications/initialized`, and `tools/list` observations.

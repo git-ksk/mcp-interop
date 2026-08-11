@@ -16,30 +16,28 @@ It also includes profile-based **preflight diagnostics** for client surfaces tha
 
 ## Status
 
-**v0.3.0 is the current published release.**
+**v0.4.0 is the current published release.**
 
-Release: [v0.3.0](https://github.com/git-ksk/mcp-interop/releases/tag/v0.3.0)
+Release: [v0.4.0](https://github.com/git-ksk/mcp-interop/releases/tag/v0.4.0)
 
-Current main contains additional **unreleased post-v0.3.0 OAuth work**. The live adapters on current main are:
+The live adapters in v0.4.0 are:
 
 - **Codex CLI** — live inventory and explicit opt-in OAuth flow.
 - **Cursor CLI (beta)** — live no-auth inventory plus explicit opt-in OAuth through the real Cursor MCP login path; authenticated `mcp list-tools` has been validated with the controlled fixture.
 - **Antigravity CLI (beta, macOS)** — live no-auth inventory plus explicit opt-in OAuth through the real `/mcp` manager in an isolated PTY. Authentication can be proven independently of client-side tool-cache observation, so generic `init/tools` may conservatively remain `unknown` while controlled E2E proves the authenticated MCP exchange.
 
-These Cursor and Antigravity OAuth paths are **not included in the v0.3.0 release artifact**. Use the v0.3.0 release notes for published behavior and [CHANGELOG.md](CHANGELOG.md) for current unreleased changes.
-
-v0.3.0 includes **ChatGPT OAuth/server preflight, Runtime Evidence v3, secret-free evidence utilities, controlled insufficient-scope OAuth fixtures, and versioned OpenAI reference-pattern diagnostics**. Runtime Evidence v3 separates static tool metadata from runtime reauthorization challenges while preserving v1/v2 input compatibility. These diagnostics validate published metadata and explicitly supplied sanitized runtime observations without claiming that the real ChatGPT client ran.
+v0.4.0 adds **Cursor OAuth completion, Antigravity OAuth completion on the tested macOS baseline, secret-free real-client OAuth capability enrichment, stricter deployment-specific live-evidence boundaries, and hardened release provenance gates**. v0.3.0 introduced ChatGPT OAuth/server preflight, Runtime Evidence v3, secret-free evidence utilities, controlled insufficient-scope OAuth fixtures, and versioned OpenAI reference-pattern diagnostics.
 
 VS Code remains research-only until its separate lifecycle/tool-discovery automation research is promoted into a stable live adapter.
 
-GitHub Copilot CLI is a follow-up candidate. Claude Code support is intentionally deferred.
+GitHub Copilot CLI remains research-only: current testing proves real-client MCP initialization but has not yet proven `tools/list` under the project's no-model evidence contract ([#48](https://github.com/git-ksk/mcp-interop/issues/48)). Claude Code support is intentionally deferred.
 
 ## Install
 
 With Go 1.24 or newer, install the current stable release explicitly:
 
 ```console
-go install github.com/git-ksk/mcp-interop/cmd/mcp-interop@v0.3.0
+go install github.com/git-ksk/mcp-interop/cmd/mcp-interop@v0.4.0
 ```
 
 To track the newest published module version instead:
@@ -56,7 +54,7 @@ mcp-interop version
 mcp-interop --version
 ```
 
-The [v0.3.0 GitHub Release](https://github.com/git-ksk/mcp-interop/releases/tag/v0.3.0) provides checksummed archives for macOS, Linux, and Windows on both amd64 and arm64.
+The [v0.4.0 GitHub Release](https://github.com/git-ksk/mcp-interop/releases/tag/v0.4.0) provides checksummed archives for macOS, Linux, and Windows on both amd64 and arm64.
 
 ## What a test proves
 
@@ -108,7 +106,7 @@ Antigravity CLI  PASS   PASS  PASS  PASS   1.1.11
 
 JSON output remains an array, preserving the existing machine-readable contract.
 
-OAuth flows are always explicit opt-in. On current main:
+OAuth flows are always explicit opt-in:
 
 ```console
 mcp-interop test https://example.com/mcp --client codex --oauth
@@ -365,16 +363,17 @@ Published release history is summarized in [CHANGELOG.md](CHANGELOG.md).
 - [x] Partial tool OAuth aggregation that keeps unobserved static metadata as `WARN` rather than over-reporting `N/A`.
 - [x] Versioned OpenAI reference profile metadata and a documented manual real-ChatGPT secret-free dogfood workflow.
 
-### Completed on main after v0.3.0 (unreleased)
+### Shipped in v0.4.0
 
 - [x] Correlate explicit real-client DCR failures with discovered CIMD/DCR server capability evidence while keeping the four-stage verdict separate ([#19](https://github.com/git-ksk/mcp-interop/issues/19)).
 - [x] Complete Cursor explicit opt-in OAuth, token exchange, and authenticated `mcp list-tools` validation with isolated state ([#3](https://github.com/git-ksk/mcp-interop/issues/3)).
 - [x] Complete Antigravity explicit opt-in OAuth with isolated token persistence, conservative generic stage semantics, and controlled authenticated wire-evidence E2E ([#5](https://github.com/git-ksk/mcp-interop/issues/5)).
 
-### Open after v0.3.0
+### Open after v0.4.0
 
 - [ ] Research a supported headless ChatGPT MCP/app-management surface before any real ChatGPT adapter; do not use brittle DOM scraping as the compatibility contract ([#20](https://github.com/git-ksk/mcp-interop/issues/20)).
 - [ ] Revisit VS Code when a supported direct lifecycle/tool-discovery surface can satisfy the project's no-model evidence contract ([#6](https://github.com/git-ksk/mcp-interop/issues/6)).
+- [ ] Complete GitHub Copilot CLI tool-discovery/auth-isolation research before any live adapter ([#48](https://github.com/git-ksk/mcp-interop/issues/48)).
 - [ ] Evaluate additional real MCP clients when they expose stable automatable lifecycle/tool-discovery surfaces.
 
 ### Shipped in v0.1.0
