@@ -150,6 +150,36 @@ func TestInterpretStatusWithToolsProvesLiveInterop(t *testing.T) {
 	assertStage(t, result, interop.StageTools, interop.StatusPass)
 }
 
+func TestInterpretStatusUnknownAuthWithToolsProvesNoUnresolvedAuthGate(t *testing.T) {
+	result := interop.NewResult(clientID, clientName, "codex-cli test", "https://example.com/mcp")
+	interpretStatus(&result, serverStatus{
+		Name:       testServerName,
+		AuthStatus: "newFutureState",
+		Tools: map[string]json.RawMessage{
+			"ping": json.RawMessage(`{"name":"ping"}`),
+		},
+	})
+
+	assertStage(t, result, interop.StageReach, interop.StatusPass)
+	assertStage(t, result, interop.StageAuth, interop.StatusPass)
+	assertStage(t, result, interop.StageInit, interop.StatusPass)
+	assertStage(t, result, interop.StageTools, interop.StatusPass)
+}
+
+func TestInterpretStatusUnknownAuthWithoutToolsRemainsUnknown(t *testing.T) {
+	result := interop.NewResult(clientID, clientName, "codex-cli test", "https://example.com/mcp")
+	interpretStatus(&result, serverStatus{
+		Name:       testServerName,
+		AuthStatus: "newFutureState",
+		Tools:      map[string]json.RawMessage{},
+	})
+
+	assertStage(t, result, interop.StageReach, interop.StatusUnknown)
+	assertStage(t, result, interop.StageAuth, interop.StatusUnknown)
+	assertStage(t, result, interop.StageInit, interop.StatusUnknown)
+	assertStage(t, result, interop.StageTools, interop.StatusUnknown)
+}
+
 func TestInterpretStatusDoesNotTreatEmptyInventoryAsSuccess(t *testing.T) {
 	result := interop.NewResult(clientID, clientName, "codex-cli test", "https://example.com/mcp")
 	interpretStatus(&result, serverStatus{
