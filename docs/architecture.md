@@ -89,7 +89,7 @@ In v0.4.0, explicit `--oauth` enters the real Antigravity `/mcp` manager inside 
 
 VS Code can safely register MCP configuration in an isolated user-data directory, but a stable supported direct lifecycle/tool-discovery automation boundary has not yet been promoted into a live adapter. Registration alone is not treated as interoperability success. Research continues separately from the shipped adapter contract.
 
-### GitHub Copilot CLI (candidate)
+### GitHub Copilot CLI (research)
 
 GitHub Copilot CLI remains research-only. Current PoC evidence shows real-client `initialize` / `notifications/initialized` on no-input startup, but not `tools/list` without an authenticated/model backend; see #48.
 

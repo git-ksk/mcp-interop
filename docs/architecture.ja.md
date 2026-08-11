@@ -89,7 +89,7 @@ v0.4.0では、明示的な`--oauth`によりisolated PTY内で実Antigravity `/
 
 isolated user-data directoryへのMCP設定登録は安全にできますが、stableなsupported direct lifecycle/tool-discovery automation boundaryはまだlive adapterへ昇格していません。**登録できたことだけでは互換性PASSにしません。** researchはshipped adapter contractとは分離して継続します。
 
-### GitHub Copilot CLI (candidate)
+### GitHub Copilot CLI (research)
 
 GitHub Copilot CLIはresearch-onlyです。現在のPoCではno-input startupで実clientの`initialize` / `notifications/initialized`までは確認できましたが、authenticated/model backendなしの`tools/list`は未証明です。詳細は#48を参照してください。
 
