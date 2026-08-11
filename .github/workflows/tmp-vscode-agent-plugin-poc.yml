@@ -1,0 +1,66 @@
+name: VS Code Agent Plugin MCP PoC
+
+on:
+  push:
+    branches:
+      - poc/vscode-agent-plugin-mcp
+    paths:
+      - scripts/poc-vscode-agent-plugin.sh
+      - .github/workflows/tmp-vscode-agent-plugin-poc.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  vscode-agent-plugin-poc:
+    name: VS Code Agent Plugin no-auth PoC
+    runs-on: [self-hosted, macOS, ARM64, mcp-interop-e2e]
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Preflight VS Code
+        shell: bash
+        run: |
+          set -eu
+          command -v code
+          code --version
+          bash -n scripts/poc-vscode-agent-plugin.sh
+
+      - name: Prepare isolated PoC temp root
+        shell: bash
+        run: |
+          set -eu
+          rm -rf "$RUNNER_TEMP/vscode-agent-plugin-poc"
+          mkdir -p "$RUNNER_TEMP/vscode-agent-plugin-poc"
+
+      - name: Run VS Code Agent Plugin MCP PoC
+        shell: bash
+        env:
+          TMPDIR: ${{ runner.temp }}/vscode-agent-plugin-poc
+          MCP_INTEROP_KEEP_VSCODE_POC_TMP: "1"
+        run: |
+          set -o pipefail
+          bash scripts/poc-vscode-agent-plugin.sh 2>&1 | tee "$RUNNER_TEMP/vscode-agent-plugin-poc/run.log"
+
+      - name: Upload PoC diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vscode-agent-plugin-poc-${{ github.run_id }}
+          path: ${{ runner.temp }}/vscode-agent-plugin-poc
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Clean PoC temp state
+        if: always()
+        shell: bash
+        run: rm -rf "$RUNNER_TEMP/vscode-agent-plugin-poc"
