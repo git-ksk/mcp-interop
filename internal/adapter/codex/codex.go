@@ -336,7 +336,11 @@ func interpretStatus(result *interop.Result, status serverStatus) {
 			result.Set(interop.StageAuth, interop.StatusUnknown, "Codex reports no supported client authentication; connection is not otherwise proven")
 		}
 	default:
-		result.Set(interop.StageAuth, interop.StatusUnknown, "Codex returned an unrecognized authentication state")
+		if toolCount > 0 {
+			result.Set(interop.StageAuth, interop.StatusPass, "tool discovery completed without an unresolved authentication gate")
+		} else {
+			result.Set(interop.StageAuth, interop.StatusUnknown, "Codex returned an unrecognized authentication state")
+		}
 	}
 
 	if toolCount > 0 {
