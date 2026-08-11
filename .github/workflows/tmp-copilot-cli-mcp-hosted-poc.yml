@@ -1,0 +1,50 @@
+name: Copilot CLI MCP Hosted PoC
+
+on:
+  push:
+    branches:
+      - poc/copilot-cli-mcp
+    paths:
+      - scripts/poc-copilot-cli-mcp.sh
+      - .github/workflows/tmp-copilot-cli-mcp-hosted-poc.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  hosted-copilot-cli-mcp-poc:
+    name: Hosted macOS direct MCP inventory PoC
+    runs-on: macos-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install official Copilot CLI package
+        shell: bash
+        run: npm install -g @github/copilot
+
+      - name: Preflight PoC harness
+        shell: bash
+        run: |
+          set -eu
+          command -v copilot
+          bash -n scripts/poc-copilot-cli-mcp.sh
+
+      - name: Run isolated Copilot CLI MCP PoC
+        shell: bash
+        env:
+          MCP_INTEROP_KEEP_COPILOT_POC_TMP: "0"
+        run: bash scripts/poc-copilot-cli-mcp.sh
