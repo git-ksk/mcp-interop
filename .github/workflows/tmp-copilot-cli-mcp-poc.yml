@@ -1,0 +1,66 @@
+name: Copilot CLI MCP PoC
+
+on:
+  push:
+    branches:
+      - poc/copilot-cli-mcp
+    paths:
+      - scripts/poc-copilot-cli-mcp.sh
+      - docs/copilot-cli-poc.md
+      - .github/workflows/tmp-copilot-cli-mcp-poc.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  copilot-cli-mcp-poc:
+    name: Copilot CLI direct MCP inventory PoC
+    runs-on: [self-hosted, macOS, ARM64, mcp-interop-e2e]
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Preflight Copilot CLI
+        shell: bash
+        run: |
+          set -eu
+          command -v copilot
+          bash -n scripts/poc-copilot-cli-mcp.sh
+
+      - name: Prepare isolated PoC temp root
+        shell: bash
+        run: |
+          set -eu
+          rm -rf "$RUNNER_TEMP/copilot-cli-mcp-poc"
+          mkdir -p "$RUNNER_TEMP/copilot-cli-mcp-poc"
+
+      - name: Run Copilot CLI MCP PoC
+        shell: bash
+        env:
+          TMPDIR: ${{ runner.temp }}/copilot-cli-mcp-poc
+          MCP_INTEROP_KEEP_COPILOT_POC_TMP: "1"
+        run: |
+          set -o pipefail
+          bash scripts/poc-copilot-cli-mcp.sh 2>&1 | tee "$RUNNER_TEMP/copilot-cli-mcp-poc/run.log"
+
+      - name: Upload PoC diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: copilot-cli-mcp-poc-${{ github.run_id }}
+          path: ${{ runner.temp }}/copilot-cli-mcp-poc
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Clean PoC temp state
+        if: always()
+        shell: bash
+        run: rm -rf "$RUNNER_TEMP/copilot-cli-mcp-poc"
