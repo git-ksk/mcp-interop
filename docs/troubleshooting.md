@@ -4,6 +4,8 @@
 
 This guide covers common failure modes when running `mcp-interop` against real MCP clients and profile-based preflight diagnostics.
 
+The published stable release is still v0.3.0. Cursor and Antigravity OAuth support described below is available on **current main after v0.3.0** and is not part of the v0.3.0 release artifact.
+
 ## Start with client detection
 
 Run:
@@ -35,7 +37,8 @@ Typical examples:
 
 - a client exposes an empty tool inventory for both an unreachable server and a legitimate zero-tool server;
 - a beta adapter cannot observe a stable machine-readable status surface;
-- a client process exits before the adapter can prove the protocol stage.
+- a client process exits before the adapter can prove the protocol stage;
+- an OAuth path proves authentication but does not materialize the same client-side tool cache used for direct `init/tools` observation.
 
 Do not reinterpret `unknown` as `pass`. Capture the exact client version when reporting it.
 
@@ -57,11 +60,27 @@ See [Reason codes](reason-codes.md) for the stable classification rules.
 
 ### Cursor
 
-Cursor OAuth completion is not enabled in v0.2.0. The beta adapter can test no-auth endpoints, but an OAuth-required target remains incomplete until the authenticated path is verified and shipped.
+On current main, Cursor OAuth is explicit opt-in:
+
+```console
+mcp-interop test https://example.com/mcp --client cursor --oauth
+```
+
+The adapter runs the real Cursor MCP login path inside an isolated temporary `HOME` and workspace, then uses authenticated `mcp list-tools` as direct real-client evidence. The controlled fixture has verified DCR, Authorization Code + PKCE, token exchange, bearer-authenticated MCP, and authenticated tool discovery.
+
+If OAuth fails around the localhost callback, do not assume a fixed port. Record the exact Cursor version and the callback address reported by that version. A callback bind conflict may be classified as `OAUTH_CALLBACK_PORT_CONFLICT` when the adapter has explicit evidence for that failure.
 
 ### Antigravity
 
-Automated OAuth completion remains intentionally disabled in v0.2.0. OAuth discovery has been observed, but completion remains blocked until credential storage can be proven isolated from the normal macOS Keychain.
+On current main, Antigravity OAuth is explicit opt-in on macOS:
+
+```console
+mcp-interop test https://example.com/mcp --client antigravity --oauth
+```
+
+The adapter enters the real Antigravity `/mcp` manager inside an isolated PTY. OAuth state is persisted only under the isolated temporary HOME; `mcp-interop` observes token-file metadata but never reads or persists token contents.
+
+For the tested `agy 1.1.11` path, authentication can complete even when the OAuth path does not create the same client-side tool cache used by no-auth discovery. In that case the generic result intentionally remains `reach=pass`, `auth=pass`, `init=unknown`, `tools=unknown`. The controlled localhost OAuth E2E separately requires authenticated `initialize`, `notifications/initialized`, and `tools/list` server-side evidence. See [Antigravity OAuth live-test boundary](antigravity-oauth.md).
 
 ## ChatGPT custom MCP app fails to connect
 
@@ -102,9 +121,9 @@ Never share OAuth `state`, authorization codes, access/refresh tokens, cookies, 
 
 ## Cursor callback-port conflict
 
-The tested Cursor version has used a localhost callback during OAuth PoC work, but callback details are treated as version-specific behavior. Do not hard-code a permanent callback port in automation.
+Cursor OAuth uses a localhost callback on the validated path, but callback details are version-specific behavior. Do not hard-code a permanent callback port in automation.
 
-If a future OAuth flow reports a local callback conflict, record:
+If an OAuth flow reports a local callback conflict, record:
 
 - exact Cursor version;
 - callback address reported by the client;
@@ -113,23 +132,26 @@ If a future OAuth flow reports a local callback conflict, record:
 
 ## Antigravity returns `unknown`
 
-The macOS beta adapter relies on a no-input PTY startup plus isolated machine-readable MCP tool-cache state.
+The macOS beta adapter uses isolated client-observable state and keeps the generic result conservative.
 
-If no valid cache appears before the run becomes inconclusive, the adapter returns `unknown` rather than claiming interoperability from configuration discovery alone.
+For no-auth testing, it relies on a no-input PTY startup plus isolated machine-readable MCP tool-cache state. If no valid cache appears, the adapter returns `unknown` rather than claiming interoperability from configuration discovery alone.
+
+For OAuth testing, successful isolated token persistence can prove `reach/auth`, while `init/tools` remain `unknown` if the same tool cache is not produced. Do not promote those unknown stages to pass from authentication alone; use the controlled OAuth E2E when validating the adapter itself.
 
 Check:
 
 - exact `agy` version;
-- whether the target requires OAuth;
+- whether `--oauth` was explicitly requested for an OAuth-required target;
 - whether the client created isolated `~/.gemini/antigravity-cli/mcp/...` state;
+- whether isolated `~/.gemini/antigravity/mcp_oauth_tokens.json` metadata appeared during OAuth;
 - whether the process exited early;
 - whether the operating system is supported by the live adapter.
 
-The shipped Antigravity live implementation remains macOS-only in v0.2.0.
+The current Antigravity live implementation remains macOS-only.
 
 ## VS Code is detected but cannot be live-tested
 
-VS Code remains research-only. Safe isolated MCP registration is possible, but the tested CLI does not expose a supported direct server-start/status/tool-discovery surface. Registration alone is not reported as interoperability success.
+VS Code remains research-only. Safe isolated MCP registration is possible, but a stable supported direct lifecycle/tool-discovery automation boundary has not yet been promoted into a live adapter. Registration alone is not reported as interoperability success.
 
 ## Temporary state or process cleanup failure
 
@@ -192,6 +214,8 @@ bash scripts/e2e-real-clients.sh
 
 It requires the real supported clients to be installed. The harness also checks protocol evidence, unexpected `tools/call`, selected user configuration metadata, Keychain database changes, leaked client processes, and leaked temporary sessions.
 
+OAuth-specific Cursor and Antigravity harnesses exercise their real login flows only against controlled loopback fixtures and must keep authorization codes/tokens out of persisted evidence.
+
 For release-candidate validation, do not bypass safety gates merely to obtain a green result.
 
 ## Reporting a reproducible bug
@@ -202,6 +226,7 @@ Include:
 - operating system and architecture;
 - exact MCP client version when a live adapter is involved;
 - selected adapter or diagnostic profile;
+- whether the checkout is the published v0.3.0 release or current main when reporting Cursor/Antigravity OAuth behavior;
 - stage results and any `reason_code`, or preflight checks;
 - sanitized error/diagnostic output;
 - whether the server requires OAuth;

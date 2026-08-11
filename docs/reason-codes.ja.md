@@ -23,6 +23,12 @@ Runtime diagnostic codeはreal-client interoperability verdictではありませ
 
 実clientがDCRを試行し、unsupported以外の理由でregistrationが失敗したと明示的に報告した場合です。
 
+### `OAUTH_CALLBACK_PORT_CONFLICT`
+
+実clientが、そのOAuth flowで選択したloopback callback address/portへlistenerをbindできなかったことを明示的に報告した場合です。
+
+clientから観測できるbind conflictの証拠に基づくcodeです。過去に観測した、または推測したcallback portが使用中というだけでは付与しません。callback addressはclient version固有として扱い、固定portを永久contractとしてhard-codeしません。
+
 ## Runtime registration / token request code
 
 ### `REGISTRATION_STRATEGY_UNSUPPORTED`

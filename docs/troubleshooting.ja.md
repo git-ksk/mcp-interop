@@ -4,6 +4,8 @@
 
 このページでは、`mcp-interop`を実際のMCP clientに対して実行したときの問題と、profileベースpreflight診断の読み方をまとめます。
 
+現在のstable releaseはv0.3.0です。以下のCursor/Antigravity OAuth対応は**v0.3.0以降のcurrent main**で利用でき、v0.3.0の公開artifactには含まれません。
+
 ## まずclient detectionを確認する
 
 ```console
@@ -36,6 +38,7 @@ reach / auth / init / tools
 - unreachable serverと「正常だがtoolが0件」のserverが同じempty inventoryに見える
 - beta adapterでstableなmachine-readable statusを観測できない
 - protocol stageを証明する前にclient processが終了した
+- OAuthでauthenticationは証明できたが、`init/tools`の直接観測に使うclient-side tool cacheが生成されない
 
 `unknown`を`pass`として扱わないでください。報告時には必ず正確なclient versionを含めてください。
 
@@ -59,11 +62,27 @@ stableな判定ルールは[Reason code](reason-codes.ja.md)を参照してく�
 
 ### Cursor
 
-v0.2.0でもCursor OAuth完遂は未対応です。beta adapterでno-auth endpointは検証できますが、OAuth-required targetはauthenticated pathが正式実装されるまでincompleteになります。
+current mainではCursor OAuthを明示的にopt-inできます。
+
+```console
+mcp-interop test https://example.com/mcp --client cursor --oauth
+```
+
+adapterはisolated temporary `HOME` + workspace内で実Cursor MCP login pathを起動し、authenticated `mcp list-tools`をreal-client evidenceとして使います。controlled fixtureでDCR、Authorization Code + PKCE、token exchange、Bearer付きMCP request、authenticated tool discoveryまで検証済みです。
+
+localhost callbackまわりで失敗した場合、固定portを前提にしないでください。正確なCursor versionと、そのversionが表示したcallback addressを記録してください。明示的な証拠があるcallback bind conflictは`OAUTH_CALLBACK_PORT_CONFLICT`として分類される場合があります。
 
 ### Antigravity
 
-v0.2.0でも自動OAuth完遂を意図的に無効化しています。OAuth discoveryまでは観測済みですが、通常のmacOS Keychainからcredentialを安全に隔離できることが証明されるまでauthorization/token exchangeは実行しません。
+current mainではmacOS上でAntigravity OAuthを明示的にopt-inできます。
+
+```console
+mcp-interop test https://example.com/mcp --client antigravity --oauth
+```
+
+adapterはisolated PTY内で実Antigravity `/mcp` managerへ入ります。OAuth stateはtemporary HOME内だけに保存され、`mcp-interop`はtoken fileのmetadataだけを観測し、token内容を読み取ったりpersistしたりしません。
+
+検証済み`agy 1.1.11`ではauthenticationが完了しても、OAuth pathでno-auth時と同じclient-side tool cacheが生成されない場合があります。その場合、generic resultは意図的に`reach=pass`、`auth=pass`、`init=unknown`、`tools=unknown`を維持します。controlled localhost OAuth E2Eでは別途、authenticated `initialize`、`notifications/initialized`、`tools/list`のserver-side evidenceを必須にします。詳細は[Antigravity OAuth live-test boundary](antigravity-oauth.md)を参照してください。
 
 ## ChatGPT custom MCP appが接続できない
 
@@ -104,9 +123,9 @@ OAuth `state`、authorization code、access/refresh token、cookie、private key
 
 ## CursorのOAuth callback port conflict
 
-検証済みversionではlocalhost callbackが観測されていますが、callback addressはversion-specificな挙動として扱います。固定portを永久仕様としてhard-codeしないでください。
+検証済みOAuth pathではlocalhost callbackを使いますが、callback addressはversion-specificな挙動として扱います。固定portを永久仕様としてhard-codeしないでください。
 
-将来OAuth flowでcallback conflictが起きた場合は、以下を記録してください。
+OAuth flowでcallback conflictが起きた場合は、以下を記録してください。
 
 - Cursorの正確なversion
 - clientが表示したcallback address
@@ -115,25 +134,28 @@ OAuth `state`、authorization code、access/refresh token、cookie、private key
 
 ## Antigravityが`unknown`になる
 
-macOS beta adapterは、入力を送らないPTY startupと、isolated HOME内のmachine-readable MCP tool cacheを使ってtool discoveryを観測します。
+macOS beta adapterはisolated client-observable stateを使い、generic resultをconservativeに保ちます。
 
-有効なcacheを確認できないまま結果が不確定になった場合、設定ファイルを認識しただけで互換性成功とせず`unknown`を返します。
+no-authでは、入力を送らないPTY startupとisolated HOME内のmachine-readable MCP tool cacheを使ってtool discoveryを観測します。有効なcacheを確認できない場合、設定ファイルを認識しただけで互換性成功とせず`unknown`を返します。
+
+OAuthではisolated token persistenceにより`reach/auth`を証明できても、同じtool cacheが生成されなければ`init/tools`は`unknown`のままです。authenticationだけを根拠にunknown stageをpassへ昇格させないでください。adapter自体の検証にはcontrolled OAuth E2Eを使用します。
 
 確認項目:
 
 - `agy`の正確なversion
-- targetがOAuth必須か
+- OAuth-required targetなら`--oauth`を明示的に指定したか
 - isolated `~/.gemini/antigravity-cli/mcp/...` stateが生成されたか
+- OAuth時にisolated `~/.gemini/antigravity/mcp_oauth_tokens.json`のmetadataが確認できたか
 - client processが早期終了していないか
 - OSがlive adapter対応対象か
 
-v0.2.0のAntigravity live adapterもmacOSのみ対応です。
+現在のAntigravity live implementationはmacOSのみ対応です。
 
 ## VS Codeは検出されるのにlive testできない
 
 VS Codeは現在research-onlyです。
 
-isolated環境へのMCP設定登録は安全にできますが、検証済みCLIにはsupportedなserver start/status/tool discoveryのdirect surfaceがありません。
+isolated環境へのMCP設定登録は安全にできますが、stableなsupported direct lifecycle/tool-discovery automation boundaryはまだlive adapterへ昇格していません。
 
 したがって、**設定を登録できたことだけではinterop PASSにしません。**
 
@@ -200,6 +222,8 @@ bash scripts/e2e-real-clients.sh
 
 harnessはprotocol evidenceだけでなく、予期しない`tools/call`、user config metadata、Keychain DB変更、新規残存client process、temporary session漏れも確認します。
 
+Cursor/AntigravityのOAuth専用harnessはcontrolled loopback fixtureに対してのみ実login flowを動かし、authorization code/tokenをpersisted evidenceへ含めないことを必須にします。
+
 release candidate検証では、greenにするためだけに安全性gateを無効化しないでください。
 
 ## 再現可能なbugを報告する場合
@@ -210,6 +234,7 @@ release candidate検証では、greenにするためだけに安全性gateを無
 - OS / architecture
 - live adapterの場合はMCP clientの正確なversion
 - 使用adapterまたはdiagnostic profile
+- Cursor/Antigravity OAuthを報告する場合、公開v0.3.0かcurrent mainか
 - stage resultと`reason_code`、またはpreflight checks
 - secretを除去したerror/diagnostic output
 - serverがOAuthを必要とするか
