@@ -97,8 +97,6 @@ method_seen() {
 
 run_copilot_isolated() {
   env \
-    COPILOT_HOME="$copilot_home" \
-    COPILOT_CACHE_HOME="$copilot_cache" \
     -u GH_TOKEN \
     -u GITHUB_TOKEN \
     -u COPILOT_GITHUB_TOKEN \
@@ -107,6 +105,8 @@ run_copilot_isolated() {
     -u GEMINI_API_KEY \
     -u GOOGLE_API_KEY \
     -u OPENROUTER_API_KEY \
+    COPILOT_HOME="$copilot_home" \
+    COPILOT_CACHE_HOME="$copilot_cache" \
     HTTP_PROXY='http://127.0.0.1:9' \
     HTTPS_PROXY='http://127.0.0.1:9' \
     ALL_PROXY='http://127.0.0.1:9' \
@@ -128,7 +128,7 @@ snapshot_user_state "$before_state"
 capture_copilot_pids "$before_pids"
 
 echo "== Copilot CLI baseline =="
-copilot --version
+run_copilot_isolated copilot --version
 
 if ! go build -o "$fixture_bin" ./internal/e2e/fixture; then
   echo "failed to build localhost MCP fixture" >&2
