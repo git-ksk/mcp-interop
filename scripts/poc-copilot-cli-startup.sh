@@ -11,7 +11,7 @@ if [[ "$(uname -s)" != "Darwin" ]]; then
   exit 2
 fi
 
-for command_name in go copilot python3 pgrep; do
+for command_name in go copilot python3 pgrep ps; do
   if ! command -v "$command_name" >/dev/null 2>&1; then
     echo "required command not found: $command_name" >&2
     exit 2
@@ -124,7 +124,7 @@ with open(path, "w", encoding="utf-8") as f:
 PY
 chmod 600 "$copilot_home/settings.json" "$copilot_home/mcp-config.json" 2>/dev/null || true
 
-echo "== No-input PTY startup =="
+echo "== No-input PTY startup (30 second observation) =="
 (
   cd "$workspace" || exit 1
   run_isolated python3 - "$pty_output" <<'PY'
@@ -150,7 +150,7 @@ if pid == 0:
     os.execvp(argv[0], argv)
 
 data = bytearray()
-deadline = time.time() + 10.0
+deadline = time.time() + 30.0
 exited = False
 while time.time() < deadline:
     try:
@@ -217,6 +217,13 @@ PY
 printf '%s\n' '-- fixture wire log --'
 cat "$fixture_log" 2>/dev/null || true
 
+printf '%s\n' '-- selected Copilot debug log lines --'
+for log_file in "$copilot_home"/logs/*; do
+  [[ -f "$log_file" ]] || continue
+  echo "### $(basename "$log_file")"
+  grep -Eai 'mcp|auth|login|tool|error|warn|connect' "$log_file" | tail -n 120 || true
+done
+
 protocol_ok=1
 for method in initialize notifications/initialized tools/list; do
   if ! method_seen "$protocol_path" "$method"; then
@@ -241,8 +248,11 @@ comm -13 "$before_pids" "$after_pids" > "$new_pids"
 process_gate=PASS
 if [[ -s "$new_pids" ]]; then
   process_gate=FAIL
-  echo "new Copilot process(es) remained after startup PoC:" >&2
-  cat "$new_pids" >&2
+  echo "new Copilot process(es) remained after startup PoC; recording only, not killing by name:" >&2
+  while IFS= read -r pid; do
+    [[ -n "$pid" ]] || continue
+    ps -p "$pid" -o pid=,ppid=,pgid=,etime=,command= >&2 || true
+  done < "$new_pids"
 fi
 
 echo
