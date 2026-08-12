@@ -3,12 +3,16 @@ package diagnose
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"github.com/git-ksk/mcp-interop/internal/interop"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
+
+	"github.com/git-ksk/mcp-interop/internal/interop"
 )
 
 func TestChatGPTCIMDOnlyServerPassesRegistrationPreflight(t *testing.T) {
@@ -223,7 +227,7 @@ func newAuthFixture(t *testing.T, options authFixtureOptions) *httptest.Server {
 	t.Helper()
 	var server *httptest.Server
 	mux := http.NewServeMux()
-	server = httptest.NewTLSServer(mux)
+	server = newLocalTLSServer(t, mux)
 
 	resourcePath := options.ResourcePath
 	if resourcePath == "" {
@@ -291,6 +295,21 @@ func newAuthFixture(t *testing.T, options authFixtureOptions) *httptest.Server {
 			})
 		})
 	}
+	return server
+}
+
+func newLocalTLSServer(t *testing.T, handler http.Handler) *httptest.Server {
+	t.Helper()
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		if errors.Is(err, os.ErrPermission) || strings.Contains(strings.ToLower(err.Error()), "operation not permitted") {
+			t.Skipf("local listener unavailable in this environment: %v", err)
+		}
+		t.Fatalf("start local listener: %v", err)
+	}
+	server := httptest.NewUnstartedServer(handler)
+	server.Listener = listener
+	server.StartTLS()
 	return server
 }
 

@@ -57,6 +57,23 @@ fixture_trace() {
   fi
 }
 
+cursor_pids() {
+  {
+    pgrep -x cursor-agent 2>/dev/null || true
+    pgrep -x agent 2>/dev/null || true
+  } | sed '/^$/d' | sort -n | tr '\n' ' '
+}
+
+wait_for_cursor_pids() {
+  local expected="$1"
+  local deadline=$((SECONDS + 3))
+  while true; do
+    [[ "$(cursor_pids)" == "$expected" ]] && return 0
+    [[ "$SECONDS" -ge "$deadline" ]] && return 1
+    sleep 0.05
+  done
+}
+
 command -v cursor-agent >/dev/null 2>&1 || command -v agent >/dev/null 2>&1 || { echo "Cursor CLI missing" >&2; exit 2; }
 go build -o "$interop_bin" ./cmd/mcp-interop || exit 1
 go build -o "$fixture_bin" ./internal/e2e/oauthfixture || exit 1
@@ -85,8 +102,7 @@ ln -s loopback-browser "$work_root/bin/open"
 before="$work_root/before"
 after="$work_root/after"
 snapshot "$before"
-before_pids="$(pgrep -x cursor-agent 2>/dev/null; pgrep -x agent 2>/dev/null || true)"
-before_pids="$(printf '%s\n' "$before_pids" | sed '/^$/d' | sort -n | tr '\n' ' ')"
+before_pids="$(cursor_pids)"
 
 "$fixture_bin" --listen 127.0.0.1:0 --ready-file "$ready" --log-file "$log" &
 fixture_pid=$!
@@ -127,11 +143,10 @@ grep -Fq '"method":"GET","path":"/authorize"' "$log" || { echo "authorization re
 grep -Fq '"method":"POST","path":"/token"' "$log" || { echo "token exchange not observed" >&2; fixture_trace; exit 1; }
 grep -Fq '"method":"POST","path":"/mcp"' "$log" || { echo "authenticated MCP request not observed" >&2; fixture_trace; exit 1; }
 
-sleep 0.2
+wait_for_cursor_pids "$before_pids" || true
 snapshot "$after"
 cmp -s "$before" "$after" || { echo "normal Cursor/Keychain state changed" >&2; diff -u "$before" "$after" >&2 || true; exit 1; }
-after_pids="$(pgrep -x cursor-agent 2>/dev/null; pgrep -x agent 2>/dev/null || true)"
-after_pids="$(printf '%s\n' "$after_pids" | sed '/^$/d' | sort -n | tr '\n' ' ')"
+after_pids="$(cursor_pids)"
 [[ "$before_pids" == "$after_pids" ]] || { echo "Cursor process set changed: before=$before_pids after=$after_pids" >&2; exit 1; }
 
 if find "${TMPDIR:-/tmp}" -maxdepth 1 -type d -name 'mcp-interop-*' -newer "$before" -print 2>/dev/null | grep -q .; then

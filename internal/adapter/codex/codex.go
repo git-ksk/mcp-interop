@@ -22,6 +22,7 @@ const (
 	testServerName      = "mcp-interop-target"
 	defaultTimeout      = 20 * time.Second
 	defaultOAuthTimeout = 5 * time.Minute
+	appServerWaitDelay  = 2 * time.Second
 )
 
 // AuthorizationHandler handles the authorization URL returned by the real
@@ -123,6 +124,7 @@ func (a *Adapter) Run(ctx context.Context, target interop.Target, session *inter
 	defer cancel()
 
 	cmd := exec.CommandContext(runCtx, a.executable, "app-server")
+	cmd.WaitDelay = appServerWaitDelay
 	cmd.Dir = session.Root()
 	cmd.Env = replaceEnv(os.Environ(), "CODEX_HOME", codexHome)
 	cmd.Stderr = io.Discard

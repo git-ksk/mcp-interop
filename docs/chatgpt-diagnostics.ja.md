@@ -365,9 +365,11 @@ Runtime Evidence v2ではmTLS certificate observationのreason-code化はまだ�
 
 現在もCodex app-serverやCursor MCP management commandに相当するsupported headless ChatGPT app-management surfaceは確認できていません。browser DOM automation/private UI internalsはstable real-client adapterの依存にしません。
 
+Issue #20はそのためBLOCKEDのままです。model prompt、scripted ChatGPT UI/DOM interaction、private endpoint、通常ユーザーのbrowser credentialをPASS evidenceに使いません。manual product observationはdocumented secret-free Runtime Evidenceへ変換できますが、それはdiagnostic layerのままであり、live ChatGPT adapter resultにはなりません。
+
 公式/reference source:
 
 - OpenAI authentication: `https://developers.openai.com/plugins/build/auth`
-- OpenAI ChatGPT developer mode / MCP apps: `https://help.openai.com/en/articles/12584461-developer-mode-and-full-mcp-connectors-in-chatgpt`
+- OpenAI ChatGPT developer mode / MCP apps: `https://help.openai.com/en/articles/12584461-developer-mode-and-mcp-apps-in-chatgpt`
 - OpenAI authenticated Python MCP scaffold: `https://github.com/openai/openai-mcpkit/tree/main/python-authenticated-mcp-server-scaffold`
 - MCP authorization specification: `https://modelcontextprotocol.io/specification/draft/basic/authorization`

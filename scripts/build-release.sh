@@ -10,6 +10,15 @@ version="$1"
 commit="$2"
 build_date="$3"
 archive_version="${version#v}"
+workdirs=()
+
+cleanup() {
+  local dir
+  for dir in "${workdirs[@]}"; do
+    [[ -n "$dir" ]] && rm -rf "$dir"
+  done
+}
+trap cleanup EXIT
 
 if [[ -z "$archive_version" || -z "$commit" || -z "$build_date" ]]; then
   echo "version, commit, and build-date must be non-empty" >&2
@@ -32,6 +41,7 @@ for target in "${targets[@]}"; do
   read -r goos goarch <<<"$target"
   name="mcp-interop_${archive_version}_${goos}_${goarch}"
   workdir="$(mktemp -d)"
+  workdirs+=("$workdir")
   binary="mcp-interop"
   if [[ "$goos" == "windows" ]]; then
     binary="mcp-interop.exe"
@@ -54,6 +64,7 @@ for target in "${targets[@]}"; do
     tar -C "$workdir" -czf "dist/${name}.tar.gz" "$binary" LICENSE
   fi
   rm -rf "$workdir"
+  workdir=""
 done
 
 (

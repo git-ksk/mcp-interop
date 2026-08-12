@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -18,7 +19,13 @@ import (
 	"github.com/git-ksk/mcp-interop/internal/interop"
 )
 
-const processStopGrace = 750 * time.Millisecond
+const (
+	processStartupSnapshotGrace = 500 * time.Millisecond
+	processSnapshotTimeout      = 500 * time.Millisecond
+	processSnapshotWaitDelay    = 250 * time.Millisecond
+	processStopGrace            = 750 * time.Millisecond
+	processPollInterval         = 25 * time.Millisecond
+)
 
 // Run starts Antigravity under macOS /usr/bin/script to provide a PTY. The
 // normal path sends no TUI input. Explicit OAuth opt-in opens Antigravity's MCP
@@ -77,7 +84,6 @@ func (a *Adapter) runPassiveDarwin(ctx context.Context, home, workspace string, 
 	for {
 		select {
 		case <-ticker.C:
-			observeDescendants(cmd.Process.Pid, observed)
 			count, cacheErr := countValidToolCacheFiles(home)
 			if cacheErr != nil {
 				return result, fmt.Errorf("inspect isolated Antigravity MCP cache: %w", cacheErr)
@@ -135,19 +141,7 @@ func (a *Adapter) runOAuthDarwin(ctx context.Context, home, workspace string, re
 	// isolated MCP server: /mcp opens the manager and Enter selects Authenticate.
 	// No model prompt is sent. Any browser/code interaction remains owned by the
 	// real Antigravity client and the caller's terminal.
-	go func() {
-		if !waitFor(runCtx, a.managerOpenWait) {
-			return
-		}
-		_, _ = io.WriteString(stdin, "/mcp\r")
-		if !waitFor(runCtx, a.authSelectWait) {
-			return
-		}
-		_, _ = io.WriteString(stdin, "\r")
-		if a.oauthInput != nil {
-			_, _ = io.Copy(stdin, a.oauthInput)
-		}
-	}()
+	go driveOAuthNavigation(runCtx, stdin, a.oauthInput, a.managerOpenWait, a.authSelectWait)
 
 	ticker := time.NewTicker(150 * time.Millisecond)
 	defer ticker.Stop()
@@ -156,7 +150,6 @@ func (a *Adapter) runOAuthDarwin(ctx context.Context, home, workspace string, re
 	for {
 		select {
 		case <-ticker.C:
-			observeDescendants(cmd.Process.Pid, observed)
 			seen, tokenErr := oauthTokenObserved(home)
 			if tokenErr != nil {
 				return result, fmt.Errorf("inspect isolated Antigravity OAuth token state: %w", tokenErr)
@@ -209,9 +202,13 @@ func (a *Adapter) startPTY(workspace, home string, output io.Writer) (*exec.Cmd,
 	// Do not use exec.CommandContext here. On timeout it can kill the /usr/bin/script
 	// wrapper before descendants are snapshotted, allowing agy to be reparented to
 	// PID 1 and continue writing into the temporary HOME.
-	cmd := exec.Command("/usr/bin/script", "-q", "/dev/null", a.executable)
+	childPIDPath := filepath.Join(workspace, ".mcp-interop-pty-child.pid")
+	cmd := exec.Command("/usr/bin/script", "-q", "/dev/null", "/bin/sh", "-c", `printf '%s\n' "$$" > "$MCP_INTEROP_PTY_CHILD_PID_FILE"; exec "$MCP_INTEROP_AGY_EXECUTABLE"`)
 	cmd.Dir = workspace
-	cmd.Env = replaceEnv(os.Environ(), "HOME", home)
+	env := replaceEnv(os.Environ(), "HOME", home)
+	env = replaceEnv(env, "MCP_INTEROP_AGY_EXECUTABLE", a.executable)
+	env = replaceEnv(env, "MCP_INTEROP_PTY_CHILD_PID_FILE", childPIDPath)
+	cmd.Env = env
 	cmd.Stdout = output
 	cmd.Stderr = output
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
@@ -226,7 +223,30 @@ func (a *Adapter) startPTY(workspace, home string, output io.Writer) (*exec.Cmd,
 	}
 	done := make(chan error, 1)
 	go func() { done <- cmd.Wait() }()
-	return cmd, stdin, done, map[int]struct{}{}, nil
+	observed := map[int]struct{}{}
+	if childPID, ok := waitForRecordedChildPID(childPIDPath, processStartupSnapshotGrace); ok {
+		observed[childPID] = struct{}{}
+	} else {
+		// The child-owned PID file is the preferred exact ownership boundary.
+		// Fall back to a bounded process-table snapshot only if startup exited or
+		// failed before that marker became observable.
+		observeDescendantsUntil(cmd.Process.Pid, observed, processStartupSnapshotGrace)
+	}
+	return cmd, stdin, done, observed, nil
+}
+
+func driveOAuthNavigation(ctx context.Context, output io.Writer, input io.Reader, managerOpenWait, authSelectWait time.Duration) {
+	if !waitFor(ctx, managerOpenWait) {
+		return
+	}
+	_, _ = io.WriteString(output, "/mcp\r")
+	if !waitFor(ctx, authSelectWait) {
+		return
+	}
+	_, _ = io.WriteString(output, "\r")
+	if input != nil {
+		_, _ = io.Copy(output, input)
+	}
 }
 
 func waitFor(ctx context.Context, duration time.Duration) bool {
@@ -280,8 +300,11 @@ func stopPTYProcessTree(cmd *exec.Cmd, stdin io.Closer, done <-chan error, proce
 	}
 
 	wrapperPID := cmd.Process.Pid
-	observeDescendants(wrapperPID, observed)
+	// Refresh the owned forest once before signaling. The snapshot itself is
+	// bounded so cleanup cannot hang behind ps or an inherited output pipe.
+	observeOwnedProcessForest(wrapperPID, observed)
 
+	signalObservedProcessGroups(observed, syscall.SIGTERM)
 	for _, pid := range sortedPIDs(observed) {
 		_ = syscall.Kill(pid, syscall.SIGTERM)
 	}
@@ -294,9 +317,10 @@ func stopPTYProcessTree(cmd *exec.Cmd, stdin io.Closer, done <-chan error, proce
 		if !anyProcessAlive(observed) && ((!processWaited && !processAlive(wrapperPID)) || processWaited) {
 			break
 		}
-		time.Sleep(25 * time.Millisecond)
+		time.Sleep(processPollInterval)
 	}
 
+	signalObservedProcessGroups(observed, syscall.SIGKILL)
 	for _, pid := range sortedPIDs(observed) {
 		if processAlive(pid) {
 			_ = syscall.Kill(pid, syscall.SIGKILL)
@@ -319,7 +343,7 @@ func stopPTYProcessTree(cmd *exec.Cmd, stdin io.Closer, done <-chan error, proce
 		if !anyProcessAlive(observed) {
 			return nil
 		}
-		time.Sleep(25 * time.Millisecond)
+		time.Sleep(processPollInterval)
 	}
 	if anyProcessAlive(observed) {
 		return errors.New("Antigravity descendant process remained alive after termination")
@@ -328,19 +352,88 @@ func stopPTYProcessTree(cmd *exec.Cmd, stdin io.Closer, done <-chan error, proce
 }
 
 func observeDescendants(rootPID int, observed map[int]struct{}) {
-	pids, err := descendantPIDs(rootPID)
+	children, err := processChildren()
 	if err != nil {
 		return
 	}
-	for _, pid := range pids {
-		observed[pid] = struct{}{}
+	collectProcessDescendants(children, []int{rootPID}, observed)
+}
+
+func observeDescendantsUntil(rootPID int, observed map[int]struct{}, maxWait time.Duration) {
+	deadline := time.Now().Add(maxWait)
+	for {
+		observeDescendants(rootPID, observed)
+		if len(observed) > 0 || maxWait <= 0 || time.Now().After(deadline) || !processAlive(rootPID) {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
 }
 
-func descendantPIDs(rootPID int) ([]int, error) {
-	output, err := exec.Command("/bin/ps", "-axo", "pid=,ppid=").Output()
+func observeOwnedProcessForest(rootPID int, observed map[int]struct{}) {
+	children, err := processChildren()
 	if err != nil {
-		return nil, err
+		return
+	}
+	roots := make([]int, 0, len(observed)+1)
+	roots = append(roots, rootPID)
+	for pid := range observed {
+		roots = append(roots, pid)
+	}
+	collectProcessDescendants(children, roots, observed)
+}
+
+func collectProcessDescendants(children map[int][]int, roots []int, observed map[int]struct{}) {
+	queue := append([]int(nil), roots...)
+	seen := make(map[int]struct{}, len(queue))
+	for len(queue) > 0 {
+		parent := queue[0]
+		queue = queue[1:]
+		if parent <= 0 {
+			continue
+		}
+		if _, ok := seen[parent]; ok {
+			continue
+		}
+		seen[parent] = struct{}{}
+		for _, child := range children[parent] {
+			if child <= 0 || child == parent {
+				continue
+			}
+			observed[child] = struct{}{}
+			queue = append(queue, child)
+		}
+	}
+}
+
+func waitForRecordedChildPID(path string, maxWait time.Duration) (int, bool) {
+	deadline := time.Now().Add(maxWait)
+	for {
+		data, err := os.ReadFile(path)
+		if err == nil {
+			pid, parseErr := strconv.Atoi(strings.TrimSpace(string(data)))
+			if parseErr == nil && pid > 0 && processAlive(pid) {
+				return pid, true
+			}
+		} else if !os.IsNotExist(err) {
+			return 0, false
+		}
+		if maxWait <= 0 || time.Now().After(deadline) {
+			return 0, false
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+func processChildren() (map[int][]int, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), processSnapshotTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "/bin/ps", "-axo", "pid=,ppid=")
+	cmd.WaitDelay = processSnapshotWaitDelay
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("snapshot process table: %w", err)
 	}
 
 	children := map[int][]int{}
@@ -351,22 +444,12 @@ func descendantPIDs(rootPID int) ([]int, error) {
 		}
 		pid, pidErr := strconv.Atoi(fields[0])
 		ppid, ppidErr := strconv.Atoi(fields[1])
-		if pidErr != nil || ppidErr != nil {
+		if pidErr != nil || ppidErr != nil || pid <= 0 || ppid < 0 {
 			continue
 		}
 		children[ppid] = append(children[ppid], pid)
 	}
-
-	var descendants []int
-	var walk func(int)
-	walk = func(parent int) {
-		for _, child := range children[parent] {
-			walk(child)
-			descendants = append(descendants, child)
-		}
-	}
-	walk(rootPID)
-	return descendants, nil
+	return children, nil
 }
 
 func sortedPIDs(set map[int]struct{}) []int {
@@ -385,6 +468,25 @@ func anyProcessAlive(set map[int]struct{}) bool {
 		}
 	}
 	return false
+}
+
+func signalObservedProcessGroups(set map[int]struct{}, signal syscall.Signal) {
+	currentPGID, currentErr := syscall.Getpgid(0)
+	signaled := map[int]struct{}{}
+	for _, pid := range sortedPIDs(set) {
+		pgid, err := syscall.Getpgid(pid)
+		if err != nil || pgid <= 0 {
+			continue
+		}
+		if currentErr == nil && pgid == currentPGID {
+			continue
+		}
+		if _, ok := signaled[pgid]; ok {
+			continue
+		}
+		signaled[pgid] = struct{}{}
+		_ = syscall.Kill(-pgid, signal)
+	}
 }
 
 func processAlive(pid int) bool {

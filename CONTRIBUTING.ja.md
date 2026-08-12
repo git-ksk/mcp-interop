@@ -26,11 +26,14 @@ go test ./...
 go build ./cmd/mcp-interop
 ```
 
-process lifecycle、OAuth、shared stateに関係する変更では、追加で次も実行してください。
+process lifecycle、OAuth、shared state、release gateに関係する変更では、追加で次も実行してください。
 
 ```console
 go test -race ./...
+govulncheck ./...
 ```
+
+`govulncheck`がローカルに無い場合はPRへ明記し、CIで固定versionのscanを通してください。
 
 ## Adapter要件
 

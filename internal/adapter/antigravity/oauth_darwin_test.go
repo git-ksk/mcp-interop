@@ -19,23 +19,18 @@ func TestRunOAuthObservesIsolatedTokenAndAuthenticatedTools(t *testing.T) {
 	script := filepath.Join(t.TempDir(), "fake-agy-oauth")
 	content := `#!/bin/sh
 set -eu
-IFS= read -r manager || true
-IFS= read -r authenticate || true
 token_dir="$HOME/.gemini/antigravity"
 cache_dir="$HOME/.gemini/antigravity-cli/mcp/mcp-interop-target"
 mkdir -p "$token_dir" "$cache_dir"
 printf '%s' 'DO-NOT-READ-FAKE-TOKEN' > "$token_dir/mcp_oauth_tokens.json"
 printf '%s\n' '{"name":"ping"}' > "$cache_dir/ping.json"
-sleep 10
 `
 	if err := os.WriteFile(script, []byte(content), 0o700); err != nil {
 		t.Fatal(err)
 	}
 
 	var terminal bytes.Buffer
-	adapter := New(script, "agy-test", WithOAuthIO(strings.NewReader("fixture-code\r"), &terminal), WithOAuthTimeout(3*time.Second))
-	adapter.managerOpenWait = 50 * time.Millisecond
-	adapter.authSelectWait = 50 * time.Millisecond
+	adapter := New(script, "agy-test", WithOAuthIO(strings.NewReader("fixture-code\r"), &terminal), WithOAuthTimeout(10*time.Second))
 	session, err := interop.NewSession()
 	if err != nil {
 		t.Fatal(err)
@@ -66,20 +61,15 @@ func TestRunOAuthKeepsAuthPassWhenTokenAppearsButToolsDoNot(t *testing.T) {
 	script := filepath.Join(t.TempDir(), "fake-agy-oauth-token-only")
 	content := `#!/bin/sh
 set -eu
-IFS= read -r manager || true
-IFS= read -r authenticate || true
 token_dir="$HOME/.gemini/antigravity"
 mkdir -p "$token_dir"
 printf '%s' 'FAKE-TOKEN' > "$token_dir/mcp_oauth_tokens.json"
-sleep 10
 `
 	if err := os.WriteFile(script, []byte(content), 0o700); err != nil {
 		t.Fatal(err)
 	}
 
-	adapter := New(script, "agy-test", WithOAuthIO(nil, nil), WithOAuthTimeout(750*time.Millisecond))
-	adapter.managerOpenWait = 50 * time.Millisecond
-	adapter.authSelectWait = 50 * time.Millisecond
+	adapter := New(script, "agy-test", WithOAuthIO(nil, nil), WithOAuthTimeout(10*time.Second))
 	session, err := interop.NewSession()
 	if err != nil {
 		t.Fatal(err)
@@ -94,6 +84,15 @@ sleep 10
 	assertStage(t, result, interop.StageAuth, interop.StatusPass)
 	assertStage(t, result, interop.StageInit, interop.StatusUnknown)
 	assertStage(t, result, interop.StageTools, interop.StatusUnknown)
+}
+
+func TestDriveOAuthNavigationWritesExpectedSequence(t *testing.T) {
+	var output bytes.Buffer
+	driveOAuthNavigation(context.Background(), &output, strings.NewReader("fixture-code\r"), 0, 0)
+
+	if got, want := output.String(), "/mcp\r\rfixture-code\r"; got != want {
+		t.Fatalf("OAuth navigation bytes = %q, want %q", got, want)
+	}
 }
 
 func TestOAuthTokenObservationUsesOnlyFileMetadata(t *testing.T) {

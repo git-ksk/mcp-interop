@@ -26,11 +26,14 @@ go test ./...
 go build ./cmd/mcp-interop
 ```
 
-For changes involving process lifecycle, OAuth, or shared state, also run:
+For changes involving process lifecycle, OAuth, shared state, or release gates, also run:
 
 ```console
 go test -race ./...
+govulncheck ./...
 ```
+
+If `govulncheck` is not installed, note that in the pull request and rely on CI's pinned scan.
 
 ## Adapter requirements
 

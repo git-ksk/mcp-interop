@@ -660,6 +660,7 @@ func coverageForChecks(checks []RuntimeCheck) EvidenceCoverage {
 }
 
 func (r *ReferencePatternReport) add(check RuntimeCheck) {
+	check = normalizeRuntimeCheck(check)
 	r.Checks = append(r.Checks, check)
 	if check.Status == StatusFail {
 		r.Status = StatusFail
@@ -670,8 +671,12 @@ func (r *ReferencePatternReport) add(check RuntimeCheck) {
 
 func (r *RuntimeEvidenceReport) add(check RuntimeCheck) {
 	if check.ID == "" {
+		if r.Status == StatusPass {
+			r.Status = StatusWarn
+		}
 		return
 	}
+	check = normalizeRuntimeCheck(check)
 	r.Checks = append(r.Checks, check)
 	if check.Status == StatusFail {
 		r.Status = StatusFail
@@ -680,6 +685,22 @@ func (r *RuntimeEvidenceReport) add(check RuntimeCheck) {
 		}
 	} else if check.Status == StatusWarn && r.Status == StatusPass {
 		r.Status = StatusWarn
+	}
+}
+
+func normalizeRuntimeCheck(check RuntimeCheck) RuntimeCheck {
+	switch check.Status {
+	case StatusPass, StatusWarn, StatusFail, StatusNA:
+		return check
+	default:
+		check.Status = StatusWarn
+		if check.Observed == "" {
+			check.Observed = "unknown"
+		}
+		if check.Message == "" {
+			check.Message = "Runtime Evidence check did not provide a conclusive status"
+		}
+		return check
 	}
 }
 

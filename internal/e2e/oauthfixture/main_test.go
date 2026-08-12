@@ -3,9 +3,12 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strings"
 	"testing"
 )
@@ -13,7 +16,7 @@ import (
 func TestOAuthFixtureDCRPKCETokenAndMCP(t *testing.T) {
 	var log bytes.Buffer
 	h := &server{log: &log, clients: map[string][]string{}, codes: map[string]authorizationCode{}, tokens: map[string]struct{}{}}
-	ts := httptest.NewServer(h)
+	ts := newLocalServer(t, h)
 	defer ts.Close()
 	h.baseURL = ts.URL
 
@@ -102,4 +105,19 @@ func TestOAuthFixtureRejectsNonLoopbackRedirect(t *testing.T) {
 	if !safeLoopbackRedirect("http://127.0.0.1:54321/callback") {
 		t.Fatal("loopback redirect should be accepted")
 	}
+}
+
+func newLocalServer(t *testing.T, handler http.Handler) *httptest.Server {
+	t.Helper()
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		if errors.Is(err, os.ErrPermission) || strings.Contains(strings.ToLower(err.Error()), "operation not permitted") {
+			t.Skipf("local listener unavailable in this environment: %v", err)
+		}
+		t.Fatalf("start local listener: %v", err)
+	}
+	server := httptest.NewUnstartedServer(handler)
+	server.Listener = listener
+	server.Start()
+	return server
 }

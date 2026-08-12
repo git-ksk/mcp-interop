@@ -41,6 +41,16 @@ The current stages are:
 
 A complete interoperability pass requires all four stages to be `pass`. Inconclusive states intentionally remain non-zero so CI cannot silently treat missing evidence as compatibility.
 
+## Quality-phase invariants
+
+Current development is focused on reliability, testability, reproducibility, and measured regression detection rather than adding clients. Quality work must preserve these invariants:
+
+- diagnostic/preflight metadata can explain failures but cannot promote a live adapter result to PASS;
+- Runtime Evidence can only use secret-free presence/match observations, and incomplete or ambiguous observations remain `WARN` / `unknown`;
+- a process may be terminated only when it is owned by the current isolated test session or launched directly by the harness;
+- fixed sleeps should be replaced with readiness, process-exit, or state-stability conditions where that makes the test less flaky;
+- release gates should exercise the same source-quality invariants as normal CI where practical.
+
 ## Adapter boundary
 
 Every supported client has an adapter that owns client-specific behavior. The conceptual lifecycle is:
@@ -92,6 +102,10 @@ VS Code can safely register MCP configuration in an isolated user-data directory
 ### GitHub Copilot CLI (research)
 
 GitHub Copilot CLI remains research-only. Current PoC evidence shows real-client `initialize` / `notifications/initialized` on no-input startup, but not `tools/list` without an authenticated/model backend; see #48.
+
+### ChatGPT (blocked)
+
+ChatGPT remains a diagnostics-only profile. A real-client adapter is blocked until an officially supported direct/headless ChatGPT MCP app-management surface is available. Model prompts, DOM/UI automation, private endpoints, and normal-user browser credentials are not acceptable substitutes for the project's real-client `reach/auth/init/tools` evidence contract; see #20.
 
 ## Real-client E2E boundary
 

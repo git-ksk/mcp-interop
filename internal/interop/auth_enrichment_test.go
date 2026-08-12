@@ -3,8 +3,11 @@ package interop
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -13,7 +16,7 @@ import (
 func TestEnrichAuthFailureCorrelatesCIMDOnlyWithDCRUnsupported(t *testing.T) {
 	var baseURL string
 	var guessedRegistrationHits atomic.Int32
-	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := newLocalTLSServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/mcp":
 			w.Header().Set("WWW-Authenticate", `Bearer resource_metadata="`+baseURL+`/.well-known/oauth-protected-resource/mcp"`)
@@ -66,7 +69,7 @@ func TestEnrichAuthFailureCorrelatesCIMDOnlyWithDCRUnsupported(t *testing.T) {
 
 func TestEnrichAuthFailureDistinguishesAdvertisedDCRFailure(t *testing.T) {
 	var baseURL string
-	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := newLocalTLSServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/mcp":
 			w.Header().Set("WWW-Authenticate", `Bearer resource_metadata="`+baseURL+`/.well-known/oauth-protected-resource/mcp"`)
@@ -99,7 +102,7 @@ func TestEnrichAuthFailureDistinguishesAdvertisedDCRFailure(t *testing.T) {
 
 func TestEnrichAuthFailureKeepsMultipleAuthorizationServersInconclusive(t *testing.T) {
 	var baseURL string
-	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := newLocalTLSServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/mcp":
 			w.Header().Set("WWW-Authenticate", `Bearer resource_metadata="`+baseURL+`/.well-known/oauth-protected-resource/mcp"`)
@@ -134,7 +137,7 @@ func TestEnrichAuthFailureKeepsMultipleAuthorizationServersInconclusive(t *testi
 
 func TestEnrichAuthFailureMalformedMetadataIsInconclusive(t *testing.T) {
 	var baseURL string
-	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := newLocalTLSServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/mcp":
 			w.Header().Set("WWW-Authenticate", `Bearer resource_metadata="`+baseURL+`/.well-known/oauth-protected-resource/mcp"`)
@@ -181,4 +184,19 @@ func TestRedactResultRedactsDiagnosticMessages(t *testing.T) {
 	if strings.Contains(redacted.Diagnostics[0].Message, "abcdefghijklmnop") {
 		t.Fatalf("diagnostic leaked bearer token: %s", redacted.Diagnostics[0].Message)
 	}
+}
+
+func newLocalTLSServer(t *testing.T, handler http.Handler) *httptest.Server {
+	t.Helper()
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		if errors.Is(err, os.ErrPermission) || strings.Contains(strings.ToLower(err.Error()), "operation not permitted") {
+			t.Skipf("local listener unavailable in this environment: %v", err)
+		}
+		t.Fatalf("start local listener: %v", err)
+	}
+	server := httptest.NewUnstartedServer(handler)
+	server.Listener = listener
+	server.StartTLS()
+	return server
 }

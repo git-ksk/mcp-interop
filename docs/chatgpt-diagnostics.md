@@ -361,9 +361,11 @@ OpenAI currently documents that ChatGPT presents an OpenAI-managed client certif
 
 `mcp-interop` still does not have a supported headless ChatGPT app-management surface equivalent to Codex app-server or Cursor MCP management commands. Browser DOM automation and private UI internals remain out of scope for a stable real-client adapter.
 
+Issue #20 therefore remains blocked. Do not use model prompts, scripted ChatGPT UI/DOM interactions, private endpoints, or normal-user browser credentials as PASS evidence. Manual product observations may be converted into the documented secret-free Runtime Evidence format, but that remains a diagnostic layer and does not become a live ChatGPT adapter result.
+
 Official/reference sources:
 
 - OpenAI authentication: `https://developers.openai.com/plugins/build/auth`
-- OpenAI ChatGPT developer mode / MCP apps: `https://help.openai.com/en/articles/12584461-developer-mode-and-full-mcp-connectors-in-chatgpt`
+- OpenAI ChatGPT developer mode / MCP apps: `https://help.openai.com/en/articles/12584461-developer-mode-and-mcp-apps-in-chatgpt`
 - OpenAI authenticated Python MCP scaffold: `https://github.com/openai/openai-mcpkit/tree/main/python-authenticated-mcp-server-scaffold`
 - MCP authorization specification: `https://modelcontextprotocol.io/specification/draft/basic/authorization`

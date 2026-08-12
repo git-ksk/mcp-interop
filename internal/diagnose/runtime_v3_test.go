@@ -160,3 +160,42 @@ func TestRuntimeEvidenceV3RejectsUnknownSecretBearingFields(t *testing.T) {
 		t.Fatal("expected unknown secret-bearing field to be rejected")
 	}
 }
+
+func TestRuntimeEvidenceIncompleteCheckCannotManufacturePass(t *testing.T) {
+	runtime := &RuntimeEvidenceReport{Status: StatusPass}
+	runtime.add(RuntimeCheck{ID: "future_check_without_status"})
+
+	if runtime.Status != StatusWarn {
+		t.Fatalf("runtime status=%s, want warn", runtime.Status)
+	}
+	if len(runtime.Checks) != 1 || runtime.Checks[0].Status != StatusWarn || runtime.Checks[0].Observed != "unknown" {
+		t.Fatalf("unexpected normalized check: %#v", runtime.Checks)
+	}
+	if runtime.Passed() != true {
+		t.Fatal("WARN runtime evidence remains non-blocking unless a check conclusively fails")
+	}
+}
+
+func TestRuntimeEvidenceEmptyCheckIDCannotManufacturePass(t *testing.T) {
+	runtime := &RuntimeEvidenceReport{Status: StatusPass}
+	runtime.add(RuntimeCheck{Status: StatusPass, Observed: "true"})
+
+	if runtime.Status != StatusWarn {
+		t.Fatalf("runtime status=%s, want warn", runtime.Status)
+	}
+	if len(runtime.Checks) != 0 {
+		t.Fatalf("empty-ID check should not be emitted: %#v", runtime.Checks)
+	}
+}
+
+func TestReferencePatternIncompleteCheckCannotManufacturePass(t *testing.T) {
+	reference := &ReferencePatternReport{Status: StatusPass}
+	reference.add(RuntimeCheck{ID: "future_reference_check"})
+
+	if reference.Status != StatusWarn {
+		t.Fatalf("reference status=%s, want warn", reference.Status)
+	}
+	if len(reference.Checks) != 1 || reference.Checks[0].Status != StatusWarn || reference.Checks[0].Observed != "unknown" {
+		t.Fatalf("unexpected normalized check: %#v", reference.Checks)
+	}
+}

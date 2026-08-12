@@ -9,7 +9,10 @@ import (
 	"time"
 )
 
-const versionTimeout = 3 * time.Second
+const (
+	versionTimeout   = 3 * time.Second
+	versionWaitDelay = 2 * time.Second
+)
 
 type lookPathFunc func(string) (string, error)
 type versionFunc func(context.Context, string, []string) (string, error)
@@ -70,6 +73,7 @@ func (d *SystemDetector) Detect(ctx context.Context, spec Spec) Detection {
 
 func commandVersion(ctx context.Context, path string, args []string) (string, error) {
 	cmd := exec.CommandContext(ctx, path, args...)
+	cmd.WaitDelay = versionWaitDelay
 	var output bytes.Buffer
 	cmd.Stdout = &output
 	cmd.Stderr = &output
