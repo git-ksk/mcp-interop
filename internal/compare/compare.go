@@ -22,7 +22,7 @@ const (
 )
 
 type Report struct {
-	SchemaVersion  int             `json:"schema_version"`
+	SchemaVersion int             `json:"schema_version"`
 	HasRegression bool            `json:"has_regression"`
 	Runs          []RunComparison `json:"runs"`
 }
