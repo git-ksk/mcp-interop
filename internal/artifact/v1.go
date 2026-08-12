@@ -28,7 +28,7 @@ const (
 // Artifact is the portable, versioned live interoperability result document.
 // It is intentionally separate from the legacy `test --json` contract.
 type Artifact struct {
-	SchemaVersion int   `json:"schema_version"`
+	SchemaVersion int    `json:"schema_version"`
 	ArtifactType  string `json:"artifact_type"`
 	Runs          []Run  `json:"runs"`
 }
