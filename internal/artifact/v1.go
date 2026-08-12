@@ -196,6 +196,10 @@ func ValidateRun(run Run) error {
 	if run.ExecutedAt.IsZero() {
 		return errors.New("executed_at is required")
 	}
+	_, offset := run.ExecutedAt.Zone()
+	if offset != 0 {
+		return errors.New("executed_at must use UTC")
+	}
 	if run.Client.ID == "" || run.Client.Product == "" {
 		return errors.New("client id and product are required")
 	}
@@ -307,13 +311,14 @@ func WriteFile(path string, value Artifact) error {
 	if err != nil {
 		return err
 	}
-	defer file.Close()
 	if err := file.Chmod(0o600); err != nil && runtime.GOOS != "windows" {
+		_ = file.Close()
 		return err
 	}
 	encoder := json.NewEncoder(file)
 	encoder.SetIndent("", "  ")
 	if err := encoder.Encode(value); err != nil {
+		_ = file.Close()
 		return err
 	}
 	return file.Close()
