@@ -318,8 +318,14 @@ func parseTestOptions(args []string) (testOptions, error) {
 			}
 			i++
 			options.output = args[i]
+			if options.output == "" {
+				return options, fmt.Errorf("--output requires a non-empty file path")
+			}
 		case strings.HasPrefix(arg, "--output="):
 			options.output = strings.TrimPrefix(arg, "--output=")
+			if options.output == "" {
+				return options, fmt.Errorf("--output requires a non-empty file path")
+			}
 		case arg == "--client":
 			if i+1 >= len(args) {
 				return options, fmt.Errorf("--client requires a value")
