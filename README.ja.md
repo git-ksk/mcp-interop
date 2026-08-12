@@ -36,6 +36,7 @@ Unreleasedでは新client追加をいったん止め、品質・最適化フェ�
 - diagnostic metadataとRuntime Evidenceはreal-client PASS evidenceと分離
 - secret-bearing valueは出力前にrejectまたはredact
 - process cleanupはboundedにし、current test sessionが所有するtemporary state/processだけを対象にする
+- exact client-version runをsecret-safeなlocal artifactへexportし、既存live verdictを弱めずに比較できる
 - CI/release gateでは可能な範囲でformat、vet、unit、race、vulnerability scan、fixture、shell syntax、release archive smokeを検証。cross-platform互換性testはmoduleのGo 1.24 baselineを維持し、security scanとrelease artifact buildはpatched Go 1.26.5へ固定
 
 VS Codeは、別途進めているlifecycle/tool-discovery automation researchがstable live adapterへ昇格するまでresearch-onlyです。
@@ -123,7 +124,29 @@ Cursor CLI       PASS   PASS  PASS  PASS   2026.08.04-aaa8809
 Antigravity CLI  PASS   PASS  PASS  PASS   1.1.11
 ```
 
-JSON outputはarrayです。
+JSON outputはarrayです。portable artifact用fieldをこの既存contractへ追加しません。
+
+### Portable regression artifact
+
+同じlive runを、stdoutを変えずにversioned / secret-safeなlocal artifactへexportできます。
+
+```console
+mcp-interop test https://example.com/mcp --client codex --output result.json
+```
+
+artifactには正確に検出したclient version、OS/architecture、runner/runtime context、invocation auth mode、evidence provenance、既存4 stageのstatus/reasonを保存します。raw endpoint URLはpersistせず、endpoint fingerprintを作る前にquery valueを除外します。human-readableなstage messageやdiagnostic payloadもartifact v1には保存しません。
+
+client version違い・run違いを比較できます。
+
+```console
+mcp-interop compare old.json new.json
+mcp-interop compare old.json new.json --json
+mcp-interop compare old.json new.json --fail-on-regression
+```
+
+comparisonは`PASS_TO_FAIL`、`PASS_TO_UNKNOWN`、`PASS_TO_SKIP`、reason-code変更、baseline evidence消失を明示します。client versionが変わっただけならregressionではありません。`--fail-on-regression`はregression/evidence lossを検出したときだけexit `1`、malformed/unsupported artifactなどinput contract違反はexit `2`です。
+
+正確なcompatibility、secret safety、pairing、exit-code contractは[Live interoperability result artifact schema v1](docs/live-result-schema-v1.ja.md) ([English](docs/live-result-schema-v1.md))を参照してください。
 
 OAuth flowは常に明示的opt-inです。
 
@@ -332,6 +355,7 @@ Cursor/AntigravityのOAuth専用harnessはcontrolled loopback fixtureに対し�
 ## ドキュメント
 
 - [Architecture](docs/architecture.ja.md)
+- [Live result artifact schema v1](docs/live-result-schema-v1.ja.md) ([English](docs/live-result-schema-v1.md))
 - [Troubleshooting](docs/troubleshooting.ja.md)
 - [Reason code](docs/reason-codes.ja.md)
 - [ChatGPT接続診断](docs/chatgpt-diagnostics.ja.md)
