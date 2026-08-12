@@ -49,21 +49,33 @@ func TestArtifactsPassToNonPassRegressions(t *testing.T) {
 	}
 }
 
-func TestArtifactsReasonCodeChangeIsRegression(t *testing.T) {
-	oldRun := testRun(t, "1.0.0")
-	newRun := testRun(t, "2.0.0")
-	oldRun.Stages[1].Status = interop.StatusFail
-	newRun.Stages[1].Status = interop.StatusFail
-	oldRun.Stages[1].ReasonCode = interop.ReasonDCRUnsupported
-	newRun.Stages[1].ReasonCode = interop.ReasonDCRFailed
+func TestArtifactsReasonCodeChangesAreRegressions(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		old  interop.ReasonCode
+		new  interop.ReasonCode
+	}{
+		{name: "changed", old: interop.ReasonDCRUnsupported, new: interop.ReasonDCRFailed},
+		{name: "added", old: "", new: interop.ReasonDCRFailed},
+		{name: "removed", old: interop.ReasonDCRUnsupported, new: ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			oldRun := testRun(t, "1.0.0")
+			newRun := testRun(t, "2.0.0")
+			oldRun.Stages[1].Status = interop.StatusFail
+			newRun.Stages[1].Status = interop.StatusFail
+			oldRun.Stages[1].ReasonCode = tc.old
+			newRun.Stages[1].ReasonCode = tc.new
 
-	report := Artifacts(artifact.NewArtifact([]artifact.Run{oldRun}), artifact.NewArtifact([]artifact.Run{newRun}))
-	if !report.HasRegression {
-		t.Fatal("reason-code change must be a regression signal")
-	}
-	change := report.Runs[0].StageChanges[0]
-	if !contains(change.RegressionKinds, RegressionReasonChanged) {
-		t.Fatalf("reason change classification missing: %#v", change)
+			report := Artifacts(artifact.NewArtifact([]artifact.Run{oldRun}), artifact.NewArtifact([]artifact.Run{newRun}))
+			if !report.HasRegression {
+				t.Fatal("reason-code change must be a regression signal")
+			}
+			change := report.Runs[0].StageChanges[0]
+			if !contains(change.RegressionKinds, RegressionReasonChanged) {
+				t.Fatalf("reason change classification missing: %#v", change)
+			}
+		})
 	}
 }
 
