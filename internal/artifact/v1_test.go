@@ -3,6 +3,7 @@ package artifact
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -59,6 +60,24 @@ func TestNewRunPreservesStageStatusAndReasonWithoutMessages(t *testing.T) {
 	if got := run.Stages[1]; got.Status != interop.StatusFail || got.ReasonCode != interop.ReasonDCRUnsupported {
 		t.Fatalf("auth stage not preserved: %#v", got)
 	}
+
+	data, err := json.Marshal(NewArtifact([]Run{run}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, forbidden := range []string{"opaque_secret", "secret-ish detail", "contains detail that must not be copied"} {
+		if strings.Contains(string(data), forbidden) {
+			t.Fatalf("portable artifact persisted forbidden detail %q: %s", forbidden, data)
+		}
+	}
+}
+
+func TestValidateRunRequiresUTCExecutionTimestamp(t *testing.T) {
+	run := validRun(t)
+	run.ExecutedAt = time.Date(2026, 8, 13, 0, 0, 0, 0, time.FixedZone("JST", 9*60*60))
+	if err := ValidateRun(run); err == nil || !strings.Contains(err.Error(), "must use UTC") {
+		t.Fatalf("expected UTC validation error, got %v", err)
+	}
 }
 
 func TestValidateRunRejectsRunnerGeneratedPass(t *testing.T) {
@@ -68,6 +87,44 @@ func TestValidateRunRejectsRunnerGeneratedPass(t *testing.T) {
 	if err := ValidateRun(run); err == nil || !strings.Contains(err.Error(), "cannot produce pass") {
 		t.Fatalf("expected runner PASS rejection, got %v", err)
 	}
+}
+
+func TestValidateRunAllowsNonPassRunnerObservation(t *testing.T) {
+	run := validRun(t)
+	run.EvidenceProvenance = EvidenceProvenance{Kind: ProvenanceRunnerObservation}
+	run.Client.Version = ""
+	for i := range run.Stages {
+		run.Stages[i].Status = interop.StatusSkip
+	}
+	if err := ValidateRun(run); err != nil {
+		t.Fatalf("runner observation with no PASS should validate: %v", err)
+	}
+}
+
+func TestValidateRunRequiresExactlyOrderedCoreStages(t *testing.T) {
+	t.Run("missing", func(t *testing.T) {
+		run := validRun(t)
+		run.Stages = run.Stages[:3]
+		if err := ValidateRun(run); err == nil || !strings.Contains(err.Error(), "exactly 4") {
+			t.Fatalf("expected stage count error, got %v", err)
+		}
+	})
+
+	t.Run("reordered", func(t *testing.T) {
+		run := validRun(t)
+		run.Stages[0], run.Stages[1] = run.Stages[1], run.Stages[0]
+		if err := ValidateRun(run); err == nil || !strings.Contains(err.Error(), "must be") {
+			t.Fatalf("expected stage order error, got %v", err)
+		}
+	})
+
+	t.Run("unsupported-status", func(t *testing.T) {
+		run := validRun(t)
+		run.Stages[2].Status = interop.Status("maybe")
+		if err := ValidateRun(run); err == nil || !strings.Contains(err.Error(), "unsupported status") {
+			t.Fatalf("expected status error, got %v", err)
+		}
+	})
 }
 
 func TestValidateArtifactRejectsDuplicateComparisonIdentity(t *testing.T) {
