@@ -24,6 +24,7 @@ const (
 	testServerName      = "mcp-interop-target"
 	defaultTimeout      = 20 * time.Second
 	defaultOAuthTimeout = 5 * time.Minute
+	commandWaitDelay    = 2 * time.Second
 )
 
 var httpURLPattern = regexp.MustCompile(`https?://[^\s<>"']+`)
@@ -96,6 +97,7 @@ type execCommandRunner struct{}
 
 func (execCommandRunner) Run(ctx context.Context, dir string, env []string, executable string, args ...string) commandResult {
 	cmd := exec.CommandContext(ctx, executable, args...)
+	cmd.WaitDelay = commandWaitDelay
 	cmd.Dir = dir
 	cmd.Env = env
 	var stdout bytes.Buffer
@@ -142,6 +144,7 @@ func (execOAuthCommandRunner) RunOAuth(ctx context.Context, dir string, env []st
 	defer cancel()
 
 	cmd := exec.CommandContext(runCtx, executable, args...)
+	cmd.WaitDelay = commandWaitDelay
 	cmd.Dir = dir
 	cmd.Env = env
 	candidates := make(chan string, 1)

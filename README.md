@@ -28,9 +28,19 @@ The live adapters in v0.4.0 are:
 
 v0.4.0 adds **Cursor OAuth completion, Antigravity OAuth completion on the tested macOS baseline, secret-free real-client OAuth capability enrichment, stricter deployment-specific live-evidence boundaries, and hardened release provenance gates**. v0.3.0 introduced ChatGPT OAuth/server preflight, Runtime Evidence v3, secret-free evidence utilities, controlled insufficient-scope OAuth fixtures, and versioned OpenAI reference-pattern diagnostics.
 
+Unreleased work is now in a focused quality/optimization phase rather than client expansion. The guarantees being hardened are:
+
+- a live PASS still requires all four real-client stages to be `pass`;
+- diagnostic metadata and Runtime Evidence remain separate from real-client PASS evidence;
+- secret-bearing values are rejected or redacted before output;
+- process cleanup is bounded and limited to temporary state or descendants owned by the current test session;
+- CI/release gates cover formatting, vet, unit tests, race tests, vulnerability scanning, fixture gates, shell syntax, and release archive smoke checks where practical.
+
 VS Code remains research-only until its separate lifecycle/tool-discovery automation research is promoted into a stable live adapter.
 
 GitHub Copilot CLI remains research-only: current testing proves real-client MCP initialization but has not yet proven `tools/list` under the project's no-model evidence contract ([#48](https://github.com/git-ksk/mcp-interop/issues/48)). Claude Code support is intentionally deferred.
+
+ChatGPT real-client support remains intentionally blocked ([#20](https://github.com/git-ksk/mcp-interop/issues/20)) until an officially supported direct/headless ChatGPT MCP app-management surface exists. Model prompts, brittle DOM/UI automation, private endpoints, and normal-user browser credentials are not acceptable evidence for a real-client PASS.
 
 ## Install
 
@@ -335,9 +345,9 @@ The runner is expected to have the real Codex, Cursor, and Antigravity CLIs inst
 
 ## Release process
 
-Release archives are built by `scripts/build-release.sh`. A `v*` tag triggers the release workflow, which validates the tag, embeds version/commit/build-time metadata, builds six platform/architecture archives, generates `checksums.txt`, verifies the Linux artifact's embedded version, and publishes the files to GitHub Releases.
+Release archives are built by `scripts/build-release.sh`. A `v*` tag triggers the release workflow, which validates the tag, runs source quality gates, embeds version/commit/build-time metadata, builds six platform/architecture archives, generates `checksums.txt`, verifies the Linux artifact's embedded version, and publishes the files to GitHub Releases.
 
-Normal pull requests smoke-test the same release build path on Ubuntu before a tag is ever created.
+Normal pull requests smoke-test the same release build path on Ubuntu before a tag is ever created. Cross-platform jobs keep the Go 1.24-compatible regular test/build path on Linux, macOS, and Windows; Ubuntu additionally runs the race detector, then switches to the pinned release/security Go toolchain for `govulncheck`. Tagged release artifacts are built with that pinned patched toolchain rather than the minimum module version.
 
 Published release history is summarized in [CHANGELOG.md](CHANGELOG.md).
 

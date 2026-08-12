@@ -41,6 +41,16 @@ Product-specificな`diagnose` profileも同じ境界を守ります。Genericな
 
 完全な相互運用PASSには4ステージすべての`pass`が必要です。証拠が足りない状態をCIで互換性成功として扱わないため、`skip`や`unknown`もnon-zero exitになります。
 
+## 品質フェーズのinvariant
+
+現在の開発は新client追加より、reliability、testability、reproducibility、measured regression detectionを優先しています。品質改善でも次のinvariantは維持します。
+
+- diagnostic/preflight metadataはfailure説明には使えるが、live adapter resultをPASSへ昇格させない
+- Runtime Evidenceはsecret-freeなpresence/match observationだけを扱い、不完全・曖昧な観測は`WARN` / `unknown`のままにする
+- 終了させてよいprocessはcurrent isolated test sessionが所有すると証明できるもの、またはharness自身が直接起動したものだけ
+- fixed sleepは、flakeを減らせる場合にreadiness、process exit、state stabilityの条件へ置き換える
+- release gateは可能な範囲で通常CIと同じsource-quality invariantを再検証する
+
 ## Adapter境界
 
 対応クライアントごとにadapterを持ち、クライアント固有の処理を閉じ込めます。概念上のライフサイクルは次の通りです。
@@ -92,6 +102,10 @@ isolated user-data directoryへのMCP設定登録は安全にできますが、s
 ### GitHub Copilot CLI (research)
 
 GitHub Copilot CLIはresearch-onlyです。現在のPoCではno-input startupで実clientの`initialize` / `notifications/initialized`までは確認できましたが、authenticated/model backendなしの`tools/list`は未証明です。詳細は#48を参照してください。
+
+### ChatGPT (blocked)
+
+ChatGPTは引き続きdiagnostics-only profileです。officially supportedなdirect/headless ChatGPT MCP app-management surfaceが利用可能になるまでreal-client adapterはBLOCKEDです。model prompt、DOM/UI automation、private endpoint、通常ユーザーのbrowser credentialを、このprojectのreal-client `reach/auth/init/tools` evidence contractの代替にはしません。詳細は#20を参照してください。
 
 ## Real-client E2E境界
 

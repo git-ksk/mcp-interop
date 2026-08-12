@@ -4,6 +4,22 @@ All notable project changes will be summarized here. GitHub Releases remain the 
 
 ## Unreleased
 
+### Added
+
+- Focused quality-phase benchmarks for Runtime Evidence evaluation and secret-redaction paths.
+
+### Changed
+
+- CI and release gates now run deterministic format checks, Ubuntu race tests, pinned `govulncheck`, shell syntax gates, and bounded job concurrency/timeouts where practical; release/security scanning uses pinned Go 1.26.5 while cross-platform compatibility remains on the module's Go 1.24 baseline.
+- Real-client shell harnesses replace avoidable post-run sleeps with bounded process-set stability checks before comparing user state and leak gates.
+
+### Fixed
+
+- Antigravity PTY cleanup now uses exact isolated-child ownership plus bounded process-table snapshots, removing unbounded cleanup waits and repeated polling snapshots.
+- Bounded `exec.Cmd` wait behavior for client version checks, Cursor MCP commands, and the Codex app-server path after cancellation/timeout.
+- Runtime Evidence and OpenAI reference aggregation now fail closed to `WARN` if a future check is added without a recognized status, preventing incomplete diagnostics from being reported as PASS.
+- Release archive builds now clean temporary per-target work directories on interrupted or failed exits.
+
 ## v0.4.0 — 2026-08-11
 
 ### Fixed

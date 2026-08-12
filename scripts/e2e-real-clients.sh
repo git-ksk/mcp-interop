@@ -103,6 +103,22 @@ capture_client_pids() {
   sort -o "$output" "$output"
 }
 
+wait_for_client_pids_to_match() {
+  local expected="$1"
+  local scratch="$2"
+  local deadline=$((SECONDS + 3))
+  while true; do
+    capture_client_pids "$scratch"
+    if cmp -s "$expected" "$scratch"; then
+      return 0
+    fi
+    if [[ "$SECONDS" -ge "$deadline" ]]; then
+      return 1
+    fi
+    sleep 0.05
+  done
+}
+
 capture_session_dirs() {
   local output="$1"
   find "$tmp_base" -maxdepth 1 -type d -name 'mcp-interop-*' -print 2>/dev/null | sort > "$output"
@@ -270,6 +286,7 @@ if [[ -n "$fixture_pid" ]] && kill -0 "$fixture_pid" 2>/dev/null; then
 fi
 fixture_pid=""
 
+wait_for_client_pids_to_match "$before_pids" "$after_pids" || true
 snapshot_user_state "$after_state"
 capture_client_pids "$after_pids"
 capture_session_dirs "$after_sessions"

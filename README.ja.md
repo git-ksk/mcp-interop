@@ -30,9 +30,19 @@ v0.4.0で提供するlive adapterは次の通りです。
 
 v0.4.0では、**Cursor OAuth完遂、tested macOS baselineでのAntigravity OAuth完遂、secret-free real-client OAuth capability enrichment、deployment固有のlive-evidence境界の明確化、release provenance gateの強化**を追加します。v0.3.0ではChatGPT OAuth/server preflight、Runtime Evidence v3、secret-free evidence utilities、controlled insufficient-scope OAuth fixture、versioned OpenAI reference-pattern diagnosticsを導入しました。
 
+Unreleasedでは新client追加をいったん止め、品質・最適化フェーズに移行しています。現在強化している保証は次の通りです。
+
+- live PASSには引き続き4つのreal-client stageすべての`pass`が必要
+- diagnostic metadataとRuntime Evidenceはreal-client PASS evidenceと分離
+- secret-bearing valueは出力前にrejectまたはredact
+- process cleanupはboundedにし、current test sessionが所有するtemporary state/processだけを対象にする
+- CI/release gateでは可能な範囲でformat、vet、unit、race、vulnerability scan、fixture、shell syntax、release archive smokeを検証。cross-platform互換性testはmoduleのGo 1.24 baselineを維持し、security scanとrelease artifact buildはpatched Go 1.26.5へ固定
+
 VS Codeは、別途進めているlifecycle/tool-discovery automation researchがstable live adapterへ昇格するまでresearch-onlyです。
 
 GitHub Copilot CLIはresearch-onlyです。現在の検証では実clientのMCP initializationまでは証明できましたが、projectのno-model evidence contractで`tools/list`までは未証明です ([#48](https://github.com/git-ksk/mcp-interop/issues/48))。Claude Code対応は現時点では優先していません。
+
+ChatGPT real-client対応は、officially supportedなdirect/headless ChatGPT MCP app-management surfaceが利用可能になるまで意図的にBLOCKEDです ([#20](https://github.com/git-ksk/mcp-interop/issues/20))。model prompt、brittleなDOM/UI automation、private endpoint、通常ユーザーのbrowser credentialはreal-client PASSの根拠にしません。
 
 ## Install
 

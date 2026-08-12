@@ -48,6 +48,20 @@ fixture_trace() {
   if [[ -s "$trace" ]]; then cat "$trace" >&2; else echo "(no fixture requests observed)" >&2; fi
 }
 
+agy_pids() {
+  pgrep -x agy 2>/dev/null | sort -n | tr '\n' ' ' || true
+}
+
+wait_for_agy_pids() {
+  local expected="$1"
+  local deadline=$((SECONDS + 3))
+  while true; do
+    [[ "$(agy_pids)" == "$expected" ]] && return 0
+    [[ "$SECONDS" -ge "$deadline" ]] && return 1
+    sleep 0.05
+  done
+}
+
 safe_terminal_state() {
   echo "--- secret-safe Antigravity terminal state ---" >&2
   python3 - "$terminal" <<'PY'
@@ -78,7 +92,7 @@ go build -o "$fixture_bin" ./internal/e2e/oauthfixture || exit 1
 before="$work_root/before"
 after="$work_root/after"
 snapshot "$before"
-before_pids="$(pgrep -x agy 2>/dev/null | sort -n | tr '\n' ' ' || true)"
+before_pids="$(agy_pids)"
 
 "$fixture_bin" --listen 127.0.0.1:0 --ready-file "$ready" --log-file "$trace" --authorization-code-file "$code_file" &
 fixture_pid=$!
@@ -177,10 +191,10 @@ if [[ "$parser_rc" -ne 0 ]]; then
   exit "$parser_rc"
 fi
 
-sleep 0.3
+wait_for_agy_pids "$before_pids" || true
 snapshot "$after"
 cmp -s "$before" "$after" || { echo "normal Antigravity/Keychain state changed" >&2; diff -u "$before" "$after" >&2 || true; exit 1; }
-after_pids="$(pgrep -x agy 2>/dev/null | sort -n | tr '\n' ' ' || true)"
+after_pids="$(agy_pids)"
 [[ "$before_pids" == "$after_pids" ]] || { echo "Antigravity process set changed: before=$before_pids after=$after_pids" >&2; exit 1; }
 
 echo "READY: Antigravity OAuth real-client E2E passed."

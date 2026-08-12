@@ -8,9 +8,19 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  GOFLAGS: -mod=readonly
+  RELEASE_GO_VERSION: 1.26.5
+  GOVULNCHECK_VERSION: v1.6.0
+
 jobs:
   release:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -36,14 +46,44 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version: ${{ env.RELEASE_GO_VERSION }}
           cache: true
+
+      - name: Format source
+        shell: bash
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [[ -n "$unformatted" ]]; then
+            echo "$unformatted"
+            exit 1
+          fi
 
       - name: Vet source
         run: go vet ./...
 
       - name: Test source
         run: go test ./...
+
+      - name: Race tests
+        run: go test -race ./...
+
+      - name: Install govulncheck
+        run: env GOFLAGS= go install golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION}
+
+      - name: Vulnerability check
+        run: |
+          "$(go env GOPATH)/bin/govulncheck" ./...
+
+      - name: Shell syntax gates
+        shell: bash
+        run: |
+          bash -n scripts/build-release.sh
+          bash -n scripts/e2e-real-clients.sh
+          bash -n scripts/e2e-cursor-oauth.sh
+          bash -n scripts/e2e-antigravity-oauth.sh
+          bash -n scripts/poc-vscode-agent-plugin.sh
+          bash -n scripts/poc-copilot-cli-mcp.sh
+          bash -n scripts/poc-copilot-cli-startup.sh
 
       - name: Tool OAuth fixture release gate
         run: go test ./internal/e2e/fixture -run '^TestToolOAuthInsufficientScopeReleaseGate$' -count=1

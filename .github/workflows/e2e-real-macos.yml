@@ -12,6 +12,13 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: real-client-e2e-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  GOFLAGS: -mod=readonly
+
 jobs:
   real-client-e2e:
     name: real clients (self-hosted macOS arm64)

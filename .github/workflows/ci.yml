@@ -8,9 +8,19 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GOFLAGS: -mod=readonly
+  SECURITY_GO_VERSION: 1.26.5
+  GOVULNCHECK_VERSION: v1.6.0
+
 jobs:
   test:
     name: test (${{ matrix.os }})
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
@@ -27,9 +37,14 @@ jobs:
           cache: true
 
       - name: Format check
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
         run: |
-          gofmt -w .
-          git diff --exit-code
+          unformatted="$(gofmt -l .)"
+          if [[ -n "$unformatted" ]]; then
+            echo "$unformatted"
+            exit 1
+          fi
 
       - name: Vet
         run: go vet ./...
@@ -37,8 +52,28 @@ jobs:
       - name: Test
         run: go test ./...
 
+      - name: Race tests
+        if: matrix.os == 'ubuntu-latest'
+        run: go test -race ./...
+
       - name: Build
         run: go build ./cmd/mcp-interop
+
+      - name: Set up security scan Go
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.SECURITY_GO_VERSION }}
+          cache: false
+
+      - name: Install govulncheck
+        if: matrix.os == 'ubuntu-latest'
+        run: env GOFLAGS= go install golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION}
+
+      - name: Vulnerability check
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          "$(go env GOPATH)/bin/govulncheck" ./...
 
       - name: Real E2E harness checks
         if: matrix.os == 'ubuntu-latest'
