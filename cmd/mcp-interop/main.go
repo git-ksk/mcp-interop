@@ -9,10 +9,12 @@ import (
 	"os"
 	"strings"
 	"text/tabwriter"
+	"time"
 
 	antigravityadapter "github.com/git-ksk/mcp-interop/internal/adapter/antigravity"
 	codexadapter "github.com/git-ksk/mcp-interop/internal/adapter/codex"
 	cursoradapter "github.com/git-ksk/mcp-interop/internal/adapter/cursor"
+	"github.com/git-ksk/mcp-interop/internal/artifact"
 	"github.com/git-ksk/mcp-interop/internal/client"
 	"github.com/git-ksk/mcp-interop/internal/interop"
 )
@@ -21,7 +23,8 @@ const usageText = `mcp-interop - live interoperability testing for Remote MCP se
 
 Usage:
   mcp-interop clients [--json]
-  mcp-interop test <url> [--client codex,cursor,antigravity] [--oauth] [--json]
+  mcp-interop test <url> [--client codex,cursor,antigravity] [--oauth] [--json] [--output result.json]
+  mcp-interop compare <old.json> <new.json> [--json] [--fail-on-regression]
   mcp-interop diagnose <url> [--profile chatgpt] [--client-id <url>] [--redirect-uri <url>] [--runtime-evidence <file|->] [--json]
   mcp-interop evidence <validate|summary|merge> ...
   mcp-interop version
@@ -30,12 +33,18 @@ Usage:
 Commands:
   clients    Detect supported MCP clients installed on this machine.
   test       Run a Remote MCP interoperability test through real clients.
+  compare    Compare portable live-result artifacts across client versions/runs.
   diagnose   Run profile-based server/OAuth preflight diagnostics without claiming real-client PASS.
   evidence   Validate, summarize, or merge secret-free Runtime Evidence documents.
   version    Print mcp-interop build version information.
 
 Test options:
-  --oauth   Opt in to interactive OAuth where the live adapter supports it (Codex, Cursor, and Antigravity on macOS).
+  --oauth          Opt in to interactive OAuth where the live adapter supports it (Codex, Cursor, and Antigravity on macOS).
+  --output <file>  Write a separate secret-safe portable live-result artifact without changing stdout JSON/text.
+
+Compare options:
+  --json                Print a machine-readable comparison report.
+  --fail-on-regression  Exit 1 when a regression or baseline evidence loss is detected.
 
 Current live adapters:
   codex        Codex CLI via its app-server MCP inventory surface.
@@ -58,6 +67,8 @@ func run(ctx context.Context, args []string) int {
 		return runClients(ctx, args[1:])
 	case "test":
 		return runTest(ctx, args[1:])
+	case "compare":
+		return runCompare(args[1:])
 	case "diagnose":
 		return runDiagnose(ctx, args[1:])
 	case "evidence":
@@ -140,6 +151,7 @@ type testOptions struct {
 	clients  []string
 	json     bool
 	oauth    bool
+	output   string
 	showHelp bool
 }
 
@@ -155,6 +167,14 @@ func runTest(ctx context.Context, args []string) int {
 	}
 
 	results := make([]interop.Result, 0, len(options.clients))
+	executedAt := make([]time.Time, 0, len(options.clients))
+	provenance := make([]artifact.EvidenceProvenance, 0, len(options.clients))
+	appendResult := func(result interop.Result, evidence artifact.EvidenceProvenance) {
+		results = append(results, result)
+		executedAt = append(executedAt, time.Now().UTC())
+		provenance = append(provenance, evidence)
+	}
+
 	hadFailure := false
 	for _, clientID := range options.clients {
 		switch clientID {
@@ -162,7 +182,7 @@ func runTest(ctx context.Context, args []string) int {
 			detection := detectClient(ctx, "codex")
 			if !detection.Installed {
 				result := missingClientResult("codex", "Codex CLI", options.endpoint)
-				results = append(results, interop.RedactResult(result))
+				appendResult(interop.RedactResult(result), artifact.EvidenceProvenance{Kind: artifact.ProvenanceRunnerObservation})
 				hadFailure = true
 				continue
 			}
@@ -173,7 +193,7 @@ func runTest(ctx context.Context, args []string) int {
 			}
 			adapter := codexadapter.New(detection.Path, detection.Version, adapterOptions...)
 			result, runErr := interop.NewRunner().Run(ctx, adapter, interop.Target{Endpoint: options.endpoint})
-			results = append(results, result)
+			appendResult(result, artifact.EvidenceProvenance{Kind: artifact.ProvenanceRealClientAdapter, AdapterID: "codex"})
 			if runErr != nil {
 				fmt.Fprintf(os.Stderr, "Codex test error: %v\n", runErr)
 				hadFailure = true
@@ -186,7 +206,7 @@ func runTest(ctx context.Context, args []string) int {
 			detection := detectClient(ctx, "cursor")
 			if !detection.Installed {
 				result := missingClientResult("cursor", "Cursor CLI", options.endpoint)
-				results = append(results, interop.RedactResult(result))
+				appendResult(interop.RedactResult(result), artifact.EvidenceProvenance{Kind: artifact.ProvenanceRunnerObservation})
 				hadFailure = true
 				continue
 			}
@@ -196,7 +216,7 @@ func runTest(ctx context.Context, args []string) int {
 			}
 			adapter := cursoradapter.New(detection.Path, detection.Version, adapterOptions...)
 			result, runErr := interop.NewRunner().Run(ctx, adapter, interop.Target{Endpoint: options.endpoint})
-			results = append(results, result)
+			appendResult(result, artifact.EvidenceProvenance{Kind: artifact.ProvenanceRealClientAdapter, AdapterID: "cursor"})
 			if runErr != nil {
 				fmt.Fprintf(os.Stderr, "Cursor test error: %v\n", runErr)
 				hadFailure = true
@@ -209,7 +229,7 @@ func runTest(ctx context.Context, args []string) int {
 			detection := detectClient(ctx, "antigravity")
 			if !detection.Installed {
 				result := missingClientResult("antigravity", "Antigravity CLI", options.endpoint)
-				results = append(results, interop.RedactResult(result))
+				appendResult(interop.RedactResult(result), artifact.EvidenceProvenance{Kind: artifact.ProvenanceRunnerObservation})
 				hadFailure = true
 				continue
 			}
@@ -219,7 +239,7 @@ func runTest(ctx context.Context, args []string) int {
 			}
 			adapter := antigravityadapter.New(detection.Path, detection.Version, adapterOptions...)
 			result, runErr := interop.NewRunner().Run(ctx, adapter, interop.Target{Endpoint: options.endpoint})
-			results = append(results, result)
+			appendResult(result, artifact.EvidenceProvenance{Kind: artifact.ProvenanceRealClientAdapter, AdapterID: "antigravity"})
 			if runErr != nil {
 				fmt.Fprintf(os.Stderr, "Antigravity test error: %v\n", runErr)
 				hadFailure = true
@@ -244,6 +264,27 @@ func runTest(ctx context.Context, args []string) int {
 	} else if err := printTestResults(results); err != nil {
 		fmt.Fprintf(os.Stderr, "write result: %v\n", err)
 		return 1
+	}
+
+	if options.output != "" {
+		authMode := "default"
+		if options.oauth {
+			authMode = "oauth"
+		}
+		versionInfo := currentVersionInfo()
+		runs := make([]artifact.Run, 0, len(results))
+		for i, result := range results {
+			run, err := artifact.NewRun(result, executedAt[i], authMode, provenance[i], versionInfo.Version, versionInfo.Commit)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "build portable artifact: %v\n", err)
+				return 1
+			}
+			runs = append(runs, run)
+		}
+		if err := artifact.WriteFile(options.output, artifact.NewArtifact(runs)); err != nil {
+			fmt.Fprintf(os.Stderr, "write portable artifact: %v\n", err)
+			return 1
+		}
 	}
 
 	if hadFailure {
@@ -271,6 +312,20 @@ func parseTestOptions(args []string) (testOptions, error) {
 			options.json = true
 		case arg == "--oauth":
 			options.oauth = true
+		case arg == "--output":
+			if i+1 >= len(args) {
+				return options, fmt.Errorf("--output requires a file path")
+			}
+			i++
+			options.output = args[i]
+			if options.output == "" {
+				return options, fmt.Errorf("--output requires a non-empty file path")
+			}
+		case strings.HasPrefix(arg, "--output="):
+			options.output = strings.TrimPrefix(arg, "--output=")
+			if options.output == "" {
+				return options, fmt.Errorf("--output requires a non-empty file path")
+			}
 		case arg == "--client":
 			if i+1 >= len(args) {
 				return options, fmt.Errorf("--client requires a value")
@@ -297,6 +352,12 @@ func parseTestOptions(args []string) (testOptions, error) {
 	}
 	if len(options.clients) == 0 {
 		return options, fmt.Errorf("--client must name at least one client")
+	}
+	if options.output == "-" {
+		return options, fmt.Errorf("--output must be a file path; stdout remains reserved for existing text/JSON output")
+	}
+	if strings.TrimSpace(options.output) != options.output {
+		return options, fmt.Errorf("--output path must not have surrounding whitespace")
 	}
 	return options, nil
 }

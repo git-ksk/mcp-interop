@@ -6,6 +6,9 @@ All notable project changes will be summarized here. GitHub Releases remain the 
 
 ### Added
 
+- Versioned live interoperability result artifact schema v1 with exact client-version/platform/runtime context, evidence provenance, strict four-stage validation, and a secret-safe endpoint identity/fingerprint that excludes query values before hashing.
+- `mcp-interop test ... --output result.json` for local-file-first portable result export without changing the existing `test --json` stdout contract.
+- `mcp-interop compare old.json new.json` with machine-readable/human-readable client-version, stage, and reason-code diffs plus `--fail-on-regression` CI gating for PASS-to-non-PASS, reason-code changes, and missing baseline evidence.
 - Focused quality-phase benchmarks for Runtime Evidence evaluation and secret-redaction paths.
 
 ### Changed

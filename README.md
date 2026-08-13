@@ -34,6 +34,7 @@ Unreleased work is now in a focused quality/optimization phase rather than clien
 - diagnostic metadata and Runtime Evidence remain separate from real-client PASS evidence;
 - secret-bearing values are rejected or redacted before output;
 - process cleanup is bounded and limited to temporary state or descendants owned by the current test session;
+- exact client-version runs can be exported as secret-safe local artifacts and compared without weakening the existing live verdict;
 - CI/release gates cover formatting, vet, unit tests, race tests, vulnerability scanning, fixture gates, shell syntax, and release archive smoke checks where practical.
 
 VS Code remains research-only until its separate lifecycle/tool-discovery automation research is promoted into a stable live adapter.
@@ -115,6 +116,28 @@ Antigravity CLI  PASS   PASS  PASS  PASS   1.1.11
 ```
 
 JSON output remains an array, preserving the existing machine-readable contract.
+
+### Portable regression artifacts
+
+Export the same live run into a separate versioned, secret-safe local artifact without changing stdout:
+
+```console
+mcp-interop test https://example.com/mcp --client codex --output result.json
+```
+
+The artifact records the exact detected client version, OS/architecture, runner/runtime context, invocation auth mode, evidence provenance, and the existing four stage status/reason results. The raw endpoint URL is not persisted; query values are excluded before deriving the endpoint fingerprint. Human stage messages and diagnostic payloads are also excluded from artifact v1.
+
+Compare two artifacts across client versions or repeated runs:
+
+```console
+mcp-interop compare old.json new.json
+mcp-interop compare old.json new.json --json
+mcp-interop compare old.json new.json --fail-on-regression
+```
+
+The comparison explicitly reports `PASS_TO_FAIL`, `PASS_TO_UNKNOWN`, `PASS_TO_SKIP`, reason-code changes, and missing baseline evidence. A client-version change by itself is not a regression. `--fail-on-regression` exits `1` only when one of those regression/evidence-loss conditions is present; malformed or unsupported artifacts are usage/input errors and exit `2`.
+
+See [Live interoperability result artifact schema v1](docs/live-result-schema-v1.md) ([日本語](docs/live-result-schema-v1.ja.md)) for the exact compatibility, secret-safety, pairing, and exit-code contract.
 
 OAuth flows are always explicit opt-in:
 
@@ -336,6 +359,7 @@ The runner is expected to have the real Codex, Cursor, and Antigravity CLIs inst
 ## Documentation
 
 - [Architecture](docs/architecture.md) ([日本語](docs/architecture.ja.md))
+- [Live result artifact schema v1](docs/live-result-schema-v1.md) ([日本語](docs/live-result-schema-v1.ja.md))
 - [Troubleshooting](docs/troubleshooting.md) ([日本語](docs/troubleshooting.ja.md))
 - [Reason codes](docs/reason-codes.md) ([日本語](docs/reason-codes.ja.md))
 - [ChatGPT connection diagnostics](docs/chatgpt-diagnostics.md) ([日本語](docs/chatgpt-diagnostics.ja.md))

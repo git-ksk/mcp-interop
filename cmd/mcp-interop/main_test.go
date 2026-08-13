@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"reflect"
 	"strings"
 	"testing"
@@ -16,11 +17,13 @@ func TestParseTestOptionsAcceptsFlagsAfterURL(t *testing.T) {
 		"codex",
 		"--oauth",
 		"--json",
+		"--output",
+		"result.json",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if options.endpoint != "https://example.com/mcp" || !options.json || !options.oauth {
+	if options.endpoint != "https://example.com/mcp" || !options.json || !options.oauth || options.output != "result.json" {
 		t.Fatalf("unexpected options: %#v", options)
 	}
 	if !reflect.DeepEqual(options.clients, []string{"codex"}) {
@@ -54,6 +57,46 @@ func TestParseTestOptionsDeduplicatesClients(t *testing.T) {
 func TestParseTestOptionsRejectsEmptyClientList(t *testing.T) {
 	if _, err := parseTestOptions([]string{"https://example.com/mcp", "--client", ","}); err == nil {
 		t.Fatal("expected empty client list to fail")
+	}
+}
+
+func TestParseTestOptionsRejectsEmptyOutputPath(t *testing.T) {
+	for _, args := range [][]string{
+		{"https://example.com/mcp", "--output="},
+		{"https://example.com/mcp", "--output", ""},
+	} {
+		if _, err := parseTestOptions(args); err == nil {
+			t.Fatalf("expected empty output path to fail: %#v", args)
+		}
+	}
+}
+
+func TestLegacyTestJSONContractRemainsResultArray(t *testing.T) {
+	result := interop.NewResult("codex", "Codex CLI", "codex-test", "https://example.com/mcp")
+	for _, stage := range interop.OrderedStages {
+		result.Set(stage, interop.StatusPass, "ok")
+	}
+
+	data, err := json.Marshal([]interop.Result{result})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var decoded []map[string]any
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	if len(decoded) != 1 {
+		t.Fatalf("legacy JSON top level must remain an array: %s", data)
+	}
+	for _, key := range []string{"client_id", "client_name", "client_version", "endpoint", "stages"} {
+		if _, ok := decoded[0][key]; !ok {
+			t.Fatalf("legacy JSON missing %q: %s", key, data)
+		}
+	}
+	for _, forbidden := range []string{"schema_version", "artifact_type", "executed_at", "auth_mode", "evidence_provenance"} {
+		if _, ok := decoded[0][forbidden]; ok {
+			t.Fatalf("portable-artifact field %q leaked into legacy JSON: %s", forbidden, data)
+		}
 	}
 }
 
