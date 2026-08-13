@@ -78,6 +78,7 @@ jobs:
         shell: bash
         run: |
           bash -n scripts/build-release.sh
+          bash -n scripts/cli-regression-smoke.sh
           bash -n scripts/e2e-real-clients.sh
           bash -n scripts/e2e-cursor-oauth.sh
           bash -n scripts/e2e-antigravity-oauth.sh
@@ -96,13 +97,14 @@ jobs:
             "$GITHUB_SHA" \
             "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
-      - name: Verify embedded version
+      - name: Verify embedded version and CLI regression smoke
         shell: bash
         run: |
           mkdir -p /tmp/mcp-interop-release-check
           tar -xzf "dist/mcp-interop_${GITHUB_REF_NAME#v}_linux_amd64.tar.gz" \
             -C /tmp/mcp-interop-release-check
           /tmp/mcp-interop-release-check/mcp-interop version | grep -F "$GITHUB_REF_NAME"
+          bash scripts/cli-regression-smoke.sh /tmp/mcp-interop-release-check/mcp-interop
 
       - name: Create GitHub release
         shell: bash
