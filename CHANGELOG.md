@@ -4,6 +4,8 @@ All notable project changes will be summarized here. GitHub Releases remain the 
 
 ## Unreleased
 
+## v0.5.0 — 2026-08-13
+
 ### Added
 
 - Versioned live interoperability result artifact schema v1 with exact client-version/platform/runtime context, evidence provenance, strict four-stage validation, and a secret-safe endpoint identity/fingerprint that excludes query values before hashing.
