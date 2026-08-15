@@ -377,9 +377,9 @@ The runner is expected to have the real Codex, Cursor, and Antigravity CLIs inst
 
 ## Release process
 
-Release archives are built by `scripts/build-release.sh`. A `v*` tag triggers the release workflow, which validates the tag, runs source quality gates, embeds version/commit/build-time metadata, builds six platform/architecture archives, generates `checksums.txt`, verifies the Linux artifact's embedded version, and publishes the files to GitHub Releases.
+Release archives are built by `scripts/build-release.sh`. A `v*` tag triggers the release workflow, which validates the tag, runs source quality gates, embeds version/commit/build-time metadata, builds six platform/architecture archives, generates `checksums.txt`, verifies the Linux artifact's embedded version, creates GitHub artifact attestations for the release outputs, and publishes the files to GitHub Releases.
 
-Normal pull requests smoke-test the same release build path on Ubuntu before a tag is ever created. Cross-platform jobs keep the Go 1.24-compatible regular test/build path on Linux, macOS, and Windows; Ubuntu additionally runs the race detector, then switches to the pinned release/security Go toolchain for `govulncheck`. Tagged release artifacts are built with that pinned patched toolchain rather than the minimum module version.
+Normal pull requests smoke-test the same release build path on Ubuntu before a tag is ever created. Cross-platform jobs keep the Go 1.24-compatible regular test/build path on Linux, macOS, and Windows; Ubuntu additionally runs the race detector, then switches to the pinned release/security Go toolchain for `govulncheck`. Tagged release artifacts are built with that pinned patched toolchain rather than the minimum module version. External GitHub Actions are pinned to full commit SHAs and tracked by Dependabot.
 
 Published release history is summarized in [CHANGELOG.md](CHANGELOG.md).
 

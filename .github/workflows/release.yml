@@ -7,6 +7,8 @@ on:
 
 permissions:
   contents: write
+  id-token: write
+  attestations: write
 
 concurrency:
   group: release-${{ github.ref }}
@@ -23,7 +25,7 @@ jobs:
     timeout-minutes: 25
     steps:
       - name: Check out repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           fetch-depth: 0
 
@@ -44,7 +46,7 @@ jobs:
           fi
 
       - name: Set up Go
-        uses: actions/setup-go@v7
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: ${{ env.RELEASE_GO_VERSION }}
           cache: true
@@ -105,6 +107,11 @@ jobs:
             -C /tmp/mcp-interop-release-check
           /tmp/mcp-interop-release-check/mcp-interop version | grep -F "$GITHUB_REF_NAME"
           bash scripts/cli-regression-smoke.sh /tmp/mcp-interop-release-check/mcp-interop
+
+      - name: Attest release artifacts
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: dist/*
 
       - name: Create GitHub release
         shell: bash
