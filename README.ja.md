@@ -37,7 +37,7 @@ v0.5.0以降も新client追加を急がず、品質・最適化を優先しま�
 - secret-bearing valueは出力前にrejectまたはredact
 - process cleanupはboundedにし、current test sessionが所有するtemporary state/processだけを対象にする
 - exact client-version runをsecret-safeなlocal artifactへexportし、既存live verdictを弱めずに比較できる
-- CI/release gateでは可能な範囲でformat、vet、unit、race、vulnerability scan、fixture、shell syntax、release archive smokeを検証。cross-platform互換性testはmoduleのGo 1.24 baselineを維持し、security scanとrelease artifact buildはpatched Go 1.26.5へ固定
+- CI/release gateでは可能な範囲でformat、vet、unit、race、vulnerability scan、fixture、shell syntax、release archive smokeを検証。cross-platform互換性testはmoduleのGo 1.24 baselineを維持し、security scanとrelease artifact buildはpatched Go 1.26.6へ固定
 
 VS Codeは、別途進めているlifecycle/tool-discovery automation researchがstable live adapterへ昇格するまでresearch-onlyです。
 
