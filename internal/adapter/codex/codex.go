@@ -199,9 +199,10 @@ func (a *Adapter) loginOAuth(ctx context.Context, rpc *rpcClient, result *intero
 		"name":        testServerName,
 		"timeoutSecs": int64(a.oauthTimeout.Seconds()),
 	}, &login); err != nil {
-		result.Set(interop.StageReach, interop.StatusUnknown, "Codex discovered an OAuth-protected target")
-		switch classifyOAuthStartFailure(err) {
+		reason := classifyOAuthStartFailure(err)
+		switch reason {
 		case interop.ReasonDCRUnsupported:
+			result.Set(interop.StageReach, interop.StatusPass, "Codex reached the MCP OAuth registration boundary")
 			result.SetWithReason(
 				interop.StageAuth,
 				interop.StatusFail,
@@ -209,6 +210,7 @@ func (a *Adapter) loginOAuth(ctx context.Context, rpc *rpcClient, result *intero
 				"Codex reports that Dynamic Client Registration is not supported for this OAuth target",
 			)
 		case interop.ReasonDCRFailed:
+			result.Set(interop.StageReach, interop.StatusPass, "Codex reached the MCP OAuth registration boundary")
 			result.SetWithReason(
 				interop.StageAuth,
 				interop.StatusFail,
@@ -216,6 +218,7 @@ func (a *Adapter) loginOAuth(ctx context.Context, rpc *rpcClient, result *intero
 				"Codex attempted Dynamic Client Registration but client registration failed",
 			)
 		default:
+			result.Set(interop.StageReach, interop.StatusUnknown, "Codex discovered an OAuth-protected target")
 			result.Set(interop.StageAuth, interop.StatusFail, "Codex could not start its MCP OAuth login flow")
 		}
 		result.Set(interop.StageInit, interop.StatusSkip, "authentication did not complete")

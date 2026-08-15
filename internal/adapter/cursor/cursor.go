@@ -269,8 +269,10 @@ func (a *Adapter) completeOAuth(ctx context.Context, workspace string, env []str
 		case interop.ReasonOAuthCallbackPortConflict:
 			result.SetWithReason(interop.StageAuth, interop.StatusFail, reason, "Cursor could not bind its OAuth callback listener because the selected local port was already in use")
 		case interop.ReasonDCRUnsupported:
+			result.Set(interop.StageReach, interop.StatusPass, "Cursor reached the MCP OAuth registration boundary")
 			result.SetWithReason(interop.StageAuth, interop.StatusFail, reason, "Cursor reports Dynamic Client Registration is not supported for this OAuth target")
 		case interop.ReasonDCRFailed:
+			result.Set(interop.StageReach, interop.StatusPass, "Cursor reached the MCP OAuth registration boundary")
 			result.SetWithReason(interop.StageAuth, interop.StatusFail, reason, "Cursor attempted Dynamic Client Registration but registration failed")
 		default:
 			result.Set(interop.StageAuth, interop.StatusFail, message)

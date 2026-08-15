@@ -23,6 +23,8 @@ Runtime diagnostic codeはreal-client interoperability verdictではありませ
 
 実clientがDCRを試行し、unsupported以外の理由でregistrationが失敗したと明示的に報告した場合です。
 
+Codex / Cursor adapterでは、`DCR_UNSUPPORTED`と`DCR_FAILED`は実clientがMCP OAuth registration boundaryまで到達した証拠としても扱います。そのため、このpathでは`reach=pass`、`auth=fail`、後続stageはskipとなります。genericなOAuth startup failureだけでは`reach`をpassへ昇格しません。
+
 ### `OAUTH_CALLBACK_PORT_CONFLICT`
 
 実clientが、そのOAuth flowで選択したloopback callback address/portへlistenerをbindできなかったことを明示的に報告した場合です。
