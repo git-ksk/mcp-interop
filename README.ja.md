@@ -18,19 +18,19 @@
 
 ## Status
 
-**現在の公開releaseはv0.5.0です。**
+**現在の公開releaseはv0.5.1です。**
 
-Release: [v0.5.0](https://github.com/git-ksk/mcp-interop/releases/tag/v0.5.0)
+Release: [v0.5.1](https://github.com/git-ksk/mcp-interop/releases/tag/v0.5.1)
 
-v0.5.0で提供するlive adapterは次の通りです。
+v0.5.1で提供するlive adapterは次の通りです。
 
 - **Codex CLI** — live inventory + 明示的opt-in OAuth
 - **Cursor CLI (beta)** — dedicated MCP management commandを使うno-auth live inventory + 実Cursor MCP login pathを使う明示的opt-in OAuth。controlled fixtureでauthenticated `mcp list-tools`まで検証済み
 - **Antigravity CLI (beta, macOS)** — isolated no-prompt PTY/tool cacheを使うno-auth live inventory + isolated PTY内の実`/mcp` managerを使う明示的opt-in OAuth。authenticationとclient-side tool-cache観測を分離し、generic `init/tools`は必要に応じてconservativeに`unknown`を維持する
 
-v0.5.0では、portable live-result artifact schema v1、`test --output`、artifact compare、`--fail-on-regression` CI gateを追加し、既存の`test --json` contractとreal-client-only PASS boundaryを維持します。v0.4.0ではCursor OAuth完遂、tested macOS baselineでのAntigravity OAuth完遂、secret-free real-client OAuth capability enrichment、deployment固有のlive-evidence境界の明確化、release provenance gateの強化を追加しました。
+v0.5.1はfocused patch releaseです。実Codex/CursorがMCP OAuth registration boundaryへの到達を自ら証明した`DCR_UNSUPPORTED` / `DCR_FAILED`では`reach=pass`を記録し、generic OAuth failureは引き続きconservativeに`unknown`を維持します。CI vulnerability scanとrelease buildもpatched Go 1.26.6へ更新しました。v0.5.0ではportable live-result artifact schema v1、`test --output`、artifact compare、`--fail-on-regression` CI gateを追加し、既存の`test --json` contractとreal-client-only PASS boundaryを維持しました。
 
-v0.5.0以降も新client追加を急がず、品質・最適化を優先します。現在強化している保証は次の通りです。
+v0.5.1以降も新client追加を急がず、品質・最適化を優先します。現在強化している保証は次の通りです。
 
 - live PASSには引き続き4つのreal-client stageすべての`pass`が必要
 - diagnostic metadataとRuntime Evidenceはreal-client PASS evidenceと分離
@@ -50,7 +50,7 @@ ChatGPT real-client対応は、officially supportedなdirect/headless ChatGPT MC
 Go 1.24以降で、現在のstable releaseを固定して入れる場合:
 
 ```console
-go install github.com/git-ksk/mcp-interop/cmd/mcp-interop@v0.5.0
+go install github.com/git-ksk/mcp-interop/cmd/mcp-interop@v0.5.1
 ```
 
 最新の公開module versionを追う場合:
@@ -67,7 +67,7 @@ mcp-interop version
 mcp-interop --version
 ```
 
-[v0.5.0 GitHub Release](https://github.com/git-ksk/mcp-interop/releases/tag/v0.5.0)には、macOS / Linux / Windows向けのamd64 / arm64 archiveと`checksums.txt`があります。
+[v0.5.1 GitHub Release](https://github.com/git-ksk/mcp-interop/releases/tag/v0.5.1)には、macOS / Linux / Windows向けのamd64 / arm64 archiveと`checksums.txt`があります。
 
 ## 何を証明するテストか
 

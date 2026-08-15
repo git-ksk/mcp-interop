@@ -4,6 +4,8 @@ All notable project changes will be summarized here. GitHub Releases remain the 
 
 ## Unreleased
 
+## v0.5.1 — 2026-08-15
+
 ### Changed
 
 - CI vulnerability scanning and release artifact builds now use patched Go 1.26.6 while cross-platform compatibility remains on the module's Go 1.24 baseline.
