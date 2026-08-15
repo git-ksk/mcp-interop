@@ -88,6 +88,8 @@ Keep pull requests focused. Include:
 
 The repository uses squash merge for normal PR integration. Required CI must be green before merge. English/Japanese document pairs should be updated together when the same contract, safety boundary, or user-facing behavior changes; the English security policy remains canonical where `SECURITY.md` says so.
 
+For product-direction or roadmap changes, keep the roles of `docs/project-direction*.md` and `docs/roadmap*.md` distinct. A milestone change should state its goal, exit criteria, explicit non-goals, and impact on existing evidence/security invariants, and the English/Japanese pair should remain synchronized. Do not present a future roadmap capability in the README as if it were already shipped.
+
 ## Release and versioning
 
 Release preparation is also PR-first. The normal release sequence is:
@@ -108,6 +110,8 @@ Version numbers follow SemVer intent while the project remains in `v0.x`:
 - **major**: reserved for an intentionally breaking public contract once the project reaches a maturity point where that distinction is useful.
 
 Because `v0.x` denotes an evolving pre-1.0 contract, compatibility may still need to change before `v1.0`. Any known breaking behavior must be explicit in scope and release notes and must not be hidden inside an otherwise routine patch release.
+
+Pre-1.0 minor versions are ordinary SemVer integers, not decimal fractions: `v0.10.0` may follow `v0.9.0`, followed by `v0.11.0` and later releases as needed. Do not promote the project to `v1.0.0` merely because a particular `v0.x` number was reached; use the stable-contract exit criteria in [docs/roadmap.md](docs/roadmap.md).
 
 ## Reporting security and support
 

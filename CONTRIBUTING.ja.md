@@ -88,6 +88,8 @@ PRは焦点を絞ってください。最低限、次を含めます。
 
 通常のPR integrationにはsquash mergeを使用します。required CIがgreenになる前にmergeしません。同じcontract、安全境界、user-facing behaviorを変更する場合はEnglish/Japanese document pairを原則同時に更新してください。`SECURITY.md`が定めるsecurity policyのcanonical版は英語です。
 
+Product directionやroadmapを変更するPRでは、`docs/project-direction*.md`と`docs/roadmap*.md`の役割を混同しないでください。roadmap milestoneの変更には、目的、exit criteria、明示的non-goal、既存evidence/security invariantへの影響を記載し、English/Japanese pairを同期してください。roadmap上のfuture capabilityをship済みbehaviorとしてREADMEへ記載してはいけません。
+
 ## Release / versioning
 
 release preparationもPR-firstです。通常のrelease sequenceは次です。
@@ -108,6 +110,8 @@ version numberは`v0.x`期間中もSemVerの意図に沿って扱います。
 - **major**: project maturity上その区別が有効になった段階で、意図的なbreaking public contract向けに予約
 
 `v0.x`はpre-1.0で進化中のcontractを意味するため、`v1.0`前にcompatibility changeが必要になる可能性はあります。ただし既知のbreaking behaviorはscopeとrelease noteで明示し、routine patch releaseへ紛れ込ませてはいけません。
+
+pre-1.0 minor versionは小数ではなく通常のSemVer integerです。必要なら`v0.9.0`の次に`v0.10.0`、その後`v0.11.0`以降を継続できます。特定の`v0.x`番号へ到達したことだけを理由に`v1.0.0`へ昇格せず、[docs/roadmap.ja.md](docs/roadmap.ja.md)のstable-contract exit criteriaを使用してください。
 
 ## Security reporting / support
 

@@ -10,7 +10,7 @@
 
 `mcp-interop` is an experimental, cross-client test runner for Remote Model Context Protocol (MCP) servers. It is designed to answer a practical question that protocol conformance alone cannot answer:
 
-> Does this Remote MCP deployment actually connect, authenticate, initialize, and expose tools in the real clients my users run?
+> Does this Remote MCP deployment actually reach a usable protocol path, satisfy authentication when required, and expose tools in the real clients my users run?
 
 It also includes profile-based **preflight diagnostics** for client surfaces that do not yet expose a safe headless real-client automation boundary. Preflight results are deliberately kept separate from live interoperability PASS results.
 
@@ -360,6 +360,7 @@ The runner is expected to have the real Codex, Cursor, and Antigravity CLIs inst
 
 - [Architecture](docs/architecture.md) ([日本語](docs/architecture.ja.md))
 - [Project direction](docs/project-direction.md) ([日本語](docs/project-direction.ja.md))
+- [Roadmap to a stable interoperability contract](docs/roadmap.md) ([日本語](docs/roadmap.ja.md))
 - [Conformance vs. interoperability](docs/conformance-vs-interop.md) ([日本語](docs/conformance-vs-interop.ja.md))
 - [Live result artifact schema v1](docs/live-result-schema-v1.md) ([日本語](docs/live-result-schema-v1.ja.md))
 - [Troubleshooting](docs/troubleshooting.md) ([日本語](docs/troubleshooting.ja.md))
@@ -384,50 +385,19 @@ Published release history is summarized in [CHANGELOG.md](CHANGELOG.md).
 
 ## Roadmap
 
-### Shipped in v0.2.0
+See [Roadmap to a stable interoperability contract](docs/roadmap.md) ([日本語](docs/roadmap.ja.md)) for the detailed milestones, exit criteria, non-goals, and `v1.0.0` graduation requirements.
 
-- [x] Structured OAuth reason codes for explicit real-client and Runtime Evidence failures.
-- [x] ChatGPT OAuth/server preflight with PRM, CIMD/DCR, PKCE, and token-auth diagnostics.
-- [x] Exact ChatGPT CIMD / redirect URI / JWKS validation from observed non-secret metadata.
-- [x] Runtime Evidence v2 with `cimd` / `dcr` / `predefined` registration strategy and legacy v1 compatibility.
-- [x] Token/resource request correlation, Bearer delivery, and resource-server signature/issuer/audience/expiry/scope diagnostics.
-- [x] OpenAI authenticated MCP reference-pattern and tool-level OAuth signal diagnostics.
-- [x] Conservative multiple-authorization-server handling.
-- [x] Expanded English/Japanese diagnostics and troubleshooting documentation.
+The current maturity sequence is below. Version numbers are not deadlines or automatic graduation points. The project may continue with `v0.11.x` and later releases for as long as necessary; `v1.0.0` ships only when the stable-contract exit criteria are satisfied.
 
-### Shipped in v0.3.0
+- **v0.6.x** — protocol-aware core and deployment-identity privacy
+- **v0.7.x** — repeatable suite/regression workflow and CI trust boundary
+- **v0.8.x** — baseline lifecycle and observed compatibility envelopes
+- **v0.9.x** — coverage, capability profiles, and safe client graduation
+- **v0.10.x** — public contract candidate
+- **v0.11.x+** — stabilization for as long as evidence requires
+- **v1.0.0** — stable contract only after all exit criteria are met
 
-- [x] Runtime Evidence v3 with independent `tool_metadata` / `tool_challenge` sections and v1/v2 input compatibility.
-- [x] Explicit Runtime Evidence coverage counters and `N/A` semantics distinct from `WARN / unknown`.
-- [x] Secret-free `evidence validate`, `summary`, and conflict-safe `merge` utilities with canonical v3 output.
-- [x] Controlled insufficient-scope OAuth fixture and release gate for tool-level `securitySchemes` / `mcp/www_authenticate` behavior.
-- [x] Partial tool OAuth aggregation that keeps unobserved static metadata as `WARN` rather than over-reporting `N/A`.
-- [x] Versioned OpenAI reference profile metadata and a documented manual real-ChatGPT secret-free dogfood workflow.
-
-### Shipped in v0.4.0
-
-- [x] Correlate explicit real-client DCR failures with discovered CIMD/DCR server capability evidence while keeping the four-stage verdict separate ([#19](https://github.com/git-ksk/mcp-interop/issues/19)).
-- [x] Complete Cursor explicit opt-in OAuth, token exchange, and authenticated `mcp list-tools` validation with isolated state ([#3](https://github.com/git-ksk/mcp-interop/issues/3)).
-- [x] Complete Antigravity explicit opt-in OAuth with isolated token persistence, conservative generic stage semantics, and controlled authenticated wire-evidence E2E ([#5](https://github.com/git-ksk/mcp-interop/issues/5)).
-
-### Open after v0.4.0
-
-- [ ] Research a supported headless ChatGPT MCP/app-management surface before any real ChatGPT adapter; do not use brittle DOM scraping as the compatibility contract ([#20](https://github.com/git-ksk/mcp-interop/issues/20)).
-- [ ] Revisit VS Code when a supported direct lifecycle/tool-discovery surface can satisfy the project's no-model evidence contract ([#6](https://github.com/git-ksk/mcp-interop/issues/6)).
-- [ ] Complete GitHub Copilot CLI tool-discovery/auth-isolation research before any live adapter ([#48](https://github.com/git-ksk/mcp-interop/issues/48)).
-- [ ] Evaluate additional real MCP clients when they expose stable automatable lifecycle/tool-discovery surfaces.
-
-### Shipped in v0.1.0
-
-- [x] Shared `pass` / `fail` / `skip` / `unknown` result model.
-- [x] Isolated test-session lifecycle and secret redaction.
-- [x] Codex CLI live inventory adapter.
-- [x] Codex OAuth live flow.
-- [x] Cursor CLI no-auth live adapter (beta).
-- [x] Antigravity CLI no-auth live adapter (beta, macOS).
-- [x] Cross-client combined text report.
-- [x] Repeatable real-client macOS E2E harness.
-- [x] Versioned release build/release automation.
+Future roadmap capabilities are not shipped behavior. Current code, release documentation, and versioned schemas remain the source of truth for the current release.
 
 ## Current non-goals
 
