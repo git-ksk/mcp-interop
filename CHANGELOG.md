@@ -8,6 +8,10 @@ All notable project changes will be summarized here. GitHub Releases remain the 
 
 - CI vulnerability scanning and release artifact builds now use patched Go 1.26.6 while cross-platform compatibility remains on the module's Go 1.24 baseline.
 
+### Fixed
+
+- Real Codex/Cursor `DCR_UNSUPPORTED` and `DCR_FAILED` OAuth registration failures now record `reach=pass` because the client itself proved the MCP OAuth registration boundary was reached; generic OAuth failures remain conservative `unknown`.
+
 ## v0.5.0 — 2026-08-13
 
 ### Added

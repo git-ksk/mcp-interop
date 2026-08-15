@@ -129,8 +129,49 @@ func TestLoginOAuthReportsDCRUnsupported(t *testing.T) {
 	if auth.Status != interop.StatusFail || auth.ReasonCode != interop.ReasonDCRUnsupported {
 		t.Fatalf("unexpected auth result: %#v", auth)
 	}
+	assertStage(t, result, interop.StageReach, interop.StatusPass)
 	if strings.Contains(auth.Message, "Registration failed") {
 		t.Fatalf("raw client error leaked into result message: %q", auth.Message)
+	}
+}
+
+func TestLoginOAuthReportsDCRFailed(t *testing.T) {
+	input := `{"id":1,"error":{"code":-32000,"message":"OAuth login failed","data":{"error":"dynamic client registration failed with status 500"}}}` + "\n"
+	rpc := newRPCClient(strings.NewReader(input), &bytes.Buffer{})
+	adapter := New("codex", "codex-cli test")
+	result := interop.NewResult(clientID, clientName, "codex-cli test", "https://example.com/mcp")
+
+	_, ok, err := adapter.loginOAuth(context.Background(), rpc, &result)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ok {
+		t.Fatal("OAuth login unexpectedly succeeded")
+	}
+	assertStage(t, result, interop.StageReach, interop.StatusPass)
+	auth, found := result.Get(interop.StageAuth)
+	if !found || auth.Status != interop.StatusFail || auth.ReasonCode != interop.ReasonDCRFailed {
+		t.Fatalf("unexpected auth result: %#v", auth)
+	}
+}
+
+func TestLoginOAuthKeepsReachUnknownForGenericStartFailure(t *testing.T) {
+	input := `{"id":1,"error":{"code":-32000,"message":"OAuth login failed"}}` + "\n"
+	rpc := newRPCClient(strings.NewReader(input), &bytes.Buffer{})
+	adapter := New("codex", "codex-cli test")
+	result := interop.NewResult(clientID, clientName, "codex-cli test", "https://example.com/mcp")
+
+	_, ok, err := adapter.loginOAuth(context.Background(), rpc, &result)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ok {
+		t.Fatal("OAuth login unexpectedly succeeded")
+	}
+	assertStage(t, result, interop.StageReach, interop.StatusUnknown)
+	auth, found := result.Get(interop.StageAuth)
+	if !found || auth.Status != interop.StatusFail || auth.ReasonCode != "" {
+		t.Fatalf("unexpected auth result: %#v", auth)
 	}
 }
 

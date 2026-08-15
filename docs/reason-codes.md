@@ -23,6 +23,8 @@ A guessed `/register` or `/oauth/register` returning `404` is **not** sufficient
 
 The real client explicitly reports that it attempted DCR and the registration attempt failed for a reason other than unsupported.
 
+For the Codex and Cursor adapters, `DCR_UNSUPPORTED` and `DCR_FAILED` also prove that the real client reached the MCP OAuth registration boundary. Those paths therefore report `reach=pass` while keeping `auth=fail` and later stages skipped. Generic OAuth startup failures do not get this reachability promotion.
+
 ### `OAUTH_CALLBACK_PORT_CONFLICT`
 
 The real client explicitly reports that its loopback OAuth callback listener could not bind the callback address/port selected for that flow.
