@@ -1,0 +1,92 @@
+name: Real-client interoperability report
+description: Report a secret-safe real-client interoperability result or regression.
+title: "interop: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form for results produced by a real client. Fixture-only success is useful test evidence but is not a deployment-specific live PASS.
+
+        Never post access/refresh tokens, OAuth authorization codes, OAuth state, raw authorization URLs, cookies, client secrets, private keys, credential files, normal-user browser credentials, or production-sensitive endpoint query values. Suspected vulnerabilities belong in Private Vulnerability Reporting via SECURITY.md.
+  - type: input
+    id: interop_version
+    attributes:
+      label: mcp-interop version
+      placeholder: "v0.5.1 or commit SHA"
+    validations:
+      required: true
+  - type: input
+    id: client
+    attributes:
+      label: Client / exact version
+      placeholder: "ClientName 1.2.3"
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: OS / architecture
+      placeholder: "macOS 26 arm64"
+    validations:
+      required: true
+  - type: dropdown
+    id: auth_mode
+    attributes:
+      label: Auth mode
+      options:
+        - no-auth
+        - oauth-explicit-opt-in
+        - other / unknown
+    validations:
+      required: true
+  - type: textarea
+    id: stages
+    attributes:
+      label: Stage results
+      description: Record reach/auth/init/tools and reason_code values. Do not infer PASS for an unobserved stage.
+      placeholder: |
+        reach=pass reason_code=...
+        auth=...
+        init=...
+        tools=...
+    validations:
+      required: true
+  - type: textarea
+    id: observable_surface
+    attributes:
+      label: Observable surface
+      description: What real-client surface or secret-free server-side evidence proves the reported stages?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Give bounded, sanitized steps. Use synthetic/localhost examples instead of private production identity where possible.
+    validations:
+      required: true
+  - type: textarea
+    id: cleanup
+    attributes:
+      label: Isolation / cleanup result
+      description: State whether normal client config/credentials were unchanged, temporary state was removed, and owned client processes were reaped.
+    validations:
+      required: true
+  - type: textarea
+    id: limitations
+    attributes:
+      label: Known unknowns / limitations
+      description: Record any stage that remains unknown, version-specific behavior, or incomplete evidence.
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety check
+      options:
+        - label: This result used the real client for any claimed live PASS stage; I did not promote fixture/configuration/metadata-only evidence into a deployment-specific live PASS.
+          required: true
+        - label: OAuth interaction, if any, was explicit opt-in and did not reuse or modify normal-user credentials/configuration without an isolated supported mechanism.
+          required: true
+        - label: I removed tokens, authorization codes/state, raw authorization URLs, cookies, secrets, private keys, credential files, normal-user browser credentials, and production-sensitive endpoint values.
+          required: true
+        - label: This is not a security vulnerability requiring private reporting.
+          required: true

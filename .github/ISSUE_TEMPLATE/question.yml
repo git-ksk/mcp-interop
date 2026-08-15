@@ -1,0 +1,35 @@
+name: Usage question
+description: Ask a non-security question about using mcp-interop.
+title: "question: "
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include credentials, OAuth authorization codes/state, raw authorization URLs, cookies, private keys, credential files, or sensitive production endpoint values. Security vulnerabilities must be reported through SECURITY.md instead of a public Issue.
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: mcp-interop version (if relevant)
+  - type: input
+    id: platform
+    attributes:
+      label: OS / architecture (if relevant)
+  - type: textarea
+    id: context
+    attributes:
+      label: Secret-safe context
+      description: Add sanitized commands, stage results, or reason codes if they help explain the question.
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety check
+      options:
+        - label: I removed credentials, OAuth state/codes, raw authorization URLs, private keys, credential files, and sensitive endpoint values.
+          required: true

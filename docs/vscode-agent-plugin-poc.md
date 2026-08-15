@@ -1,5 +1,7 @@
 # VS Code Agent Plugin MCP PoC
 
+[English](vscode-agent-plugin-poc.md) | [日本語](vscode-agent-plugin-poc.ja.md)
+
 Status: experimental research for #6. This is not a release adapter yet.
 
 ## Goal

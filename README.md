@@ -151,7 +151,7 @@ For Codex, `mcp-interop` prints the authorization URL to stderr and waits for th
 
 Cursor uses the real Cursor MCP login path inside an isolated temporary HOME/workspace and proves authenticated discovery with `mcp list-tools`. Callback details are version-specific and are not hard-coded.
 
-Antigravity enters the real `/mcp` manager inside an isolated PTY. OAuth token persistence is confined to the isolated temporary HOME; authorization codes and token contents are not persisted in `mcp-interop` evidence. See [Antigravity OAuth live-test boundary](docs/antigravity-oauth.md).
+Antigravity enters the real `/mcp` manager inside an isolated PTY. OAuth token persistence is confined to the isolated temporary HOME; authorization codes and token contents are not persisted in `mcp-interop` evidence. See [Antigravity OAuth live-test boundary](docs/antigravity-oauth.md) ([日本語](docs/antigravity-oauth.ja.md)).
 
 ### ChatGPT OAuth/server preflight
 
@@ -296,7 +296,7 @@ The Antigravity adapter currently has a live implementation for macOS only:
 - The live adapter remains macOS-only until equivalent real-client evidence exists on other operating systems.
 - OAuth is explicit opt-in and still depends on the tested Antigravity interactive `/mcp` surface.
 - On the tested `agy 1.1.11` OAuth path, authenticated `initialize` and `tools/list` can complete without materializing the same client-side tool cache used by no-auth mode. The generic result therefore keeps `init/tools=unknown` rather than inferring pass from authentication alone.
-- The controlled localhost OAuth E2E independently requires authenticated `initialize`, `notifications/initialized`, and `tools/list` server-side evidence. See [Antigravity OAuth live-test boundary](docs/antigravity-oauth.md).
+- The controlled localhost OAuth E2E independently requires authenticated `initialize`, `notifications/initialized`, and `tools/list` server-side evidence. See [Antigravity OAuth live-test boundary](docs/antigravity-oauth.md) ([日本語](docs/antigravity-oauth.ja.md)).
 - The tool cache is an observed Antigravity client surface rather than a stable cross-vendor protocol API, so version information must remain part of every result.
 
 ## Safety and isolation
@@ -359,12 +359,19 @@ The runner is expected to have the real Codex, Cursor, and Antigravity CLIs inst
 ## Documentation
 
 - [Architecture](docs/architecture.md) ([日本語](docs/architecture.ja.md))
+- [Project direction](docs/project-direction.md) ([日本語](docs/project-direction.ja.md))
+- [Conformance vs. interoperability](docs/conformance-vs-interop.md) ([日本語](docs/conformance-vs-interop.ja.md))
 - [Live result artifact schema v1](docs/live-result-schema-v1.md) ([日本語](docs/live-result-schema-v1.ja.md))
 - [Troubleshooting](docs/troubleshooting.md) ([日本語](docs/troubleshooting.ja.md))
 - [Reason codes](docs/reason-codes.md) ([日本語](docs/reason-codes.ja.md))
 - [ChatGPT connection diagnostics](docs/chatgpt-diagnostics.md) ([日本語](docs/chatgpt-diagnostics.ja.md))
+- [Antigravity OAuth live-test boundary](docs/antigravity-oauth.md) ([日本語](docs/antigravity-oauth.ja.md))
+- [GitHub Copilot CLI direct MCP inventory PoC](docs/copilot-cli-poc.md) ([日本語](docs/copilot-cli-poc.ja.md)) — research-only
+- [VS Code Agent Plugin MCP PoC](docs/vscode-agent-plugin-poc.md) ([日本語](docs/vscode-agent-plugin-poc.ja.md)) — experimental research
 - [Contributing](CONTRIBUTING.md) ([日本語](CONTRIBUTING.ja.md))
+- [Support](SUPPORT.md) ([日本語](SUPPORT.ja.md))
 - [Security Policy](SECURITY.md) ([日本語](SECURITY.ja.md))
+- [Code of Conduct](CODE_OF_CONDUCT.md)
 - [CHANGELOG](CHANGELOG.md)
 
 ## Release process
@@ -433,7 +440,7 @@ Published release history is summarized in [CHANGELOG.md](CHANGELOG.md).
 
 ## Contributing and security
 
-Contributions are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md) or [CONTRIBUTING.ja.md](CONTRIBUTING.ja.md) for the adapter and test requirements.
+Contributions are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md) or [CONTRIBUTING.ja.md](CONTRIBUTING.ja.md) for the adapter, evidence, and repository workflow requirements. Usage/support routes are documented in [SUPPORT.md](SUPPORT.md) ([日本語](SUPPORT.ja.md)), and participation is governed by [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 
 Please report suspected vulnerabilities privately according to [SECURITY.md](SECURITY.md). A Japanese reference translation is available at [SECURITY.ja.md](SECURITY.ja.md); the English policy is canonical.
 
