@@ -6,6 +6,7 @@ All notable project changes will be summarized here. GitHub Releases remain the 
 
 ### Changed
 
+- Hardened OSS supply-chain defaults with CodeQL default setup, full-SHA GitHub Actions pins maintained by Dependabot, and build-provenance attestations for tagged release artifacts.
 - Added a bilingual milestone/exit-criteria roadmap through the stable-contract gate, including protocol-era handling, deployment-identity privacy, CI trust boundaries, baseline/compatibility-envelope semantics, and an explicit pre-1.0 stabilization buffer; the README now links to the canonical roadmap instead of duplicating a stale release checklist.
 
 ## v0.5.1 — 2026-08-15

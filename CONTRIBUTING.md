@@ -99,9 +99,9 @@ Release preparation is also PR-first. The normal release sequence is:
 3. merge only after required CI is green;
 4. create the release tag on a commit already contained in `main`;
 5. let `.github/workflows/release.yml` run the authoritative publication gate;
-6. verify generated archives, `checksums.txt`, embedded version output, and the packaged CLI regression smoke before treating the release as complete.
+6. verify generated archives, `checksums.txt`, embedded version output, the packaged CLI regression smoke, and GitHub artifact attestations before treating the release as complete.
 
-The release workflow rejects a release tag whose commit is not contained in `origin/main` and reruns source quality/security gates before publishing artifacts.
+The release workflow rejects a release tag whose commit is not contained in `origin/main` and reruns source quality/security gates before publishing artifacts. External GitHub Actions must remain pinned to full commit SHAs; `.github/dependabot.yml` is the normal update path for those pins.
 
 Version numbers follow SemVer intent while the project remains in `v0.x`:
 

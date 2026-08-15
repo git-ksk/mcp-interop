@@ -383,9 +383,9 @@ Cursor/AntigravityのOAuth専用harnessはcontrolled loopback fixtureに対し�
 
 ## Release process
 
-release archiveは`scripts/build-release.sh`でbuildします。`v*` tagをpushするとrelease workflowが起動し、tag/provenanceを検証したうえでsource quality gateを再実行し、version/commit/build-time metadataを埋め込み、6種類のplatform/architecture archiveと`checksums.txt`を生成します。Linux artifactのembedded versionとpackaged CLI regression smokeも確認してからGitHub Releasesへpublishします。
+release archiveは`scripts/build-release.sh`でbuildします。`v*` tagをpushするとrelease workflowが起動し、tag/provenanceを検証したうえでsource quality gateを再実行し、version/commit/build-time metadataを埋め込み、6種類のplatform/architecture archiveと`checksums.txt`を生成します。Linux artifactのembedded versionとpackaged CLI regression smokeを確認し、release outputへGitHub artifact attestationを生成してからGitHub Releasesへpublishします。
 
-通常のPull Requestでも、tag作成前にUbuntu上で同じrelease build pathをsmoke testします。cross-platform jobはLinux / macOS / Windowsで通常のGo 1.24-compatible test/build pathを維持し、Ubuntuではrace detector実行後にpinned release/security Go toolchainへ切り替えて`govulncheck`を実行します。tagged release artifactもminimum module versionではなく、このpatched pinned toolchainでbuildします。
+通常のPull Requestでも、tag作成前にUbuntu上で同じrelease build pathをsmoke testします。cross-platform jobはLinux / macOS / Windowsで通常のGo 1.24-compatible test/build pathを維持し、Ubuntuではrace detector実行後にpinned release/security Go toolchainへ切り替えて`govulncheck`を実行します。tagged release artifactもminimum module versionではなく、このpatched pinned toolchainでbuildします。外部GitHub Actionsはfull commit SHAへpinし、Dependabotで更新を追跡します。
 
 ## Roadmap
 

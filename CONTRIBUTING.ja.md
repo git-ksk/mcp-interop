@@ -99,9 +99,9 @@ release preparationもPR-firstです。通常のrelease sequenceは次です。
 3. required CIがgreenになってからmergeする
 4. `main`に既に含まれているcommitへrelease tagを作成する
 5. `.github/workflows/release.yml`をauthoritative publication gateとして実行する
-6. generated archive、`checksums.txt`、embedded version output、packaged CLI regression smokeを確認してからrelease完了とする
+6. generated archive、`checksums.txt`、embedded version output、packaged CLI regression smoke、GitHub artifact attestationを確認してからrelease完了とする
 
-release workflowは、`origin/main`に含まれないcommitを指すrelease tagをrejectし、artifact publish前にsource quality/security gateを再実行します。
+release workflowは、`origin/main`に含まれないcommitを指すrelease tagをrejectし、artifact publish前にsource quality/security gateを再実行します。外部GitHub Actionsはfull commit SHAへのpinを維持し、`.github/dependabot.yml`を通常の更新経路とします。
 
 version numberは`v0.x`期間中もSemVerの意図に沿って扱います。
 
