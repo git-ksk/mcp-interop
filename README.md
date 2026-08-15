@@ -16,19 +16,19 @@ It also includes profile-based **preflight diagnostics** for client surfaces tha
 
 ## Status
 
-**v0.5.0 is the current published release.**
+**v0.5.1 is the current published release.**
 
-Release: [v0.5.0](https://github.com/git-ksk/mcp-interop/releases/tag/v0.5.0)
+Release: [v0.5.1](https://github.com/git-ksk/mcp-interop/releases/tag/v0.5.1)
 
-The live adapters in v0.5.0 are:
+The live adapters in v0.5.1 are:
 
 - **Codex CLI** — live inventory and explicit opt-in OAuth flow.
 - **Cursor CLI (beta)** — live no-auth inventory plus explicit opt-in OAuth through the real Cursor MCP login path; authenticated `mcp list-tools` has been validated with the controlled fixture.
 - **Antigravity CLI (beta, macOS)** — live no-auth inventory plus explicit opt-in OAuth through the real `/mcp` manager in an isolated PTY. Authentication can be proven independently of client-side tool-cache observation, so generic `init/tools` may conservatively remain `unknown` while controlled E2E proves the authenticated MCP exchange.
 
-v0.5.0 adds **portable live-result artifact schema v1, `test --output`, artifact comparison, and `--fail-on-regression` CI gating** while preserving the existing `test --json` contract and real-client-only PASS boundary. v0.4.0 added Cursor OAuth completion, Antigravity OAuth completion on the tested macOS baseline, secret-free real-client OAuth capability enrichment, stricter deployment-specific live-evidence boundaries, and hardened release provenance gates.
+v0.5.1 is a focused patch release: real Codex/Cursor `DCR_UNSUPPORTED` and `DCR_FAILED` observations now record `reach=pass` when the real client itself proves the MCP OAuth registration boundary, while generic OAuth failures remain conservative `unknown`. CI vulnerability scanning and release builds also move to patched Go 1.26.6. v0.5.0 added **portable live-result artifact schema v1, `test --output`, artifact comparison, and `--fail-on-regression` CI gating** while preserving the existing `test --json` contract and real-client-only PASS boundary.
 
-Post-v0.5.0 work remains focused on quality/optimization rather than client expansion. The guarantees being hardened are:
+Post-v0.5.1 work remains focused on quality/optimization rather than client expansion. The guarantees being hardened are:
 
 - a live PASS still requires all four real-client stages to be `pass`;
 - diagnostic metadata and Runtime Evidence remain separate from real-client PASS evidence;
@@ -48,7 +48,7 @@ ChatGPT real-client support remains intentionally blocked ([#20](https://github.
 With Go 1.24 or newer, install the current stable release explicitly:
 
 ```console
-go install github.com/git-ksk/mcp-interop/cmd/mcp-interop@v0.5.0
+go install github.com/git-ksk/mcp-interop/cmd/mcp-interop@v0.5.1
 ```
 
 To track the newest published module version instead:
@@ -65,7 +65,7 @@ mcp-interop version
 mcp-interop --version
 ```
 
-The [v0.5.0 GitHub Release](https://github.com/git-ksk/mcp-interop/releases/tag/v0.5.0) provides checksummed archives for macOS, Linux, and Windows on both amd64 and arm64.
+The [v0.5.1 GitHub Release](https://github.com/git-ksk/mcp-interop/releases/tag/v0.5.1) provides checksummed archives for macOS, Linux, and Windows on both amd64 and arm64.
 
 ## What a test proves
 
