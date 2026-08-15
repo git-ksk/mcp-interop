@@ -4,6 +4,10 @@ All notable project changes will be summarized here. GitHub Releases remain the 
 
 ## Unreleased
 
+### Changed
+
+- Added a bilingual milestone/exit-criteria roadmap through the stable-contract gate, including protocol-era handling, deployment-identity privacy, CI trust boundaries, baseline/compatibility-envelope semantics, and an explicit pre-1.0 stabilization buffer; the README now links to the canonical roadmap instead of duplicating a stale release checklist.
+
 ## v0.5.1 — 2026-08-15
 
 ### Changed

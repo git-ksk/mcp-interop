@@ -27,13 +27,15 @@ Remote MCP deployment
 
 live interoperability resultは、その結果を生成したexecutionにscopeします。観測したendpoint、client product/version、platform/runtime context、auth mode、そのrunで得られたevidenceを超えて一般化してはいけません。
 
-core live stageは引き続き次です。
+現在ship済みのcore live stageは次です。
 
 ```text
 reach -> auth -> init -> tools
 ```
 
-complete live PASSには、必要な全stageがreal-client evidenceによって`pass`であることを要求します。`unknown`、`skip`、metadata compatibility、fixture-only success、sanitized runtime observationをdeployment-specific live PASSへ昇格させてはいけません。
+これはexisting output/evidence contractであり、将来のすべてのMCP revisionにwire-level initialization phaseが存在するという仮定ではありません。[roadmap](roadmap.ja.md)では、MCP evolutionに合わせてinteroperabilityのsemantic meaningを維持するprotocol-aware workを定義します。
+
+complete live PASSには、observed/supported pathで必要な全semantic stageがreal-client evidenceによって`pass`であることを要求します。`unknown`、`skip`、metadata compatibility、fixture-only success、sanitized runtime observationをdeployment-specific live PASSへ昇格させてはいけません。
 
 便利なfalse-positiveより、conservativeなfalse-negativeまたは`unknown`を選びます。
 
@@ -239,13 +241,15 @@ growthとevidence qualityが衝突した場合、次の順で判断します。
 
 ## Current strategic direction
 
+milestone-level planは[Stable interoperability contractに向けたRoadmap](roadmap.ja.md)で管理します。この文書はより上位のproduct-direction contractであり、roadmapはwork sequenceを定義しても、ここで定義するevidence/safety priorityをoverrideしません。
+
 near-term workは次に集中します。
 
-1. evidence/safety invariantを緩めず、現在のquality/optimization phaseを完了する
-2. durableなversioned live-result/evidence artifactを定義する
-3. run comparisonとregression-oriented CI outputを追加する
-4. Codex/Cursor/Antigravityをclient versionとsupported platform横断で強化する
+1. existing real-client-only PASS semanticsを弱めず、core interoperability meaningをprotocol-era-awareにする
+2. portable artifactが通常のregression/baseline inputになる前にdeployment privacyを維持できる設計を固める
+3. ship済みartifact/compare primitiveをsafeでrepeatableなregression workflowへ発展させる
+4. Codex/Cursor/Antigravityをobserved client versionとsupported platform横断で強化する
 5. ChatGPT、VS Code、GitHub Copilot CLIなどはdirect automation boundaryがgraduation criteriaを満たすまでresearch-onlyに維持する
-6. 上記foundationが健全な状態を保ってからnew clientを追加する
+6. public contractはreal regression workflowで十分にexerciseしてからstabilizeする
 
 目指すのは「最大のMCP client list」ではありません。**real Remote MCP deploymentが、usersが実際に使うclient versionで今も動くかを最も信頼できる形で答えるproject**です。

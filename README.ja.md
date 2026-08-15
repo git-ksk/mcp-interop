@@ -12,7 +12,7 @@
 
 このツールが答えたいのは、spec上の適合性だけでは分からない次の問いです。
 
-> このRemote MCP deploymentは、ユーザーが実際に使っているclientから接続・認証・初期化でき、toolsを発見できるか？
+> このRemote MCP deploymentは、ユーザーが実際に使っているclientから利用可能なprotocol pathへ到達し、必要な認証を満たし、toolsを発見できるか？
 
 また、安全にheadless automationできる実client surfaceがまだ無い対象向けに、client profileベースの**preflight診断**も提供します。preflightの結果をlive interoperability PASSとして扱うことはありません。
 
@@ -366,6 +366,7 @@ Cursor/AntigravityのOAuth専用harnessはcontrolled loopback fixtureに対し�
 
 - [Architecture](docs/architecture.ja.md) ([English](docs/architecture.md))
 - [Project direction](docs/project-direction.ja.md) ([English](docs/project-direction.md))
+- [Roadmap to a stable interoperability contract](docs/roadmap.ja.md) ([English](docs/roadmap.md))
 - [Conformance vs. interoperability](docs/conformance-vs-interop.ja.md) ([English](docs/conformance-vs-interop.md))
 - [Live result artifact schema v1](docs/live-result-schema-v1.ja.md) ([English](docs/live-result-schema-v1.md))
 - [Troubleshooting](docs/troubleshooting.ja.md) ([English](docs/troubleshooting.md))
@@ -388,50 +389,19 @@ release archiveは`scripts/build-release.sh`でbuildします。`v*` tagをpush�
 
 ## Roadmap
 
-### v0.2.0で提供
+詳細なmilestone、exit criteria、non-goal、`v1.0.0` graduation条件は[Stable interoperability contractに向けたRoadmap](docs/roadmap.ja.md) ([English](docs/roadmap.md))を参照してください。
 
-- [x] 実client / Runtime Evidenceの明示的failure向けstructured OAuth reason code
-- [x] PRM / CIMD / DCR / PKCE / token-authを含むChatGPT OAuth/server preflight
-- [x] 観測済み非secret metadataを使うChatGPT CIMD / redirect URI / JWKSのexact validation
-- [x] `cimd` / `dcr` / `predefined` registration strategyを持つRuntime Evidence v2とlegacy v1互換
-- [x] token/resource request correlation、Bearer delivery、signature/issuer/audience/expiry/scope診断
-- [x] OpenAI authenticated MCP reference-patternとtool-level OAuth signal診断
-- [x] multiple Authorization Serverのconservative handling
-- [x] English / Japanese diagnostics・troubleshooting documentationの拡充
+現在の想定maturity sequenceは次です。version番号はdeadlineやautomatic graduationではありません。必要なら`v0.11.x`以降を継続し、`v1.0.0`はstable-contract exit criteriaを満たした時だけreleaseします。
 
-### v0.3.0で提供
+- **v0.6.x** — protocol-aware core + deployment identity privacy
+- **v0.7.x** — repeatable suite / regression workflow + CI trust boundary
+- **v0.8.x** — baseline lifecycle + observed compatibility envelope
+- **v0.9.x** — coverage / capability profile / safe client graduation
+- **v0.10.x** — public contract candidate
+- **v0.11.x+** — 必要なだけstabilization
+- **v1.0.0** — exit criteria達成時のみstable contract化
 
-- [x] `tool_metadata` / `tool_challenge`を独立させたRuntime Evidence v3とv1/v2 input互換
-- [x] Runtime Evidence coverage counterと`WARN / unknown`とは別の明示的`N/A` semantics
-- [x] secret-free `evidence validate` / `summary` / conflict-safe `merge`とcanonical v3 output
-- [x] tool-level `securitySchemes` / `mcp/www_authenticate`を検証するcontrolled insufficient-scope OAuth fixture + release gate
-- [x] static metadata未観測を`N/A`に過大評価せず`WARN`として扱うpartial tool OAuth aggregation
-- [x] versioned OpenAI reference profile metadataとmanual real-ChatGPT secret-free dogfood workflow
-
-### v0.4.0で提供
-
-- [x] 明示的real-client DCR failureとdiscovered CIMD/DCR server capability evidenceを相関しつつ、4-stage verdictとは分離する ([#19](https://github.com/git-ksk/mcp-interop/issues/19))
-- [x] Cursorの明示的opt-in OAuth、token exchange、authenticated `mcp list-tools`をisolated stateで完遂 ([#3](https://github.com/git-ksk/mcp-interop/issues/3))
-- [x] Antigravityの明示的opt-in OAuth、isolated token persistence、conservative generic stage semantics、controlled authenticated wire-evidence E2Eを完遂 ([#5](https://github.com/git-ksk/mcp-interop/issues/5))
-
-### v0.4.0以降もopen
-
-- [ ] real ChatGPT adapter前にsupportedなheadless ChatGPT MCP/app-management surfaceを調査し、brittle DOM scrapingはinterop contractに使わない ([#20](https://github.com/git-ksk/mcp-interop/issues/20))
-- [ ] project's no-model evidence contractを満たすsupported direct lifecycle/tool-discovery surfaceが利用可能になったらVS Codeを再検討 ([#6](https://github.com/git-ksk/mcp-interop/issues/6))
-- [ ] GitHub Copilot CLIのtool discovery/auth isolation researchを完了してからlive adapter化を判断 ([#48](https://github.com/git-ksk/mcp-interop/issues/48))
-- [ ] stable automatable lifecycle/tool-discovery surfaceを持つ追加real MCP clientを評価
-
-### v0.1.0で提供済み
-
-- [x] `pass` / `fail` / `skip` / `unknown` result model
-- [x] isolated test-session lifecycle + secret redaction
-- [x] Codex CLI live inventory adapter
-- [x] Codex OAuth live flow
-- [x] Cursor CLI no-auth live adapter (beta)
-- [x] Antigravity CLI no-auth live adapter (beta, macOS)
-- [x] cross-client combined text report
-- [x] repeatable real-client macOS E2E harness
-- [x] versioned release build/release automation
+roadmap上のfuture capabilityはship済みbehaviorではありません。current release behaviorはcode、release documentation、versioned schemaをsource of truthとして確認してください。
 
 ## 現在のnon-goals
 

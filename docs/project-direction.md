@@ -27,13 +27,15 @@ The durable value is not the number of client names in a matrix. It is trustwort
 
 A live interoperability result is scoped to the execution that produced it. It must not be generalized beyond the observed endpoint, client product/version, platform/runtime context, authentication mode, and evidence available in that run.
 
-The core live stages remain:
+The currently shipped core live stages are:
 
 ```text
 reach -> auth -> init -> tools
 ```
 
-A complete live PASS requires every required stage to be `pass` from real-client evidence. `unknown`, `skip`, metadata compatibility, fixture-only success, or sanitized runtime observations must never be promoted to a deployment-specific live PASS.
+This is an existing output/evidence contract, not an assumption that every future MCP revision has a wire-level initialization phase. The [roadmap](roadmap.md) defines the protocol-aware work needed to preserve the semantic meaning of interoperability as MCP evolves.
+
+A complete live PASS requires every required semantic stage for the observed/supported path to be `pass` from real-client evidence. `unknown`, `skip`, metadata compatibility, fixture-only success, or sanitized runtime observations must never be promoted to a deployment-specific live PASS.
 
 The project should prefer a conservative false-negative or `unknown` over a convenient false-positive.
 
@@ -239,13 +241,15 @@ This ordering is intentional. `mcp-interop` loses its reason to exist if a green
 
 ## Current strategic direction
 
+The milestone-level plan is maintained in [Roadmap to a stable interoperability contract](roadmap.md). This document remains the higher-level product-direction contract; the roadmap may sequence work, but it must not override the evidence and safety priorities defined here.
+
 Near-term work should therefore stay focused on:
 
-1. finishing the current quality/optimization phase without relaxing evidence or safety invariants;
-2. defining a durable versioned live-result/evidence artifact;
-3. adding run comparison and regression-oriented CI output;
-4. strengthening Codex/Cursor/Antigravity across client versions and supported platforms;
+1. making the core interoperability meaning protocol-era-aware without weakening existing real-client-only PASS semantics;
+2. preserving deployment privacy as portable artifacts become routine regression/baseline inputs;
+3. turning the shipped artifact/compare primitives into a safe repeatable regression workflow;
+4. strengthening Codex/Cursor/Antigravity across observed client versions and supported platforms;
 5. keeping ChatGPT, VS Code, GitHub Copilot CLI, and other candidates research-only until their direct automation boundaries satisfy the graduation criteria;
-6. adding new clients only after the above foundation remains healthy.
+6. stabilizing public contracts only after they have been exercised by real regression workflows.
 
 The intended destination is not "the biggest MCP client list." It is **the most trustworthy answer to whether a real Remote MCP deployment still works in the client versions users actually run.**
