@@ -1,5 +1,7 @@
 # Antigravity OAuth live-test boundary
 
+[English](antigravity-oauth.md) | [日本語](antigravity-oauth.ja.md)
+
 `mcp-interop test <url> --client antigravity --oauth` explicitly enables Antigravity's real MCP OAuth manager on macOS. The adapter runs the installed `agy` client under a PTY with an isolated temporary `HOME` and workspace, opens `/mcp`, selects the single isolated test server, and forwards the operator's authorization-code input directly to the real client. No model prompt is used.
 
 ## Credential isolation

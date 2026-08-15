@@ -160,9 +160,9 @@ Codexはauthorization URLをstderrへ表示し、実Codex OAuth callbackを待�
 
 Cursorはisolated temporary HOME/workspace内で実Cursor MCP login pathを使い、authenticated `mcp list-tools`でtool discoveryを証明します。callback detailはversion-specificであり、固定portをhard-codeしません。
 
-Antigravityはisolated PTY内で実`/mcp` managerへ入り、OAuth token persistenceをtemporary HOME内に閉じ込めます。authorization codeやtoken内容は`mcp-interop` evidenceへpersistしません。詳細は[Antigravity OAuth live-test boundary](docs/antigravity-oauth.md)を参照してください。
+Antigravityはisolated PTY内で実`/mcp` managerへ入り、OAuth token persistenceをtemporary HOME内に閉じ込めます。authorization codeやtoken内容は`mcp-interop` evidenceへpersistしません。詳細は[Antigravity OAuth live-test boundary](docs/antigravity-oauth.ja.md) ([English](docs/antigravity-oauth.md))を参照してください。
 
-## ChatGPT OAuth/server preflight
+### ChatGPT OAuth/server preflight
 
 Remote MCP serverが公開しているOAuth metadataに、ChatGPTの現在の認証pathと既知のblocking mismatchがないか確認します。
 
@@ -193,6 +193,10 @@ mcp-interop diagnose https://example.com/mcp \
 ```
 
 この拡張診断では、CIMD document、redirect URI、client/server間のtoken endpoint auth method、`private_key_jwt`利用時のJWKS到達性まで確認します。
+
+**このcommandはChatGPT UIを操作せず、OAuthを完遂せず、実ChatGPT client PASSを主張しません。** 詳細は[ChatGPT接続診断](docs/chatgpt-diagnostics.ja.md)を参照してください。
+
+### Secret-free ChatGPT Runtime Evidence
 
 Authorization Serverのsanitized logからtoken requestの**値ではなくpresence/matchだけ**を観測できる場合は、Runtime Evidenceも相関できます。
 
@@ -226,7 +230,7 @@ mcp-interop diagnose https://example.com/mcp \
 
 authorization/token/resource/toolの追加observationは任意です。v3では`tool_metadata`と`tool_challenge`を独立して扱い、v2 `tool_auth`とlegacy v1も互換目的で引き続き受け付けます。未観測なら推測せず`WARN / unknown`になります。未知fieldは拒否するため、token、authorization code、PKCE verifier、raw client assertion、cookieなどを入力しないでください。
 
-**このcommandはChatGPT UIを操作せず、OAuthを完遂せず、実ChatGPT client PASSを主張しません。** Preflight、Runtime Evidence、real-client interoperabilityは別の証拠層です。詳細は[ChatGPT接続診断](docs/chatgpt-diagnostics.ja.md)を参照してください。
+Preflight、Runtime Evidence、real-client interoperabilityは別の証拠層です。serverが`PREFLIGHT PASS`でも、Runtime Evidenceが`TOKEN_AUTH_METHOD_MISMATCH`で`FAIL`になることがあります。
 
 ### Evidence utility
 
@@ -265,6 +269,12 @@ mcp_oauth_credentials_store = "file"
 ```
 
 通常のautomatic/keyring storageではなくisolated `CODEX_HOME`内にcredentialを閉じ込めます。
+
+### Current Codex limitations
+
+- OAuthはinteractiveかつexplicitです。`--oauth`なしでserverが`notLoggedIn`を返す場合、testはincompleteのままnon-zero exitになります。
+- 現在のCodex app-server versionでは、unreachable serverと正当なzero-tool serverが同じempty-inventory shapeになる場合があります。そのため`mcp-interop`は成功/失敗を推測せず、該当stageを`unknown`として報告します。
+- adapterはinstalled Codex app-serverのMCP status/OAuth surfaceに依存します。必要methodを公開しない古い/将来versionでは、adapter更新までinconclusive/errorになる可能性があります。
 
 ## Cursor adapter (beta)
 
@@ -305,7 +315,7 @@ Antigravity adapterは:
 - live adapterはmacOSのみ
 - OAuthは明示的opt-inで、検証済みAntigravityのinteractive `/mcp` surfaceに依存する
 - 検証済み`agy 1.1.11`のOAuth pathではauthenticated `initialize` / `tools/list`が完了しても、no-auth時と同じclient-side tool cacheが生成されない場合がある。その場合generic `init/tools`はauthenticationから推測せず`unknown`を維持する
-- controlled localhost OAuth E2Eでは別途authenticated `initialize` / `notifications/initialized` / `tools/list`のserver-side evidenceを必須にする。詳細は[Antigravity OAuth live-test boundary](docs/antigravity-oauth.md)
+- controlled localhost OAuth E2Eでは別途authenticated `initialize` / `notifications/initialized` / `tools/list`のserver-side evidenceを必須にする。詳細は[Antigravity OAuth live-test boundary](docs/antigravity-oauth.ja.md) ([English](docs/antigravity-oauth.md))
 - tool cacheはcross-vendor stable APIではなく、Antigravity clientのobserved surface
 
 ## Safety / isolation
@@ -354,14 +364,27 @@ Cursor/AntigravityのOAuth専用harnessはcontrolled loopback fixtureに対し�
 
 ## ドキュメント
 
-- [Architecture](docs/architecture.ja.md)
+- [Architecture](docs/architecture.ja.md) ([English](docs/architecture.md))
+- [Project direction](docs/project-direction.ja.md) ([English](docs/project-direction.md))
+- [Conformance vs. interoperability](docs/conformance-vs-interop.ja.md) ([English](docs/conformance-vs-interop.md))
 - [Live result artifact schema v1](docs/live-result-schema-v1.ja.md) ([English](docs/live-result-schema-v1.md))
-- [Troubleshooting](docs/troubleshooting.ja.md)
-- [Reason code](docs/reason-codes.ja.md)
-- [ChatGPT接続診断](docs/chatgpt-diagnostics.ja.md)
-- [Contributing](CONTRIBUTING.ja.md)
-- [Security Policy](SECURITY.ja.md)
+- [Troubleshooting](docs/troubleshooting.ja.md) ([English](docs/troubleshooting.md))
+- [Reason code](docs/reason-codes.ja.md) ([English](docs/reason-codes.md))
+- [ChatGPT接続診断](docs/chatgpt-diagnostics.ja.md) ([English](docs/chatgpt-diagnostics.md))
+- [Antigravity OAuth live-test boundary](docs/antigravity-oauth.ja.md) ([English](docs/antigravity-oauth.md))
+- [GitHub Copilot CLI direct MCP inventory PoC](docs/copilot-cli-poc.ja.md) ([English](docs/copilot-cli-poc.md)) — research-only
+- [VS Code Agent Plugin MCP PoC](docs/vscode-agent-plugin-poc.ja.md) ([English](docs/vscode-agent-plugin-poc.md)) — experimental research
+- [Contributing](CONTRIBUTING.ja.md) ([English](CONTRIBUTING.md))
+- [Support](SUPPORT.ja.md) ([English](SUPPORT.md))
+- [Security Policy](SECURITY.ja.md) ([English](SECURITY.md))
+- [Code of Conduct](CODE_OF_CONDUCT.md)
 - [CHANGELOG](CHANGELOG.md) — release historyのcanonical版は英語
+
+## Release process
+
+release archiveは`scripts/build-release.sh`でbuildします。`v*` tagをpushするとrelease workflowが起動し、tag/provenanceを検証したうえでsource quality gateを再実行し、version/commit/build-time metadataを埋め込み、6種類のplatform/architecture archiveと`checksums.txt`を生成します。Linux artifactのembedded versionとpackaged CLI regression smokeも確認してからGitHub Releasesへpublishします。
+
+通常のPull Requestでも、tag作成前にUbuntu上で同じrelease build pathをsmoke testします。cross-platform jobはLinux / macOS / Windowsで通常のGo 1.24-compatible test/build pathを維持し、Ubuntuではrace detector実行後にpinned release/security Go toolchainへ切り替えて`govulncheck`を実行します。tagged release artifactもminimum module versionではなく、このpatched pinned toolchainでbuildします。
 
 ## Roadmap
 
@@ -421,7 +444,7 @@ Cursor/AntigravityのOAuth専用harnessはcontrolled loopback fixtureに対し�
 
 ## Contributing / Security
 
-Contributionは[CONTRIBUTING.ja.md](CONTRIBUTING.ja.md)を参照してください。
+Contributionは[CONTRIBUTING.ja.md](CONTRIBUTING.ja.md)を参照してください。usage/supportの窓口は[SUPPORT.ja.md](SUPPORT.ja.md)、project参加時の基本ルールは[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)を参照してください。
 
 security vulnerabilityの疑いがある場合、public Issueではなく[SECURITY.ja.md](SECURITY.ja.md)に従ってprivate vulnerability reportingを使用してください。
 

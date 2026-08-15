@@ -1,0 +1,41 @@
+name: Feature / enhancement request
+description: Propose a backward-compatible improvement or a research direction.
+title: "enhancement: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        New client support starts with evidence-boundary research. Research-only or unsupported clients must not be presented as shipped adapters before the real-client boundary is proven.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case
+      description: What interoperability problem should the project solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Observable surface / evidence boundary
+      description: For client-facing work, describe the supported or safely observable surface that could prove the result without model prompting, fixture-only PASS, or normal-user credential reuse.
+  - type: textarea
+    id: compatibility
+    attributes:
+      label: Compatibility and limitations
+      description: Note expected OS/client-version scope, auth implications, and known unknowns.
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety check
+      options:
+        - label: I have not included secrets, private credentials, or production-sensitive endpoint values.
+          required: true
+        - label: I will use SECURITY.md instead if this request reveals a vulnerability.
+          required: true

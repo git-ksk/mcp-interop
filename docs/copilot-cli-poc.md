@@ -1,5 +1,7 @@
 # GitHub Copilot CLI direct MCP inventory PoC
 
+[English](copilot-cli-poc.md) | [日本語](copilot-cli-poc.ja.md)
+
 This document records the research boundary for issue #48. It is a **PoC**, not a shipped adapter contract.
 
 ## Why this surface is interesting

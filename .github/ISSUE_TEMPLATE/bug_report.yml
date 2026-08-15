@@ -1,0 +1,59 @@
+name: Bug report
+description: Report a reproducible mcp-interop defect that is not a security vulnerability.
+title: "bug: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. For suspected vulnerabilities, do not use a public Issue; follow SECURITY.md.
+
+        Do not post access/refresh tokens, OAuth authorization codes or state, raw authorization URLs, cookies, client secrets, private keys, credential files, normal-user browser credentials, or sensitive production endpoint query values.
+  - type: input
+    id: version
+    attributes:
+      label: mcp-interop version
+      placeholder: "v0.5.1 or commit SHA"
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: OS / architecture
+      placeholder: "macOS 26 arm64"
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Observed behavior
+      description: Describe what happened using secret-safe output only.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Provide the smallest reproducible steps with sanitized or synthetic endpoints/fixtures where possible.
+    validations:
+      required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: Additional diagnostics
+      description: Include relevant reason codes, stage results, or logs only after removing secrets and production-sensitive identity.
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety check
+      options:
+        - label: I removed credentials, OAuth state/codes, raw authorization URLs, private keys, credential files, normal-user browser credentials, and sensitive endpoint query values.
+          required: true
+        - label: This is not a security vulnerability requiring private reporting.
+          required: true
