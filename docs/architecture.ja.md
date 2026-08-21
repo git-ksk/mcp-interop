@@ -1,117 +1,166 @@
 # アーキテクチャ
 
-[English](architecture.md) | [日本語](architecture.ja.md)
+[English](architecture.md) | **日本語**
 
-`mcp-interop` は、Remote MCP デプロイメントを**実際のMCPクライアントでブラックボックス検証する**相互運用性テストランナーです。プロトコル仕様へのconformanceと、実client productとのinteroperabilityを明確に分離し、一般的なMCP conformance suiteとは異なる役割を持たせています。
+> この文書は英語版`architecture.md`の日本語訳です。内容に差がある場合は英語版を正とします。
+
+`mcp-interop`は、Remote MCPのデプロイが**実際のMCPクライアント製品で使えるか**をブラックボックスで検証するランナーです。
+
+MCP仕様そのものへの適合性と、実製品同士の相互運用性を意図的に分けています。`mcp-interop`を第二のMCP Conformance suiteにはしません。
 
 ## MCP Conformanceとの関係
 
-`mcp-interop` は、公式の [MCP Conformance Test Framework](https://github.com/modelcontextprotocol/conformance) を置き換えるものではなく、補完するテストレイヤーです。
+`mcp-interop`は公式の[MCP Conformance Test Framework](https://github.com/modelcontextprotocol/conformance)を置き換えるものではなく、補完するものです。
 
-違いは「real softwareかsynthetic testか」ではありません。公式Conformanceは実client commandを起動でき、実server URLも直接テストできます。公式側のoracleはMCP specificationであり、scenario-controlledなinteractionをexpected protocol behaviorと比較します。
+違いは「実ソフトウェアか、synthetic testか」ではありません。公式Conformanceも実クライアントコマンドや実サーバーURLを使えます。
 
-一方`mcp-interop`は、**特定のRemote MCP deploymentを、特定のreleased client product/versionで実際に使えるか**を、その製品自身のMCP surfaceから観測します。比較軸は次の通りです。
-
-```text
-MCP Conformance: implementation x specification
-mcp-interop:      deployment x client product x client version
-```
-
-Conformance PASSだけでは、特定deploymentがすべてのreleased clientで動くことまでは証明しません。逆に`mcp-interop` PASSだけでも、MCP仕様への完全な適合性は証明しません。release pipelineでは、まずConformanceを通し、実endpointをdeployし、その後usersが実際に使うclientで`mcp-interop`を実行する二段階構成が適しています。
-
-Product-specificな`diagnose` profileも同じ境界を守ります。GenericなMCP/OAuth conformanceは公式Conformanceの担当です。`diagnose`は特定client productとの互換性を確認できますが、metadata compatibilityをgeneric conformanceやreal-client interoperability PASSとして扱ってはいけません。
-
-詳細は[MCP Conformance と mcp-interop の違い](conformance-vs-interop.ja.md)を参照してください。
-
-## コアモデル
-
-各テストステージは4種類の状態を返します。
-
-- `pass` — ステージの成功を観測できた。
-- `fail` — ステージを試行し、失敗を観測した。
-- `skip` — 前提条件を満たさない、またはadapterが未対応のため実行しなかった。
-- `unknown` — 利用できるクライアントの観測面だけでは結果を証明できない。
-
-現在のステージは次の4つです。
-
-1. `reach` — 実クライアントがRemote MCPへ到達し、live interactionを確認できた。
-2. `auth` — 必要な認証が完了した、またはtool discoveryにより認証不要であることを確認できた。
-3. `init` — 実クライアントがMCP sessionを確立した。
-4. `tools` — 実クライアントがserverのtoolsを発見した。
-
-完全な相互運用PASSには4ステージすべての`pass`が必要です。証拠が足りない状態をCIで互換性成功として扱わないため、`skip`や`unknown`もnon-zero exitになります。
-
-## 品質フェーズのinvariant
-
-現在の開発は新client追加より、reliability、testability、reproducibility、measured regression detectionを優先しています。品質改善でも次のinvariantは維持します。
-
-- diagnostic/preflight metadataはfailure説明には使えるが、live adapter resultをPASSへ昇格させない
-- Runtime Evidenceはsecret-freeなpresence/match observationだけを扱い、不完全・曖昧な観測は`WARN` / `unknown`のままにする
-- 終了させてよいprocessはcurrent isolated test sessionが所有すると証明できるもの、またはharness自身が直接起動したものだけ
-- fixed sleepは、flakeを減らせる場合にreadiness、process exit、state stabilityの条件へ置き換える
-- release gateは可能な範囲で通常CIと同じsource-quality invariantを再検証する
-
-## Adapter境界
-
-対応クライアントごとにadapterを持ち、クライアント固有の処理を閉じ込めます。概念上のライフサイクルは次の通りです。
+違うのは**何を正解として判定するか**です。
 
 ```text
-Detect -> Prepare isolated profile -> Register endpoint -> Authenticate -> Discover -> Cleanup
+MCP Conformance: implementation × specification
+mcp-interop:      deployment × client product × client version
 ```
 
-adapterは「設定ファイルを書けた」ことを成功と推測せず、**実際にインストールされているクライアントが観測した事実**を報告します。
+MCP Conformanceは、実装が仕様上の期待動作を満たすかを確認します。
 
-## Isolation方針
+`mcp-interop`は、特定のRemote MCPデプロイを、特定のクライアント製品・バージョンから実際に利用できるかを確認します。
 
-live adapterはユーザーが普段使っているMCP設定を黙って変更してはいけません。
+そのため、ConformanceがPASSしても「すべての公開クライアントでそのデプロイが動く」とは限りません。逆に`mcp-interop`がPASSしても「MCP仕様へ完全適合している」とは限りません。
 
-優先順位は次の通りです。
+実運用では、次の順で使うのが分かりやすいです。
 
-1. クライアントが公式に提供するtemporary/profile/config overrideを使う。
-2. HOME基準で設定を解決するクライアントでは、挙動を検証できている場合に限りtemporary HOMEを使う。
-3. 安全な隔離ができない場合は、既存設定を変更せず`unknown`または`skip`を返す。
+```text
+1. MCP Conformanceで仕様適合性を確認
+2. 実Remote MCPをデプロイ
+3. mcp-interopで実クライアントとの相互運用性を確認
+```
 
-テスト中に作られるcredentialやOAuth tokenは、可能な限りisolated profile内に閉じ込めます。reportにはBearer token、authorization code、client secret、cookie、credential fileの生データを含めません。
+詳しくは[MCP Conformanceとmcp-interopの違い](conformance-vs-interop.ja.md)を参照してください。
 
-processについても同じ原則を適用します。adapterが終了させてよいのは、現在のisolated test sessionに属すると証明できるprocessだけです。実行ファイル名だけを根拠に他のCodex/Cursor/Antigravity processをkillしてはいけません。
+## コアとなる結果モデル
 
-## 提供中のadapter
+各段階は次の4状態を返します。
 
-現在のstable releaseはv0.4.0です。以下のCursor/Antigravity OAuth pathはv0.4.0に含まれます。
+- `pass` — 成功を実際に観測できた
+- `fail` — 実行し、失敗を観測した
+- `skip` — 前提条件を満たさない、またはアダプター未対応のため実行しなかった
+- `unknown` — 利用できるクライアント側の観測手段だけでは成功・失敗を証明できなかった
+
+現在の段階は次の4つです。
+
+1. `reach` — 実クライアントが対象Remote MCPへ到達し、実通信を確認できた
+2. `auth` — 必要な認証が完了した、またはツール発見により認証不要と確認できた
+3. `init` — MCPセッションを成立させた
+4. `tools` — クライアントがサーバーのツールを発見した
+
+完全な相互運用PASSには4段階すべての`pass`が必要です。
+
+証拠不足を成功扱いしないため、`skip`や`unknown`もnon-zero exitです。
+
+## 品質改善で守る原則
+
+現在は新しいクライアントを増やすことより、信頼性・再現性・退行検出を優先しています。
+
+品質改善でも次を崩しません。
+
+- 事前診断やメタデータだけでlive resultをPASSへ昇格させない
+- Runtime Evidenceは秘密情報を含まない「存在したか」「一致したか」の観測だけを扱う
+- 不完全・曖昧な観測は`WARN` / `unknown`のままにする
+- 終了できるプロセスは、今回の隔離テストが所有していると証明できるものだけにする
+- 固定sleepは、可能ならreadiness・process exit・state stabilityの条件へ置き換える
+- release gateでも可能な範囲で通常CIと同じ品質条件を再確認する
+
+## アダプターの境界
+
+対応クライアントごとにアダプターを持ち、製品固有の処理を閉じ込めます。
+
+概念的な流れは次のとおりです。
+
+```text
+検出
+  -> 隔離profileを準備
+  -> 対象endpointを登録
+  -> 必要なら認証
+  -> MCP状態・ツールを観測
+  -> 一時状態を片付ける
+```
+
+アダプターは「設定ファイルへ書けた」ことから成功を推測せず、**実際にインストールされたクライアントが観測した事実**を結果にします。
+
+## 隔離ポリシー
+
+live adapterは、ユーザーが普段使っているMCP設定を黙って変更してはいけません。
+
+優先順位は次のとおりです。
+
+1. クライアントが公式に提供する一時profile / config overrideを使う
+2. `HOME`基準で設定を解決するクライアントでは、挙動を確認できている場合に限り一時`HOME`を使う
+3. 安全に隔離できない場合は、既存設定を変更せず`unknown` / `skip`を返す
+
+テスト中に生成されたcredentialやOAuth tokenは、可能な限り隔離profile内へ閉じ込めます。
+
+reportへBearer token、authorization code、client secret、cookie、credential fileの生データを含めません。
+
+プロセスも同様です。実行ファイル名が同じという理由だけで、別のCodex / Cursor / Antigravityプロセスを終了してはいけません。
+
+## 提供中のアダプター
+
+英語正本で記載している現在のstable releaseはv0.4.0です。以下のCursor / Antigravity OAuth経路はv0.4.0に含まれます。
 
 ### Codex CLI
 
-現在最も完成度の高いadapterです。isolated `CODEX_HOME`、実`codex app-server`のMCP status surface、明示的なopt-in OAuth flowを使用します。OAuth credential storageはtemporary HOME内のfileへ強制し、通常のkeyring経路を使いません。
+最も完成度の高いアダプターです。
 
-### Cursor CLI (beta)
+- 一時`CODEX_HOME`
+- 実`codex app-server`のMCP status
+- 明示的な`--oauth`
+- OAuth credentialを一時HOME内のファイルへ限定
 
-isolated temporary `HOME`とworkspaceを作り、実Cursor CLIの`mcp enable`、`mcp list`、`mcp list-tools`を使います。model promptなしでno-auth Remote MCPのlive interoperabilityを確認できます。
+を使います。
 
-v0.4.0では、明示的な`--oauth`によりisolated session内で実Cursor MCP login pathを起動します。controlled OAuth fixtureでDCR、Authorization Code + PKCE、token exchange、Bearer付きMCP request、authenticated `mcp list-tools`まで検証済みです。authenticated `mcp list-tools`成功を、tested Cursor CLI surfaceにおける`reach/auth/init/tools`の直接evidenceとして扱います。callback addressはversion-specificとして扱い、固定portをhard-codeしません。
+### Cursor CLI（beta）
 
-### Antigravity CLI (beta, macOS)
+一時`HOME`とworkspaceを使い、実Cursor CLIの`mcp enable`、`mcp list`、`mcp list-tools`で確認します。
 
-isolated temporary `HOME`、現在の`~/.gemini/config/mcp_config.json`形式、PTYを使ったreal-client pathを使用します。no-auth modeでは実クライアントが生成するmachine-readable tool cacheを観測し、cleanup前にはtest PTY wrapperのdescendantだけを回収します。
+`--oauth`時は実CursorのMCP login経路を使います。controlled fixtureではDCR、Authorization Code + PKCE、token exchange、Bearer付きMCP request、認証後の`mcp list-tools`まで検証しています。
 
-v0.4.0では、明示的な`--oauth`によりisolated PTY内で実Antigravity `/mcp` managerへ入ります。OAuth tokenはisolated `~/.gemini/antigravity/mcp_oauth_tokens.json`に閉じ込め、`mcp-interop`はfile metadataだけを観測し、token内容を開いたり保存したりしません。generic resultはconservativeなままで、authenticationを証明できてもOAuth pathでno-auth時と同じtool cacheが生成されなければ`init/tools=unknown`を維持します。controlled localhost E2Eでは別途、authenticated `initialize`、`notifications/initialized`、`tools/list`のserver-side evidenceを必須にします。詳細は[Antigravity OAuth live-test boundary](antigravity-oauth.md)を参照してください。
+callback addressはバージョン依存であり、固定portを仕様として決め打ちしません。
 
-### VS Code (research)
+### Antigravity CLI（beta / macOS）
 
-isolated user-data directoryへのMCP設定登録は安全にできますが、stableなsupported direct lifecycle/tool-discovery automation boundaryはまだlive adapterへ昇格していません。**登録できたことだけでは互換性PASSにしません。** researchはshipped adapter contractとは分離して継続します。
+一時`HOME`とPTYを使う実クライアント経路です。
 
-### GitHub Copilot CLI (research)
+認証不要の場合はクライアントが生成したmachine-readableなtool cacheを観測します。
 
-GitHub Copilot CLIはresearch-onlyです。現在のPoCではno-input startupで実clientの`initialize` / `notifications/initialized`までは確認できましたが、authenticated/model backendなしの`tools/list`は未証明です。詳細は#48を参照してください。
+OAuthでは実`/mcp`マネージャーを使い、tokenは一時`~/.gemini/antigravity/mcp_oauth_tokens.json`へ閉じ込めます。`mcp-interop`はtoken内容を読みません。
 
-### ChatGPT (blocked)
+認証成功だけでは`init/tools`を推測しません。必要なtool cacheが観測できなければ`unknown`を維持します。
 
-ChatGPTは引き続きdiagnostics-only profileです。officially supportedなdirect/headless ChatGPT MCP app-management surfaceが利用可能になるまでreal-client adapterはBLOCKEDです。model prompt、DOM/UI automation、private endpoint、通常ユーザーのbrowser credentialを、このprojectのreal-client `reach/auth/init/tools` evidence contractの代替にはしません。詳細は#20を参照してください。
+詳細は[Antigravity OAuth](antigravity-oauth.ja.md)を参照してください。
 
-## Real-client E2E境界
+### VS Code（research）
 
-repoにはlocalhost限定のMCP fixtureと、macOSで実Codex/Cursor/Antigravityを検証する`scripts/e2e-real-clients.sh`があります。
+隔離したuser-data directoryへMCP設定を登録することはできますが、安定したdirect lifecycle / tool-discovery経路はまだlive adapterへ昇格していません。
 
-harnessは各clientについて最低限、次のprotocol evidenceを要求します。
+設定できたことだけをinterop成功とは扱いません。
+
+### GitHub Copilot CLI（research）
+
+現在のPoCでは、入力なしの実クライアント起動で`initialize` / `notifications/initialized`までは観測できましたが、認証済み/model backendなしで`tools/list`までは証明できていません。Issue #48を参照してください。
+
+### ChatGPT（blocked）
+
+現在はdiagnostics-onlyです。
+
+公式にサポートされたdirect/headlessなChatGPT MCPアプリ管理インターフェースが利用可能になるまで、実クライアントアダプターはBLOCKEDです。
+
+model prompt、DOM/UI automation、private endpoint、通常ユーザーのブラウザcredentialを、`reach/auth/init/tools`の代わりにはしません。
+
+## 実クライアントE2Eの境界
+
+リポジトリにはlocalhost限定のMCP fixtureと、macOSで実Codex / Cursor / Antigravityを確認する`scripts/e2e-real-clients.sh`があります。
+
+ハーネスは少なくとも次を確認します。
 
 ```text
 initialize
@@ -119,26 +168,28 @@ notifications/initialized
 tools/list
 ```
 
-`tools/call`が発生した場合はFAILです。また、実行前後でuser config metadata、login Keychain DB、新規残存client process、temporary session directoryを比較します。
+`tools/call`が発生した場合はFAILです。
 
-Cursor/AntigravityのOAuth専用E2E harnessも同じisolation原則を使い、controlled loopback fixtureに対して実OAuth client pathを検証します。authorization codeやtokenなどのsecret-bearing materialはpersisted evidenceへ含めません。
+さらに、実行前後でユーザー設定のメタデータ、login Keychain DB、残存クライアントプロセス、一時セッションディレクトリを比較します。
 
-このfixtureは**adapterのself-test / release gate**であり、一般的なMCP conformance suiteではありません。目的は、`mcp-interop`のmeasurement pathが本当に実clientを観測でき、isolation guaranteeを維持していることを確認することです。
+Cursor / AntigravityのOAuth専用E2Eも、controlled loopback fixtureに対して実OAuth経路を検証します。authorization codeやtokenは保存証拠へ含めません。
 
-GitHub-hosted CIには外部MCP clientをインストールしません。通常CIではadapter regression test、fixture、harnessのsyntax/build path、release buildを検証します。実クライアントE2Eはself-hosted macOS ARM64 runner向けのmanual workflowとして分離しています。
+このfixtureは**アダプター自身の測定経路を検証するrelease gate**であり、一般的なMCP Conformance suiteではありません。
+
+GitHub-hosted CIには外部MCPクライアントをインストールしません。実クライアントE2Eはself-hosted macOS ARM64向けmanual workflowへ分離しています。
 
 ## このプロジェクトが検証しないもの
 
-interop testが成功しても、次を保証するものではありません。
+相互運用テストが成功しても、次は保証しません。
 
-- implementationが完全にMCP conformantであること
-- MCP serverが安全であること
-- tool実装自体が正しいこと
-- destructive operationが安全であること
-- modelが適切なtoolを選択すること
-- あらゆるOAuth identity/scope combinationが成功すること
-- 実際にテストしていないclient product/versionとの互換性
+- 実装がMCP仕様へ完全適合していること
+- MCPサーバーが安全であること
+- ツール実装が正しいこと
+- 破壊的操作が安全であること
+- モデルが正しいツールを選ぶこと
+- あらゆるOAuth identity / scopeで成功すること
+- 実際にテストしていないクライアント製品・バージョンとの互換性
 
-これらはsecurity scanner、conformance test、agent evaluationなど別種類のツールが扱う領域です。
+これらはConformance test、security scanner、agent evaluationなど別の層で扱います。
 
-実行時の問題や結果の読み方は[トラブルシューティング](troubleshooting.ja.md)を参照してください。
+実行時の問題は[トラブルシューティング](troubleshooting.ja.md)を参照してください。

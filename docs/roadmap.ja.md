@@ -1,342 +1,309 @@
-# Stable interoperability contractに向けたRoadmap
+# Stableな相互運用契約に向けたロードマップ
 
-[English](roadmap.md) | [日本語](roadmap.ja.md)
+[English](roadmap.md) | **日本語**
 
-このroadmapは、[Project direction](project-direction.ja.md)のproduct principleをmilestone、exit criteria、明示的non-goalへ落とし込む文書です。
+> この文書は英語版`roadmap.md`の日本語訳です。計画の正本は英語版です。
 
-これはplanning contractであり、日付のcommitmentではありません。minor version番号はmaturity workの想定順序を表しますが、未完成featureの出荷やevidence boundaryの緩和を強制しません。特に`v1.0.0`を`v0.9.0`や`v0.10.0`の次releaseとして自動予約しません。必要なら`v0.11.0`、`v0.12.0`、それ以降の`v0.x`を継続します。`v1.0.0`へ進むのは、この文書のstable-contract exit criteriaを満たした時だけです。
+このロードマップは、[プロジェクト方針](project-direction.ja.md)で定めた原則を、milestone・完了条件・非目標へ落とし込む文書です。
 
-## 他project documentとの関係
+日付を約束する計画ではありません。minor versionは想定する作業順序を示しますが、未完成機能を出すために安全境界を緩めるものではありません。
 
-- [Project direction](project-direction.ja.md)はmission、evidence hierarchy、competitive boundary、priority orderを定義します。
-- このroadmapはmaturityの想定順序とmilestone完了に必要なevidenceを定義します。
-- [Architecture](architecture.ja.md)は現在のimplementation/trust boundaryを説明します。
-- [Live result artifact schema v1](live-result-schema-v1.ja.md)は現在ship済みのportable result formatを定義します。このroadmapだけでschemaを黙って変更しません。
-- [Conformance vs. mcp-interop](conformance-vs-interop.ja.md)はofficial MCP Conformanceとの境界を定義します。
-- [CONTRIBUTING](../CONTRIBUTING.ja.md)はroadmap/contract変更のproposal/review方法を定義します。
+`v0.9.0`や`v0.10.0`の次が自動的に`v1.0.0`になるわけではありません。必要なら`v0.11.0`、`v0.12.0`以降を継続し、stable contractの完了条件を満たした場合だけ`v1.0.0`へ進みます。
 
-文書ごとの目的が異なる場合、roadmap上のaspirationをship済みbehaviorとして扱わないでください。公開versionが実際に何をするかはcurrent code、released schema、release documentationがsource of truthです。
+## 他の文書との役割分担
 
-## Roadmap invariants
+- [Project direction](project-direction.ja.md) — ミッション、証拠の優先順位、プロジェクト境界
+- このRoadmap — 作業順序と各milestoneの完了条件
+- [Architecture](architecture.ja.md) — 現在の実装・信頼境界
+- [Live result artifact schema v1](live-result-schema-v1.ja.md) — 現在提供済みのportable result形式
+- [Conformanceとの違い](conformance-vs-interop.ja.md) — 公式MCP Conformanceとの役割分担
+- [CONTRIBUTING](../CONTRIBUTING.ja.md) — 変更提案・レビュー方法
 
-すべてのmilestoneで次を維持します。
+ロードマップ上の将来像を、現在提供済みの挙動として扱わないでください。現在の仕様はコード、release documentation、versioned schemaを正とします。
 
-1. **feature数よりevidence correctnessを優先する。** green resultを得やすくする代わりにPASSの意味を弱めない。
-2. **live PASSはreal-client-only。** fixture、configuration、metadata、direct-server inspection、diagnostic evidenceをtest対象real shipping clientのlive evidenceへ代用しない。
-3. **unknownはunknownのまま。** compatibility matrixを埋めるためにmissing/ambiguous evidenceをsuccessへ推論しない。
-4. **safe graduation。** client/capabilityはsupported、またはdeliberately acceptedなdirect automation/evidence boundaryを証明してからgraduationする。version milestoneを理由にcriteriaを弱めない。
-5. **backward compatibilityはevidenceで判断する。** existing public contractは可能な範囲で維持し、current modelで具体的requirementを表せないと証明してからnew schema/incompatible contractを導入する。
-6. **local-first core。** core valueを得るためにhosted backend、account、dashboard、SaaSを必須にしない。
-7. **normal-user credentialを再利用しない。** adapterをpassさせるだけのためにnormal browser/client credential、token、Keychain entry、persistent user stateをcopyしない。
+## 全milestoneで守る原則
 
-## Core interoperability profile
+1. **機能数より証拠の正しさを優先する。** PASSを出しやすくするために意味を弱めない。
+2. **live PASSは実クライアントの証拠だけ。** fixture、config、metadata、direct server inspection、diagnostic evidenceで代用しない。
+3. **分からないものは`unknown`のまま。** 一覧を埋めるために成功を推測しない。
+4. **対応済みへの昇格は安全性を証明してから。** version milestoneを理由に基準を下げない。
+5. **互換性変更は実証してから。** 現行契約で表現できない具体的問題を確認してからnew schemaやbreaking contractを導入する。
+6. **コアはlocal-first。** hosted backendやアカウントを必須にしない。
+7. **通常ユーザーのcredentialを使い回さない。** テストを通すためにbrowser/client tokenやKeychain stateをコピーしない。
 
-capability数を増やす前に、core live PASSのminimum claimを明示します。
+## コア相互運用プロファイル
 
-想定するcore profileは **Remote Tool Interoperability** です。
+コアとなる最小の主張は **Remote Tool Interoperability** です。
 
-> real clientがtarget Remote MCP deploymentへ到達し、必要なauthentication boundaryを満たし、観測したprotocol eraで利用可能なMCP protocol pathを成立させ、そのclient pathから実tool-inventory evidenceを取得できる。
+> 実クライアントが対象Remote MCPへ到達し、必要な認証境界を通過し、その時代のMCPで利用可能なprotocol pathを成立させ、そのクライアント自身から実ツール一覧の証拠を取得できる。
 
-core profileではproductionの任意tool実行を必須にしません。tool callにはside effectがあり得るため、discoveryを証明する目的だけでgeneric PASS prerequisiteにしてはいけません。
+任意の本番tool callはコアPASSの必須条件にしません。ツール実行には副作用があり得るためです。
 
-Resources、Prompts、Tasks、Multi Round-Trip Requests (MRTR)、safe controlled-fixture tool call、将来のMCP extensionは別capability profileとして追加できます。新profile追加でcore profileの意味を黙って広げません。
+Resources、Prompts、Tasks、MRTR、controlled fixtureでの安全なtool callなどは、将来別capability profileとして追加できます。
 
-現在ship済みのpublic result modelは次です。
+現在の公開result modelは次です。
 
 ```text
 reach -> auth -> init -> tools
 ```
 
-これはexisting compatibility contractですが、`initialize`が将来のすべてのMCP revisionで永続するwire-level phaseだという宣言ではありません。protocol-aware normalizationではold outputの意味を守りながら、new protocol eraへfalse assumptionを持ち込まないようにします。
+## MCP protocol世代への対応
 
-## Protocol-era policy
+MCP protocolは変化します。
 
-MCP protocolは進化しています。official `2026-07-28` revisionではlegacyな`initialize` / `notifications/initialized` handshakeとprotocol-level session modelが廃止されています。そのrevisionのrequestはself-describingで、serverは`server/discover`を実装しますが、clientのdiscovery利用自体は必須ではありません。
+英語正本が参照している公式`2026-07-28` revisionでは、従来の`initialize` / `notifications/initialized` handshakeとprotocol-level session modelが廃止され、requestはself-describingになっています。serverは`server/discover`を実装しますが、clientがdiscoveryを使うこと自体は必須ではありません。
 
-そのため`mcp-interop`は**observed evidence**と**normalized interoperability meaning**を分離します。
+そのため`mcp-interop`は、**実際に観測したprotocol情報**と、**相互運用性として正規化した意味**を分けます。
 
 ```text
-real client execution
-  -> observed protocol/client evidence, when available
-  -> protocol-era-specific interpretation
-  -> normalized core interoperability verdict
+実クライアントを実行
+  -> 観測できたprotocol / client evidence
+  -> protocol世代ごとの解釈
+  -> コア相互運用性の判定
 ```
 
-protocol version/eraは推測値ではなくevidenceです。controlled fixtureではnegotiated protocol revisionを直接観測できても、production real-client surfaceでは見えない場合があります。その場合protocol revisionは`unknown`のまま維持します。fixtureで観測したprotocol情報を、production clientが証明したかのように別runへ転記してはいけません。
+protocol versionを推測しません。productionのクライアント側から見えなければ`unknown`のままです。
 
-将来`protocol_ready`のようなinternal semantic stateでlegacy initializationとmodern request readinessをnormalizeする可能性があります。ただしexisting public `init` fieldの置換・再解釈には明示的compatibility designとmigration planが必要です。
+fixtureで分かったprotocol versionを、別の本番runへ転記して「実クライアントが証明した」ことにはしません。
 
-### Remote transport boundary
+### Remote transportの範囲
 
-core projectは引き続き**Remote MCP deployment**へ集中します。
+コアは引き続きRemote MCP deploymentへ集中します。
 
-- Streamable HTTPをprimary modern remote transportとする。
-- real shipping clientが利用している間はlegacy remote HTTP/SSE behaviorも観測対象にできる。
-- すべてのhistorical transportをsupportすること自体は目的にしない。
-- `stdio` interoperabilityはproject directionを明示的に変更しない限りdeployment-specific Remote MCP core scope外とする。
+- Streamable HTTPをprimary modern remote transportとする
+- 実クライアントが利用している間はlegacy HTTP/SSEも観測対象にできる
+- 過去のすべてのtransportを永続サポートすることは目的にしない
+- `stdio`は方針変更がない限りcore scope外
 
-## v0.6.x — Protocol-aware coreとdeployment privacy
+## v0.6.x — protocol-aware coreとdeployment privacy
 
-### Goal
+### 目的
 
-existing live-PASS invariantを弱めず、legacy/modern MCP protocol eraをまたいでcore evidence modelを正しくする。
+現在のlive PASSの意味を弱めず、古いMCPと新しいMCPのprotocol世代差を正しく扱えるようにします。
 
-### Required work
+### 主な作業
 
-- Codex、Cursor、Antigravityのcurrent real-client pathを再観測し、supported/accepted automation surfaceから実際に取得可能なprotocol-era/version evidenceを記録する。
-- core Remote Tool Interoperability profile向けprotocol-era-aware interpretationを定義する。
-- production real-client pathがnegotiated protocol revisionを証明できない場合は`unknown`を維持する。
-- existing public `init` stageを、より正確なinternal semantic modelのcompatibility projectionとして維持できるか判断する。
-- controlled fixtureでlegacy/modern protocol behaviorをtestし、可能な範囲でfallback/unsupported-era behaviorも検証する。
-- protocol-aware変更中もexisting isolation、timeout、cancellation、process cleanup、state cleanup、secret-redaction gateを再実行する。
-- portable artifactを通常のbaseline/CI inputにする前にdeployment-identity privacy boundaryを定義する。
-- concreteなprotocol-aware requirementを安全に表せないと証明されるまではportable artifact schema v1を維持する。new schema versionは不足を実証してから導入する。
+- Codex / Cursor / Antigravityで実際に観測できるprotocol情報を再確認する
+- Remote Tool Interoperability向けのprotocol-awareな解釈を定義する
+- production clientからprotocol revisionを証明できない場合は`unknown`を維持する
+- 公開`init` stageを互換表示として維持できるか検討する
+- fixtureでlegacy / modern protocol behaviorを確認する
+- 隔離、timeout、cleanup、secret redactionを維持する
+- portable artifactを日常的にbaseline共有する前にdeployment identity privacyを定義する
+- schema v1で表現できない具体的問題を確認するまでは、安易にnew schemaへ上げない
 
-### Deployment identity privacy
+### deployment identityのプライバシー
 
-current portable artifactはraw query valueやcredential-bearing URL materialを意図的に除外します。これはartifactをcredential-safeにしますが、secret-safeなhostname/path自体がoperationally privateな場合があります。
+credentialを除去したURLでも、hostname/path自体が運用上の機密情報である場合があります。
 
 ```text
 credential-safe != deployment-public
 ```
 
-baseline artifactを通常commit/shareする前に、`production-a`のようなopaque user-defined target identity、またはprivate deployment hostname/pathを公開せずpairing可能な同等mechanismを検討します。candidate deployment identityを推測して照合できる場合があるため、deterministic hashだけを十分なprivacy対策とは扱いません。
+単純なdeterministic hashだけでは、候補URLを推測して照合できる可能性があります。
 
-### Exit criteria
+将来のbaseline共有では、`production-a`のようなユーザー定義のopaque identityなど、private hostname/pathを公開せずに同じ対象を比較できる方法を検討します。
 
-`v0.6.x`完了条件:
+### 完了条件
 
-- projectがcoverするlegacy/modern protocol behaviorでlifecycle-model assumptionがfalse live PASSを生成しない。
-- 観測できないprotocol情報は明示的にunknownのまま残る。
-- existing 3 adapterにactual observable surfaceへ適したprotocol-aware controlled-fixture coverageがある。
-- later baseline workflowに利用できるdeployment identityのdocumented secret/privacy modelがある。
-- artifact schema変更がある場合、実証済みneedと明示的compatibility/migration rationaleがある。
+- protocol世代差によりfalse PASSを出さない
+- 観測できないprotocol情報は`unknown`
+- 既存3アダプターに適切なfixture coverageがある
+- deployment identityのsecret/privacy modelを文書化できる
+- schema変更がある場合は、必要性とmigration rationaleが明確
 
-### Non-goals
+### 非目標
 
-- new client graduationは必須ではない。
-- hosted history serviceは作らない。
-- generic MCP conformance replacementにはしない。
-- production tool callを必須にしない。
+- 新クライアント追加は必須ではない
+- hosted history serviceは作らない
+- generic MCP Conformanceの代替にはしない
+- production tool callを必須にしない
 
-## v0.7.x — Repeatable regression workflow
+## v0.7.x — 繰り返し可能な退行テスト
 
-### Goal
+### 目的
 
-ship済みartifact/compare primitiveを、repositoryごとのcustom glueなしで複数real clientを実行し、comparable evidenceとdeterministic CI decisionを生成できるoperational workflowへする。
+現在のartifact / compare機能を、各リポジトリで大量の独自glueを書かなくても使える運用workflowへ発展させます。
 
-### Required work
+### 主な作業
 
-- target、client、authentication mode、allowed execution contextを選択するsecret-safe suite/manifest modelを定義する。
-- 複数selected clientを実行し、coherentなportable artifact setを生成する。
-- hand-written support matrixではなくevidenceからcompatibility/regression reportを生成する。
-- stage/reason-code change、client-version change、protocol-evidence change、missing evidenceをmachine-readable outputで保持する。
-- retry/flake semanticsを定義する。retryでfirst failureを消してはいけない。mixed attemptは黙ってPASSへ変換せずunstable/ambiguous evidenceとして表現する。
-- real-client executionのCI trust boundaryを定義・enforceする。
+- target、client、auth mode、許可された実行環境を記述するsecret-safeなsuite / manifest
+- 複数クライアントの実行とartifact生成
+- evidenceからcompatibility / regression reportを生成
+- stage / reason code / client version / protocol evidenceの変化をmachine-readableに保持
+- retry / flake semanticsの定義
+- real-client CIのtrust boundaryを明確化
 
-### CI trust boundary
+### CIの信頼境界
 
-untrusted pull-request contentからself-hosted real-client runnerをarbitrary network/credential execution surfaceとして利用できないようにします。
+self-hosted real-client runnerを、信頼できないPull Requestから任意ネットワーク・credential実行環境として悪用できないようにします。
 
-Default policy:
+原則:
 
-- ordinary/untrusted PR CIはhosted runner + controlled localhost fixtureだけを使う。
-- self-hosted real-client executionはtrusted branch、explicit manual dispatch、または同等のdeliberately approved execution pathに限定する。
-- untrusted PRのsuite/manifestからprivileged runnerをprivate hostやproduction-equivalent credential stateへredirectできないようにする。
-- OAuthは引き続きexplicit opt-inで、existing isolation/secret-safety guaranteeを維持する。
+- 通常のuntrusted PRはhosted runner + localhost fixtureだけ
+- self-hosted real-client executionはtrusted branch、manual dispatchなど明示的に承認された経路だけ
+- PR内のmanifestからprivate hostやproduction credentialへ勝手に向けられないようにする
+- OAuthは引き続きexplicit opt-in
 
-### Exit criteria
+### 完了条件
 
-`v0.7.x`はdeclared test suiteからreal-client artifact、comparison、evidence-derived compatibility reporting、deterministic CI exit decisionまで一周でき、同時にCI trust boundaryを維持できた時に完了します。
+宣言したsuiteから、real-client artifact生成、比較、compatibility report、deterministic CI decisionまで一連で実行でき、同時にCI trust boundaryを守れること。
 
-## v0.8.x — Baselineとcompatibility envelope
+## v0.8.x — baselineと互換性の観測範囲
 
-### Goal
+### 目的
 
-client auto-updateや複数tested client version/platformをまたぐ継続regression testを運用可能にする。
+client auto-updateや複数version/platformをまたぐ継続的な退行検出を運用できるようにします。
 
-### Required work
+### 主な作業
 
-- baseline lifecycle: create/select、compare、intentional accept、retire/supersedeを定義する。
-- accidental baseline replacementでregressionが隠れないようにする。
-- confidenceへ影響するstale/missing baseline evidenceを検出する。
-- 推測したcontinuous version rangeではなく**observed tested point**でadapter compatibility envelopeを定義する。
-- decisionに有用な範囲で`tested`、`untested`、`stale`、`known-broken`を区別する。
-- `mcp-interop clients`または同等machine-readable commandからadapter/client compatibility情報を表示し、untested versionをcompatibleと主張しない。
-- exact client version、platform/architecture、auth mode、test time/context、relevant evidence provenanceをcompatibility reportへ保持する。
+- baselineの作成・選択・更新・廃止手順
+- accidental baseline replacementで退行が隠れない仕組み
+- stale / missing baseline evidenceの検出
+- 連続したversion rangeを推測せず、**実際に検証した点**でcompatibility envelopeを表す
+- `tested` / `untested` / `stale` / `known-broken`を必要に応じて区別
+- client version、platform、auth mode、test時刻・context、証拠の出所を保持
 
-Example principle:
+例:
 
 ```text
 Tested:
   Cursor X on macOS arm64 -> PASS
   Cursor Y on macOS arm64 -> PASS
 
-Does not imply:
+これは次を意味しない:
   XからYまでの全versionがsupported
 ```
 
-### Exit criteria
+## v0.9.x — coverage、capability profile、安全な昇格
 
-`v0.8.x`はbaseline changeがintentional/auditableであり、client auto-updateをsupport rangeを捏造せずtested、untested、stale、regressedとして分類できる時に完了します。
+### 目的
 
-## v0.9.x — Coverage、capability profile、safe graduation
+既存アダプターの信頼性を深め、十分な証拠境界を持つ製品・capabilityだけを対応済みにします。
 
-### Goal
+優先順:
 
-existing adapterのconfidenceを深め、十分強いevidence boundaryを持つproduct/capabilityだけをgraduationする。
+1. Codex / Cursor / Antigravityを現実的な最新version横断で検証
+2. 安全に可能な範囲でOS/platform coverageを拡大
+3. beta -> stableはプロジェクト年齢ではなく証拠で判断
+4. Resources / Prompts / Tasks / MRTRなどは、PASSの意味を正確に定義できる場合だけ追加
+5. 新クライアントは既存と同じ基準を満たす場合だけ昇格
 
-### Priority order
+新クライアントが0件でも、証拠品質や既存アダプターの成熟度が大きく改善すれば成功です。
 
-1. Codex、Cursor、Antigravityをrealisticなcurrent client version横断で強化する。
-2. real client自体がsupportしsafe execution可能な範囲でOS/platform coverageを広げる。
-3. project ageやproduct popularityではなくobserved evidenceからbeta-to-stable promotionを判断する。
-4. Resources、Prompts、Tasks、MRTRなどはPASS claimをpreciseに定義できる場合だけcapability profileとして追加する。
-5. established adapter criteriaを満たしたnew real clientだけgraduationする。
+## v0.10.x — 公開契約候補
 
-GitHub Copilot CLI、VS Code、ChatGPTなどcurrent research candidateは、supported/accepted direct boundaryで必要なreal-client evidenceを安全に証明できるまでresearch-onlyを維持します。
+将来`v1.x`で維持する可能性がある公開契約を整理します。
 
-**new clientが0件でも**evidence quality、tested coverage、adapter maturityがmaterialに改善すれば`v0.9.x`は成功です。
+対象例:
 
-### Exit criteria
+- CLI command / flag semantics
+- primary JSON output
+- artifact schema evolution
+- reason code
+- exit code
+- adapter identity / maturity state
+- core / capability profileの意味
+- protocol-era policy
+- baseline / compatibility report
+- deprecation / removal policy
+- security / privacy / cleanup保証
 
-existing adapterにdocumented tested envelopeとmaturity statusがある。new client/capabilityを追加した場合も、弱いspecial caseではなく同じevidence/isolation/cleanup standardを満たす。
+根本的なCLI・schema・evidence model変更がまだ起こりそうなら、`v0.x`を継続します。
 
-## v0.10.x — Public contract candidate
+## v0.11.x以降 — 安定化のための余白
 
-### Goal
+`v0.11.0`以降へ特定featureを予約しません。
 
-将来`v1.x`でstable維持を約束する可能性があるpublic contractを整理する。
+実運用で見つかったprotocol差、schema migration、cross-platform cleanup、baseline UX、OAuth変更などを必要なだけ追加`v0.x`で解消します。
 
-### Required work
+`v1.0.0`を急ぐより、`v0.12.0`、`v0.13.0`以降を出すことを問題としません。
 
-必要に応じて次をstabilizeします。
+## v1.0.0 — Stable contractの完了条件
 
-- CLI command/flag semantics
-- primary JSON output compatibility
-- portable artifact schema evolutionとcross-schema comparison/migration policy
-- reason-code naming/compatibility policy
-- exit-code contract
-- adapter identity/maturity-state semantics
-- core/capability-profile meanings
-- protocol-era compatibility policy
-- baseline/compatibility-report semantics
-- deprecation/removal policy
-- release/security/privacy/cleanup guarantees
+### 証拠の正しさ
 
-portable artifactはevidence recordであり、defaultではcryptographic attestationではありません。将来provenance signing、attestation、tamper evidenceを追加する場合はtrust modelを明示します。v1 contractでもunsigned local artifactが「誰が実行したか」を証明すると暗黙に主張してはいけません。
+- core live PASSの意味が明確
+- PASSには対象実クライアントの証拠が必須
+- protocol世代差を扱っても、観測していない情報を既知扱いしない
+- exact client versionと関係するplatform/runtime/auth contextを保持
+- 曖昧な証拠はfail-closedまたは`unknown`
 
-### Exit criteria
+### Stable real-client adapter
 
-public surfaceをreviewし、maintainerが**「これらの意味をv1.xで維持する、または必要時にdeliberately version/migrateする準備がある」**と合理的に言えること。
+stableとする各アダプターで:
 
-fundamentalなCLI、schema、evidence-model redesignがまだ起きそうなら`v0.x`を継続します。
+- 通常ユーザー設定・credentialからの隔離が文書化・テスト済み
+- version取得がbounded / deterministic
+- timeout / cancellation / process cleanupがbounded
+- fixtureが測定経路を証明
+- 現実的なversion / platform範囲の証拠がある
+- client変更時にfalse PASSではなく保守的なfailure / unknownになる
 
-## v0.11.x以降 — Stabilization buffer
+対応クライアント数そのものはv1条件にしません。
 
-`v0.11.0`以降のpre-1.0 minor releaseへ特定feature setを予約しません。
+### 退行テスト運用
 
-real useで見つかった次のような問題を追加`v0.x` milestoneで解消します。
-
-- 想定外のmodern/legacy client difference
-- artifact schema migration gap
-- cross-platform lifecycle/cleanup problem
-- baseline/manifest usability problem
-- new OAuth behavior
-- real-client automation surfaceの変更/消失
-- evidence-model adaptationが必要なprotocol revision/extension
-
-prematureに`v1.0.0`へ進むより、`v0.12.0`、`v0.13.0`以降を出すことを問題としません。
-
-## v1.0.0 — Stable-contract exit criteria
-
-`v1.0.0`は次のcategoryをすべて満たした時だけreleaseします。
-
-### Evidence correctness
-
-- core live PASSの意味がprecise/documentedである。
-- PASSにはtest対象real clientのevidenceが必要で、fixture/configuration/metadata/diagnostic evidenceをdeployment-specific real-client evidenceの代替にしない。
-- protocol-era differenceをnormalizeしつつ、unobserved protocol detailをknown扱いしない。
-- client surfaceから安全に観測できる範囲でexact client versionとrelevant platform/runtime/auth contextを保持する。
-- ambiguous evidenceはfail-closedまたは`unknown`を維持する。
-
-### Stable real-client adapters
-
-stable宣言する各adapterについて:
-
-- normal client configuration/credential stateからのisolationがdocumented/tested。
-- exact version captureがbounded/deterministic。
-- timeout/cancellation/owned-process cleanupがbounded。
-- controlled fixtureがclaimed measurement pathを証明する。
-- documented envelopeを正当化できるrealistic version/platform横断のcompatibility evidenceがある。
-- client surface change時にfalse PASSではなくconservativeなfailure/unknownとなる。
-
-supported client数そのものは**v1 exit criterionにしません**。
-
-### Regression operation
-
-次のcoherent local-first pathを提供する。
+次を一連で利用できること。
 
 - portable versioned artifact
-- suite/multi-client execution
-- run/baseline comparison
+- suite / multi-client execution
+- baseline比較
 - intentional baseline lifecycle
-- evidence-derived compatibility report/matrix
+- evidence-derived compatibility report
 - CI regression gate
-- explicit retry/flake semantics
-- self-hosted real-client run向けtrusted execution policy
+- retry / flake semantics
+- self-hosted real-client向けtrusted execution policy
 
-### Public stability
+### 公開契約の安定性
 
-次をpreserve、またはdeliberately version/migrateする準備がある。
+次を維持する、または意図的にversion / migrateできる状態にする。
 
 - CLI behavior
 - primary JSON contract
 - artifact schema
 - exit code
 - stable reason code
-- adapter ID/maturity semantics
-- core/capability-profile meanings
+- adapter ID / maturity semantics
+- core / capability profile
 
-### Security and privacy
+### Security / privacy
 
-- secret-bearing valueをoutput/portable evidenceからreject/redactする。
-- normal-user credentialをtest profileへcopyしてpassさせない。
-- OAuth authorization materialをexplicit safe flow外へpersist/exposeしない。
-- deployment identity privacyにdocumented sharing/baseline modelがある。
-- self-hosted CIをuntrusted changeからarbitrary privileged executionへ誘導できない。
-- cleanupはtest sessionが所有するtemporary state/processだけを対象にする。
-- release provenance/security gateを維持する。
+- 秘密情報をoutput / artifactから拒否・マスクする
+- 通常ユーザーcredentialをコピーしてテストを通さない
+- OAuth authorization materialを安全な経路外へ保存・露出しない
+- deployment identity privacyの共有モデルがある
+- untrusted PRからself-hosted runnerを任意実行面として悪用できない
+- cleanup対象は今回のtest sessionが所有するものだけ
+- release provenance / security gateを維持
 
-### Scope boundary
+### v1でも非目標
 
-v1でも次をclaimしません。
-
-- official MCP Conformanceのreplacement
-- security certification/scanner
+- 公式MCP Conformanceの代替
+- security certification / scanner
 - LLM tool-selection benchmark
-- brittle GUI/DOM automation framework
-- hosted SaaS requirement
-- every MCP feature/every MCP clientが動くという証明
-- arbitrary production toolを安全に実行できるという証明
+- 壊れやすいGUI/DOM automation framework
+- hosted SaaS必須化
+- すべてのMCP機能・すべてのクライアントが動くという保証
+- 任意のproduction toolを安全に実行できるという保証
 
-## Minor release前のdecision gate
+## Minor releaseへ入れる前の判断
 
-planned capabilityを次minor releaseへ割り当てる前に確認します。
+新しいcapabilityを次のminor releaseへ入れる前に確認します。
 
-1. deployment-specific real-client evidenceのtrustworthinessまたはoperational usefulnessを改善するか。
-2. real-client-only PASS boundaryを維持できるか。
-3. normal-user credential copyやunsafe automation surfaceなしで実装できるか。
-4. official MCP Conformance、Inspector、security tool、model benchmarkではなくこのprojectに属するか。
-5. evidence surfaceを実際に観測し、実装できる程度にstableか。それともまだresearchか。
+1. deployment固有のreal-client evidenceの信頼性または運用価値を上げるか
+2. real-client-only PASSを維持できるか
+3. 通常ユーザーcredentialのコピーやunsafe automationなしに実装できるか
+4. 公式Conformance、Inspector、security tool、model benchmarkではなく、このprojectに属するか
+5. 観測経路は実装できる程度に安定しているか、それともまだresearchか
 
-答えが弱いfeatureはroadmap milestoneに空きがあってもdeferします。
+答えが弱いものは、ロードマップに空きがあっても延期します。
 
-## Roadmapへ影響するprotocol reference
+## 参照しているprotocol変更
 
-protocol-aware milestoneはofficial MCP `2026-07-28` release/schemaを参照しています。
+protocol-aware milestoneは公式MCP `2026-07-28` release/schemaを参照しています。
 
 - [`2026-07-28` specification release](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/blog/content/posts/2026-07-28-spec-ga/index.md)
 - [`2026-07-28` schema](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/schema/2026-07-28/schema.ts)
 
-legacy initialization handshakeをpermanent universal interoperability stageとしてroadmapへ固定しない理由は、このprotocol変更にあります。
+従来のinitialization handshakeを永続的な相互運用stageとして固定しない理由は、このprotocol変更にあります。
