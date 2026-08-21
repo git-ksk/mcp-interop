@@ -1,69 +1,69 @@
 # VS Code Agent Plugin MCP PoC
 
-[English](vscode-agent-plugin-poc.md) | [日本語](vscode-agent-plugin-poc.ja.md)
+[English](vscode-agent-plugin-poc.md) | **日本語**
 
-Status: #6向けのexperimental researchです。まだrelease adapterではありません。
+> この文書は英語版`vscode-agent-plugin-poc.md`の日本語訳です。Issue #6向けの実験的調査であり、提供済みアダプターではありません。
 
-## Goal
+## 目的
 
-実VS Code MCP clientがlocalhost Streamable HTTP MCP fixtureへ到達し、次のdirect lifecycleを実行できるか検証します。
+実VS CodeのMCPクライアントが、localhostのStreamable HTTP MCP fixtureへ到達し、次のlifecycleを**モデルへのプロンプトなし**で実行できるか検証します。
 
 ```text
 initialize -> notifications/initialized -> tools/list
 ```
 
-model prompt、browser/DOM automation、private workbench command IDは使用しません。
+browser / DOM automationやprivate workbench command IDは使いません。
 
-## Why this path is worth testing
+## なぜAgent Plugin経路を調べるのか
 
-現在のVS Code Agent Plugin documentationにはsupported local-plugin surfaceとして次が公開されています。
+VS CodeのAgent Plugin資料では、次の公開機能があります。
 
 - `chat.pluginLocations`でlocal plugin directoryを登録できる
-- pluginは`.mcp.json`内にMCP server definitionを含められる
-- plugin MCP serverはplugin有効時にautomatic startするとされている
-- plugin MCP serverはimplicitly trustedで、workspace-MCPの別trust promptを使用しない
+- pluginの`.mcp.json`へMCP serverを定義できる
+- plugin有効時にMCP serverが自動起動すると説明されている
+- plugin由来のMCP serverはimplicit trustとして扱われる
 
-VS Codeはisolated instance向けに`--user-data-dir`と`--extensions-dir`もdocumentしています。これらを組み合わせることで、#6のno-auth部分について不足しているdirect no-model lifecycle pathを提供できる可能性があります。
+VS Code自体も隔離起動向けに`--user-data-dir`と`--extensions-dir`を提供しています。
 
-References:
+これらを組み合わせれば、通常ユーザーのVS Code設定を触らず、実クライアントがMCP lifecycleを開始するか確認できる可能性があります。
+
+参考:
 
 - https://code.visualstudio.com/docs/agent-customization/agent-plugins
 - https://code.visualstudio.com/docs/agent-customization/mcp-servers
 - https://code.visualstudio.com/docs/configure/command-line
 
-## PoC design
+## PoCの構成
 
 `scripts/poc-vscode-agent-plugin.sh`は次を行います。
 
-1. macOSとinstalled `code` CLIを必須とする
-2. 既存のlocalhost `internal/e2e/fixture`をbuildする
-3. temporary VS Code `--user-data-dir`、temporary `--extensions-dir`、empty workspace、local Agent Pluginを作成する
-4. Agent Pluginsを有効化し、temporary pluginだけをisolated profile内へ登録する
+1. macOSとinstalled `code` CLIを確認
+2. localhost用`internal/e2e/fixture`をbuild
+3. 一時`--user-data-dir`、`--extensions-dir`、空workspace、local Agent Pluginを作成
+4. Agent Pluginsを有効にし、一時pluginだけを隔離profileへ登録
 5. plugin MCP serverをloopback fixtureへ向ける
-6. real VS Code executableを起動し、loopback accessを維持しつつ一般的なexternal-network proxy variableをclosed loopback portへ向ける
-7. server-side wire evidenceをauthoritativeとして扱う
-8. dedicated fixture pathで`initialize`、`notifications/initialized`、`tools/list`を必須にする
-9. `tools/call`が発生したらfailする
-10. command lineにunique temporary `--user-data-dir` pathを含むVS Code processだけを停止する
-11. 通常VS Codeの`settings.json`とuser `mcp.json` metadataが変化していないことを確認する
+6. 実VS Codeを起動する
+7. server-side wire evidenceを判定の正とする
+8. `initialize`、`notifications/initialized`、`tools/list`を確認する
+9. `tools/call`が発生したらFAIL
+10. 一時`--user-data-dir`を引数に持つVS Code processだけを停止する
+11. 通常VS Codeの`settings.json`とuser `mcp.json`のメタデータが変化していないことを確認する
 
-Run locally:
+実行:
 
 ```bash
 bash scripts/poc-vscode-agent-plugin.sh
 ```
 
-Keep diagnostics when needed:
+診断情報を残す場合:
 
 ```bash
 MCP_INTEROP_KEEP_VSCODE_POC_TMP=1 bash scripts/poc-vscode-agent-plugin.sh
 ```
 
-初期research時に使用したtemporary self-hosted PoC workflowは結果取得後に削除済みです。harness自体はexplicit local rerun用として残しています。
+## 検証結果 — 2026-08-11
 
-## Tested result — 2026-08-11
-
-maintainer macOS machineで次を検証しました。
+maintainerのmacOS環境で確認したbuild:
 
 ```text
 VS Code 1.132.0
@@ -71,43 +71,64 @@ df53daabb18cd157bdb08c7f01c34df936cf12f4
 arm64
 ```
 
-isolated local pluginはdiscoveryされました。VS Codeはplugin-provided server向けに専用の`mcpServer.plugin...mcp-interop-vscode-poc.log`を作成し、`mcpGateway.log`もinitializeしました。しかし、no-input launchを繰り返してもcontrolled fixtureへの**MCP requestは0件**でした。`initialize`、`notifications/initialized`、`tools/list`、`tools/call`はいずれも観測されませんでした。
+一時local plugin自体は発見されました。
 
-`chat.mcp.access`を`true`、`chat.mcp.autoStart`を`newAndOutdated`へ明示設定しても結果は同じでした。closed outbound proxyを外したdiagnostic runでもfixture trafficは0件だったため、network-isolation proxyがblockerではありません。
+VS Codeはplugin server向けログと`mcpGateway.log`を作成しましたが、入力なし起動を繰り返してもcontrolled fixtureへの**MCP requestは0件**でした。
 
-### Current verdict
+```text
+initialize                  not observed
+notifications/initialized  not observed
+tools/list                  not observed
+tools/call                  not observed
+```
 
-**direct no-model adapter contractとしてはBLOCKEDです。**
+`chat.mcp.access=true`、`chat.mcp.autoStart=newAndOutdated`を明示しても結果は同じでした。
 
-このstable buildでは、local Agent Plugin discoveryだけではno-input VS Code launchにplugin MCP serverをstartさせるには不十分です。public documentationはplugin有効時にplugin MCP serverがautomatic startするとしていますが、検証したlaunch pathではdiscovered serverにwire activityがありませんでした。これはprotocol failureではなく、追加のproduct lifecycle condition（例: chat/workbench activation）が必要である可能性があります。PoCは不足するdirect lifecycleをCommand Palette/UI automationで置き換えません。
+外部networkを閉じるproxyを外した診断runでもfixture trafficは0件だったため、network isolationが主因とは考えていません。
 
-issue #6はopenのまま維持します。VS Codeがmodel promptやbrittle UI controlを使わずdeterministicに動くsupported startup/status/tool-discovery pathを公開または修正した場合、このharnessを再実行します。
+## 現在の判定
 
-## PASS meaning
+**direct no-model adapterとしてはBLOCKEDです。**
 
-PASSは、検証したVS Code buildとAgent Plugin feature stateにおいて、supported public plugin configuration pathが実VS Code MCP clientに、model participationなしでdirect no-auth initializationとtool discoveryを実行させられることを証明します。
+確認したVS Code buildでは、local Agent Pluginが発見されただけでは、入力なし起動時にplugin MCP serverのwire activityは始まりませんでした。
 
-これは#6のno-auth部分を以前のCLI-only BLOCKED stateから進め、同じisolated-session patternに基づくreal VS Code adapter実装を正当化するのに十分です。
+これはMCP protocol failureを証明するものではありません。
 
-## What this does not prove
+chat/workbench activationなど、追加のproduct lifecycle条件が必要な可能性があります。
 
-- OAuth completionまたはcredential isolation
-- stable client-side machine-readable MCP status API
-- organization policyでAgent Pluginsがdisabledの場合のcompatibility
-- Preview変更後もAgent Plugin surfaceがstableであること
-- workspace `.vscode/mcp.json` lifecycleをheadlessにdriveできること
+ただしPoCでは、その不足をCommand Palette操作やUI automationで埋めません。
+
+Issue #6はopenのまま維持します。
+
+VS Codeが、モデルや壊れやすいUI操作を使わずにMCP startup / status / tool discoveryを行える公式・安定した経路を提供した場合、このハーネスを再実行します。
+
+## 将来PASSした場合に何を証明するか
+
+このPoCのPASSは、検証対象VS Code buildとAgent Plugin feature stateで、公開されたplugin設定だけを使い、**実VS Code MCP clientがモデル参加なしにRemote MCPを初期化し、ツール発見まで実行できた**ことを意味します。
+
+それが確認できれば、同じ隔離session patternを使うreal VS Code adapterを検討できます。
+
+## このPoCが証明しないもの
+
+- OAuth完遂やcredential isolation
+- 安定したclient-side machine-readable MCP status API
+- organization policyでAgent Pluginsが無効な環境との互換性
+- Preview変更後もAgent Plugin interfaceが維持されること
+- workspace `.vscode/mcp.json` lifecycleをheadlessに操作できること
 - release readiness
 
-OAuthは別gateのままです。このPoCからauthenticated interoperabilityを推測してはいけません。
+OAuthは別のgateです。このPoCからauthenticated interoperabilityを推測しません。
 
-## Failure interpretation
+## fixture trafficが無い場合の解釈
 
-fixture trafficがないことは、自動的にprotocol failureを意味しません。次のいずれかである可能性があります。
+MCP requestが来ないことは、自動的にprotocol failureを意味しません。
 
-- `chat.plugins.enabled`が利用できない、またはpolicyでdisabled
-- installed VS Code buildがisolated profileでAgent Pluginsをloadしない
-- plugin MCP auto-startにrunner上では満たされないproduct/session conditionが必要
-- HTTP plugin MCP configuration shapeが変更された
-- execution contextからVS Codeがisolated desktop instanceをlaunchできなかった
+たとえば次の可能性があります。
 
-この場合は#6をopenのまま維持し、別のsupported surfaceが存在するか判断する前にVS Code/fixture diagnosticsを取得します。
+- `chat.plugins.enabled`が利用できない、またはpolicyで無効
+- 対象VS Code buildが隔離profileでAgent Pluginsをloadしない
+- plugin MCP auto-startに追加のproduct/session conditionが必要
+- HTTP plugin MCP configuration形式が変わった
+- 実行環境からisolated desktop instanceを起動できなかった
+
+この場合はIssue #6をopenのまま維持し、別のsupported surfaceへ進む前にVS Code / fixture diagnosticsを確認します。

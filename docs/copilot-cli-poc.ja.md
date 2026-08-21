@@ -1,35 +1,35 @@
 # GitHub Copilot CLI direct MCP inventory PoC
 
-[English](copilot-cli-poc.md) | [日本語](copilot-cli-poc.ja.md)
+[English](copilot-cli-poc.md) | **日本語**
 
-このdocumentはissue #48のresearch boundaryを記録するものです。これは**PoCであり、shipped adapter contractではありません**。
+> この文書は英語版`copilot-cli-poc.md`の日本語訳です。Issue #48の調査記録であり、提供済みアダプターの仕様ではありません。
 
-## Why this surface is interesting
+## 何を調べているか
 
-GitHubの現在のCopilot CLI documentationには、supported non-interactive MCP management surfaceとして次が公開されています。
+GitHub Copilot CLIには、MCP設定を非対話で扱う公式コマンドがあります。
 
 - `copilot mcp list [--json]`
 - `copilot mcp get <name> [--json]`
 - `copilot mcp add --transport http <name> <url>`
 
-command referenceでは、`copilot mcp`はinteractive sessionを開始せずcommand lineから利用でき、`mcp get`はserver configurationとtoolsを表示すると説明されています。
+さらに次の隔離手段も公開されています。
 
-CLIはさらに次をsupportします。
+- `COPILOT_HOME`
+- `COPILOT_CACHE_HOME`
+- `--additional-mcp-config`
+- `COPILOT_MCP_TOOL_CACHE=false`
 
-- `COPILOT_HOME`: 通常の`~/.copilot` configuration/state directoryを置換する
-- `COPILOT_CACHE_HOME`: cache directoryを別途redirectする
-- `--additional-mcp-config`: session-only MCP definitionを追加する
-- `COPILOT_MCP_TOOL_CACHE=false`: MCP tool snapshot cachingを無効化する
+これらを使えば、通常ユーザーの設定・認証情報を触らず、実Copilot CLIがRemote MCPへどこまで到達するか確認できる可能性があります。
 
-Official references:
+公式資料:
 
 - https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference
 - https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-config-dir-reference
 - https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-mcp-servers
 
-## Tested baseline
+## 検証環境
 
-hosted macOS researchではofficial npm packageを使用しました。
+macOS上で公式npm packageを使って確認しました。
 
 ```text
 GitHub Copilot CLI 1.0.79
@@ -37,9 +37,11 @@ macOS 26 arm64
 Node.js 22
 ```
 
-CLIはisolated temporary `COPILOT_HOME`、`COPILOT_CACHE_HOME`、workspaceで実行しました。一般的なGitHub/model token environment variableは除外し、localhostへの接続を維持したまま、通常のoutbound HTTP(S)は到達不能なloopback proxyへredirectしました。
+一時`COPILOT_HOME`、`COPILOT_CACHE_HOME`、workspaceを使い、通常のGitHub/model token環境変数は除外しました。
 
-## Terminal MCP management result
+localhostへの接続だけを維持し、一般的なoutbound HTTP(S)は到達不能なloopback proxyへ向けました。
+
+## `copilot mcp list/get`の結果
 
 `scripts/poc-copilot-cli-mcp.sh`は次を実行します。
 
@@ -49,24 +51,24 @@ copilot mcp get mcp-interop-fixture
 copilot mcp get mcp-interop-fixture --json
 ```
 
-controlled configurationでは`deferTools: "never"`を使用し、processには`COPILOT_MCP_TOOL_CACHE=false`を設定します。
+Copilot CLI 1.0.79で確認できたこと:
 
-Copilot CLI 1.0.79での観測結果:
-
-- 3つのterminal management commandはすべて正常終了する
-- textは`Status: Enabled`と`Tools: * (all)`を報告する
-- JSONはconfigured `tools: ["*"]`、URL、source、enabled stateを報告する
-- localhost fixtureには**MCP requestが一切届かない**
+- 3コマンドは正常終了する
+- textには`Status: Enabled`と`Tools: * (all)`が表示される
+- JSONには設定済み`tools: ["*"]`、URL、source、enabled stateが出る
+- しかしlocalhost fixtureには**MCP requestが1件も来ない**
 - `initialize`、`notifications/initialized`、`tools/list`は観測されない
-- 実fixture toolの`ping`はmanagement outputに返らない
+- fixtureの実tool `ping`も表示されない
 
-したがって、検証したterminal `mcp list/get` pathは**configuration/inventory managementであり、direct live MCP tool discoveryではありません**。configuration registrationやconfigured `tools` allowlistをinteroperability PASSへ昇格させてはいけません。
+つまり、このmanagement commandが見せているのは**設定情報**であり、実Remote MCPから取得したツール一覧ではありません。
 
-## No-input real-client startup result
+`Tools: *`や設定済みallowlistを`tools=pass`の証拠にしてはいけません。
 
-`scripts/poc-copilot-cli-startup.sh`は、**inputもmodel promptも与えず**実`copilot` TUIをPTY内で起動します。同じisolated stateとloopback-only MCP targetを使用します。
+## 入力なしで実Copilot CLIを起動した結果
 
-30秒のhosted-macOS observationでは次を確認しました。
+`scripts/poc-copilot-cli-startup.sh`は、モデルへのプロンプトやユーザー入力を与えず、実`copilot` TUIをPTYで起動します。
+
+30秒の観測では次を確認しました。
 
 ```text
 initialize                  observed
@@ -75,60 +77,76 @@ tools/list                  not observed
 tools/call                  not observed
 ```
 
-Copilotのdebug logでも、MCP serviceがclientとしてinitializeされ、fixture serverの`tools` capabilityを認識したことを記録しています。一方、isolated environmentにはmodel backend/account authenticationが存在しませんでした（`Login status unknown`、GitHub auth tokenなし）。
+debug logでもMCP clientとしてinitializeし、fixture serverの`tools` capabilityを認識したことを確認しています。
 
-これは有用なpartial boundaryを証明します。**実Copilot CLI startupはmodel promptなしでconfigured Remote MCP serverへ到達しinitializeできます**が、検証したunauthenticated/no-model startupではobservable tool discoveryまで進みません。
+ただし、隔離環境にはmodel backend / account authenticationがありませんでした。
 
-`tools/list`が後続のauthenticated/model-session lifecycle stepにgatedされている可能性が高い、というのが現時点の解釈です。これはobserved wire traceとdebug logからの推測であり、documented Copilot contractではありません。
+現時点で言えるのは次までです。
 
-## Current verdict
+> 実Copilot CLIは、モデルへのプロンプトなしで設定済みRemote MCPへ到達し、initializeまでは実行できる。ただし、検証した未認証・no-model起動では`tools/list`まで確認できない。
 
-**complete direct `mcp-interop` adapterとしてはBLOCKEDです。**
+`tools/list`が後続のauthenticated/model-session lifecycleに依存する可能性はありますが、これは観測結果からの推測であり、公式契約ではありません。
 
-projectはtool discoveryを含むcore path全体についてdirect evidenceを要求します。Copilot CLI 1.0.79で現在確認できているのは次です。
+## 現在の判定
 
-- terminal management: safe configuration visibilityはあるがlive server contactはない
-- no-input real-client startup: live `initialize` + `notifications/initialized`までは到達するが、authenticated/model backendなしでは`tools/list`がない
+**完全な`mcp-interop`アダプターとしてはBLOCKEDです。**
 
-`Tools: *`、configuration state、MCP initialization成功だけを根拠に`tools=pass`を報告するCopilot adapterをshipしてはいけません。
+コアPASSにはtool discoveryまでの直接証拠が必要です。
 
-## Next safe gate
+現在確認できているのは:
 
-残るresearch questionは、**isolated authenticated Copilot session**が、ユーザーの通常credential stateをcopy/mutateせず、model promptをinteroperability oracleとして要求せずに`tools/list`まで到達できるかです。
+- terminal management — 設定は見えるが、Remote MCPへ接続しない
+- no-input startup — `initialize`までは到達するが、`tools/list`は未観測
 
-通常ユーザーのtoken、Keychain entry、`~/.copilot` credential stateをPoCへcopyしてはいけません。Copilotがこのtestに適したsupported isolated authentication mechanismを提供しない場合、issue #48はresearch-onlyのまま維持します。
+したがって、設定状態やMCP initialization成功だけを理由に`tools=pass`を返すアダプターは追加しません。
 
-## PASS contract for a future adapter
+## 次に確認すべき安全な条件
 
-future PoCがgraduateできるのは、以下をすべて満たす場合だけです。
+残る問いは、**隔離した認証済みCopilot sessionで、通常ユーザーのcredentialをコピー・変更せず、モデルをinterop判定器として使わずに`tools/list`まで到達できるか**です。
 
-1. 実際にインストールされたCopilot CLI/versionを記録する
-2. config/cache/workspaceとcredential stateを安全にisolateする
-3. core evidence mechanismとしてmodel promptを使用しない
-4. fixtureが`initialize`を観測する
-5. fixtureが`notifications/initialized`を観測する
-6. fixtureが`tools/list`を観測する
-7. supported surfaceが存在する場合、client-observable inventoryがcontrolled `ping` toolを識別する
-8. fixtureが`tools/call`を観測しない
-9. 通常ユーザーのconfiguration/credential stateが変化しない
-10. owned client processをleakしない
+通常ユーザーのtoken、Keychain、`~/.copilot` credential stateをPoCへコピーしません。
+
+適切なsupported isolation mechanismが無ければ、Issue #48はresearch-onlyのままにします。
+
+## 将来アダプターへ昇格する条件
+
+最低限、次をすべて満たす必要があります。
+
+1. 実Copilot CLIの正確なversionを記録できる
+2. config / cache / workspace / credentialを隔離できる
+3. model promptをコア証拠として使わない
+4. fixtureで`initialize`を観測できる
+5. `notifications/initialized`を観測できる
+6. `tools/list`を観測できる
+7. 可能ならclient-side inventoryでもfixtureの`ping`を識別できる
+8. `tools/call`が発生しない
+9. 通常ユーザーの設定・credentialが変化しない
+10. owned client processを残さない
 
 ## OAuth
 
-no-auth/tool-discovery boundaryが解決するまではRemote-MCP OAuthをscope外とします。Copilot account authenticationとRemote-MCP OAuthは別のconcernであり、混同してはいけません。
+認証不要のtool-discovery境界が解決するまでは、Remote MCP OAuthはscope外です。
 
-## Running
+Copilotアカウントへの認証と、Remote MCPのOAuthは別の問題なので混同しません。
 
-Terminal management PoC:
+## 実行方法
+
+MCP management PoC:
 
 ```console
 bash scripts/poc-copilot-cli-mcp.sh
 ```
 
-No-input startup PoC:
+入力なしstartup PoC:
 
 ```console
 bash scripts/poc-copilot-cli-startup.sh
 ```
 
-sanitized diagnosticsを保持する必要がある場合だけ`MCP_INTEROP_KEEP_COPILOT_POC_TMP=1`を設定してください。保持したdirectoryにはclient logが含まれる可能性があるため、共有前に必ずreviewしてください。
+一時diagnosticを残す場合のみ:
+
+```console
+MCP_INTEROP_KEEP_COPILOT_POC_TMP=1 bash scripts/poc-copilot-cli-startup.sh
+```
+
+保存したdirectoryにはclient logが含まれる可能性があるため、共有前に必ず内容を確認してください。
