@@ -1,49 +1,65 @@
 # Reason code
 
-[English](reason-codes.md) | [日本語](reason-codes.ja.md)
+[English](reason-codes.md) | **日本語**
 
-`mcp-interop`は、明示的な証拠からfailureを安全に分類できる場合にstableな`reason_code`を出します。
+> この文書は英語版`reason-codes.md`の日本語訳です。定義に差がある場合は英語版を正とします。
 
-現在は大きく2種類あります。
+`mcp-interop`は、失敗原因を**明示的な証拠から安全に分類できる場合だけ**、安定した`reason_code`を返します。
 
-- **real-client reason code** — Codexなど実MCP clientの観測結果から分類
-- **runtime diagnostic reason code** — `diagnose --profile chatgpt --runtime-evidence`へ明示的に渡したsecret-freeなserver observationから分類
+大きく2種類あります。
 
-Runtime diagnostic codeはreal-client interoperability verdictではありません。Preflight、Runtime Evidence、OpenAI Reference Pattern、real-client実行は別の証拠レイヤーです。
+- **実クライアント由来** — Codex / Cursorなど、実際に起動したMCPクライアントの観測結果から分類
+- **Runtime Evidence由来** — `diagnose --profile chatgpt --runtime-evidence`へ渡された、秘密情報を含まないserver-side observationから分類
 
-## real-client OAuth code
+Runtime Evidenceのreason codeは、実クライアントのinterop verdictではありません。
+
+Preflight、Runtime Evidence、OpenAI Reference Pattern、real-client runは別々の証拠です。
+
+## 実クライアントOAuth
 
 ### `DCR_UNSUPPORTED`
 
-実clientが対象OAuth flowでDynamic Client Registration非対応を明示的に報告した場合です。
+実クライアントが、対象OAuth flowでDynamic Client Registrationをサポートしていないと明示した場合です。
 
-推測した`/register`や`/oauth/register`が`404`になっただけでは判定しません。
+推測した`/register`や`/oauth/register`が404だっただけでは、このcodeを付けません。
 
 ### `DCR_FAILED`
 
-実clientがDCRを試行し、unsupported以外の理由でregistrationが失敗したと明示的に報告した場合です。
+実クライアントがDCRを実行し、「unsupported」以外の理由でregistration失敗を明示した場合です。
 
-Codex / Cursor adapterでは、`DCR_UNSUPPORTED`と`DCR_FAILED`は実clientがMCP OAuth registration boundaryまで到達した証拠としても扱います。そのため、このpathでは`reach=pass`、`auth=fail`、後続stageはskipとなります。genericなOAuth startup failureだけでは`reach`をpassへ昇格しません。
+Codex / Cursorでは、`DCR_UNSUPPORTED`と`DCR_FAILED`は実クライアントがMCP OAuth registration境界まで到達した証拠にもなります。
+
+そのため、この経路では次のように判定できます。
+
+```text
+reach=pass
+auth=fail
+後続stage=skip
+```
+
+一般的なOAuth startup failureだけで`reach=pass`にはしません。
 
 ### `OAUTH_CALLBACK_PORT_CONFLICT`
 
-実clientが、そのOAuth flowで選択したloopback callback address/portへlistenerをbindできなかったことを明示的に報告した場合です。
+実クライアントが、そのOAuth flowで選んだloopback callback address / portへlistenerをbindできなかったと明示した場合です。
 
-clientから観測できるbind conflictの証拠に基づくcodeです。過去に観測した、または推測したcallback portが使用中というだけでは付与しません。callback addressはclient version固有として扱い、固定portを永久contractとしてhard-codeしません。
+「以前このportだった」「たぶんこのportが使用中」といった推測では付けません。
 
-## Runtime registration / token request code
+callback addressはclient version固有として扱います。
+
+## Registration / token request
 
 ### `REGISTRATION_STRATEGY_UNSUPPORTED`
 
-明示的に観測したregistration方式（`cimd`または`dcr`）を、discovery済みAuthorization Server Metadataが広告していない場合です。
+実際に観測したregistration方式（`cimd`または`dcr`）を、discoveryしたAuthorization Server Metadataが広告していない場合です。
 
-`predefined`はpublic metadataだけではpre-registrationを証明できないため、それだけを理由にFAILにはしません。
+`predefined`は公開メタデータだけでは事前登録の有無を証明できないため、それだけでFAILにはしません。
 
 ### `TOKEN_AUTH_METHOD_MISMATCH`
 
-観測したtoken endpoint authenticationが、利用可能なclient/server metadataから選択されるmethodと一致しない場合です。
+観測したtoken endpoint authenticationと、利用可能なclient/server metadataから期待される方式が一致しない場合です。
 
-ChatGPT CIMD profileでは、取得したChatGPT CIMDとAuthorization Server双方が`private_key_jwt`を広告しているのに、token requestにclient assertionが無ければ:
+ChatGPT CIMD profileで、ChatGPT CIMDとAuthorization Serverの両方が`private_key_jwt`を広告しているのに、token requestにclient assertionが無ければ:
 
 ```text
 expected: private_key_jwt
@@ -52,35 +68,35 @@ observed: none
 
 として分類できます。
 
-DCR/predefinedへCIMDの`private_key_jwt`期待値を勝手に適用しません。
+DCR / predefinedへCIMDの期待値を勝手に適用しません。
 
 ### `CLIENT_AUTH_REJECTED`
 
-token endpointがsanitized OAuth error `invalid_client`を返した場合です。
+token endpointが、秘密情報を除去したOAuth error `invalid_client`を返した場合です。
 
 ### `TOKEN_REQUEST_REJECTED`
 
-token endpointが、より狭い分類へ落とせないsanitized OAuth errorを返した場合です。
+より具体的なreason codeへ分類できないOAuth errorでtoken requestが拒否された場合です。
 
 ### `RESOURCE_MISMATCH`
 
-OAuth `resource`がcanonical protected MCP resourceと一致しなかったというruntime observationがある場合です。
+OAuth `resource`がcanonical protected MCP resourceと一致しなかった、という明示的観測がある場合です。
 
 ### `REDIRECT_URI_MISMATCH`
 
-authorization requestのredirect URIが、診断対象のregistered/client metadata値と一致しなかったという観測です。
+authorization requestのredirect URIが、登録済みまたはclient metadataの値と一致しなかった場合です。
 
 ### `PKCE_S256_MISSING`
 
-ChatGPT profileで期待されるPKCE S256がauthorization requestで観測されなかった場合です。
+ChatGPT profileで期待されるPKCE S256をauthorization requestで確認できなかった場合です。
 
 ### `PKCE_VERIFIER_MISSING`
 
-token requestで`code_verifier`が存在しなかった場合です。値そのものは入力しません。
+token requestに`code_verifier`が存在しなかった場合です。値そのものは入力しません。
 
-## MCP Resource Server code
+## MCP Resource Server
 
-OAuth token exchange後のsecret-free observationを分類します。`mcp-interop`自身はBearer token値を取り込みません。
+OAuth token exchange後の観測を分類します。`mcp-interop`自身はBearer token値を受け取りません。
 
 ### `ACCESS_TOKEN_NOT_ATTACHED`
 
@@ -88,67 +104,71 @@ OAuth token exchange後のsecret-free observationを分類します。`mcp-inter
 
 ### `TOKEN_SIGNATURE_INVALID`
 
-Resource ServerがBearer tokenのsignature validation失敗を報告した場合です。
+Resource Serverがtoken signature validation失敗を報告した場合です。
 
 ### `TOKEN_ISSUER_MISMATCH`
 
-Resource Serverがtoken issuer不一致を報告した場合です。
+token issuerが一致しない場合です。
 
 ### `TOKEN_AUDIENCE_MISMATCH`
 
-Resource Serverがtoken audience/resourceとprotected MCP resourceの不一致を報告した場合です。
+token audience / resourceとprotected MCP resourceが一致しない場合です。
 
 ### `TOKEN_EXPIRED`
 
-Resource Serverがtoken期限切れを報告した場合です。
+tokenが期限切れの場合です。
 
 ### `INSUFFICIENT_SCOPE`
 
-MCP operationに必要なscopeがtokenに不足しているとResource Serverが報告した場合です。
+MCP operationに必要なscopeが不足している場合です。
 
-これらはOpenAI authentication docsがresource serverに求めるtoken verificationと、`openai/openai-mcpkit`のauthenticated Python MCP scaffoldが示すJWT verification patternに対応します。
+## Tool-level OAuth signal
 
-## Tool-level OAuth signal code
-
-OAuth challengeが必要だったと明示的に観測できる場合だけconclusive failureにします。未観測なら`WARN / unknown`です。
+未観測のものをFAILと推測しません。必要なsignalを明示的に観測できた場合だけconclusive failureにします。
 
 ### `TOOL_OAUTH_METADATA_MISSING`
 
-auth-required toolに期待されるOAuth `securitySchemes` metadataが無い場合です。
+認証対象toolに期待されるOAuth `securitySchemes` metadataが無い場合です。
 
 ### `TOOL_OAUTH_CHALLENGE_MISSING`
 
-tool-level認証/再認証challengeが必要なのに、`_meta["mcp/www_authenticate"]`が無いと観測された場合です。
+tool-levelの認証・再認証challengeが必要なのに、`_meta["mcp/www_authenticate"]`が無い場合です。
 
 ### `TOOL_OAUTH_CHALLENGE_INVALID`
 
-runtime challenge自体はあるものの、明示的に観測した必須OAuth error / error-description signalが欠けている場合です。
+runtime challenge自体はあるものの、必須のOAuth error / error-description signalが欠けている場合です。
 
-この証拠を取るために`mcp-interop`が勝手にtoolをcallすることはありません。既に得られているsanitized server observationだけを利用します。
+この証拠を得るために`mcp-interop`が勝手にtoolを実行することはありません。すでに得られている秘密情報を含まないserver observationだけを使います。
 
-## Reason precedence
+## Reason codeの優先順位
 
-Runtime Evidenceのtop-level `reason_code`にはdiagnostic evaluation order上で最初のconclusive failureを出します。ただし各checkは個別の`reason_code`を保持します。
+Runtime Evidenceのtop-level `reason_code`には、評価順で最初に見つかったconclusive failureを表示します。
 
-たとえば最初に`TOKEN_AUTH_METHOD_MISMATCH`が発生し、token endpointがさらに`CLIENT_AUTH_REJECTED`を返していた場合も、両方のcheckを確認できます。
+ただし各checkは個別の`reason_code`を保持します。
 
-## Security boundary
+たとえば最初に`TOKEN_AUTH_METHOD_MISMATCH`があり、その後token endpointが`CLIENT_AUTH_REJECTED`も返した場合、各checkで両方を確認できます。
 
-Runtime Evidenceへ入力できるのは、限定されたpresence/match boolean、stableな非secret metadata identifier、registration strategy、短いsanitized OAuth error codeだけです。未知JSON fieldは拒否します。
+## 秘密情報の境界
 
-次は絶対に入力・reason detailへ保存しません。
+Runtime Evidenceへ入力できるのは、限定されたboolean、stableな非secret metadata identifier、registration strategy、短いsanitized OAuth error codeだけです。
+
+未知JSON fieldは拒否します。
+
+次は入力・reason detailへ保存しません。
 
 - access / refresh token
 - authorization code / OAuth state
-- PKCE verifier/challengeの値
+- PKCE verifier / challengeの値
 - raw client assertion / private key
 - client secret
 - cookie / credential file
 
-実clientのraw errorにもremote生成文字列が混ざる可能性があります。分類に必要な場合だけmemory内で扱い、通常の出力にはstable codeとproject側で定義したmessageを使います。
+実クライアントのraw errorにRemote側の文字列が含まれる場合も、分類に必要な範囲だけmemory内で扱い、通常出力にはstable codeとプロジェクト側で定義したmessageを使います。
 
-## Capability correlation boundary
+## Capability情報を相関するときの境界
 
-capability evidenceはMCP Protected Resource MetadataとAuthorization Server discoveryを辿って取得します。registration URLを推測してDCR supportを判定しません。
+capability evidenceはProtected Resource MetadataとAuthorization Server discoveryから取得します。
 
-複数`authorization_servers`がある場合は保守的に扱います。実flowが選択したissuerを証明できない限り、別issuerのcapabilityを混ぜてauth-method期待値を作らず`unknown`にします。
+registration URLを推測してDCR対応を判定しません。
+
+複数の`authorization_servers`がある場合も、実際のflowがどのissuerを選んだか証明できなければ、別issuerのcapabilityを混ぜて期待値を作らず`unknown`にします。

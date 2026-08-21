@@ -1,102 +1,143 @@
 # トラブルシューティング
 
-[English](troubleshooting.md) | [日本語](troubleshooting.ja.md)
+[English](troubleshooting.md) | **日本語**
 
-このページでは、`mcp-interop`を実際のMCP clientに対して実行したときの問題と、profileベースpreflight診断の読み方をまとめます。
+> この文書は英語版`troubleshooting.md`の日本語訳です。内容に差がある場合は英語版を正とします。
 
-現在のstable releaseはv0.4.0です。以下のCursor/Antigravity OAuth対応はv0.4.0に含まれます。
+このページでは、`mcp-interop`を実クライアントで動かしたときによく起きる問題と、`diagnose`による事前診断の読み方をまとめます。
 
-## まずclient detectionを確認する
+英語正本に記載されているstable releaseはv0.4.0です。以下のCursor / Antigravity OAuth対応はv0.4.0に含まれます。
+
+## まずクライアントが検出されているか確認する
 
 ```console
 mcp-interop clients
 mcp-interop clients --json
 ```
 
-clientが検出されない場合は、まず対象実行ファイルが現在の`PATH`から見えるか、versionを直接取得できるか確認してください。
+対象クライアントが出てこない場合は、まず次を確認してください。
 
-`mcp-interop`は、adapterが明示的に対応していない別名binaryを「たぶん互換」と推測して使用しません。
+- 実行ファイルが現在の`PATH`から見えるか
+- コマンドを直接実行してバージョンを取得できるか
 
-## 明確なFAILがないのにexit codeがnon-zeroになる
+`mcp-interop`は、未対応の別名binaryを「たぶん同じクライアント」と推測して使いません。
 
-live testがexit code `0`になるのは、次の4ステージが**すべて`pass`**の場合だけです。
+## FAILが見えないのにexit codeが0にならない
+
+live testがexit code `0`になるのは、次の4段階が**すべて`pass`**の場合だけです。
 
 ```text
 reach / auth / init / tools
 ```
 
-`fail`だけでなく、`skip`と`unknown`もnon-zeroです。証拠不足のinterop結果をCIが成功として扱わないためです。
+`fail`だけでなく、`skip`と`unknown`もnon-zeroです。
 
-`diagnose` commandは別のpreflight contractを使います。blockingな診断FAILはnon-zeroですが、non-blocking WARNだけなら`PREFLIGHT PASS`になり得ます。preflight PASSはreal-client interoperability PASSではありません。
+これは、確認できていない相互運用性をCIが成功扱いしないための仕様です。
 
-## `unknown`とは
+`diagnose`は別契約です。blockingな診断FAILはnon-zeroですが、WARNだけなら`PREFLIGHT PASS`になることがあります。
 
-`unknown`は、実クライアントが提供するcontrol/management surfaceだけでは、成功または失敗を証明できなかったことを意味します。
+**PREFLIGHT PASSは、実クライアントのinterop PASSではありません。**
+
+## `unknown`は何を意味するか
+
+`unknown`は「成功とも失敗とも証明できなかった」という意味です。
 
 典型例:
 
-- unreachable serverと「正常だがtoolが0件」のserverが同じempty inventoryに見える
-- beta adapterでstableなmachine-readable statusを観測できない
-- protocol stageを証明する前にclient processが終了した
-- OAuthでauthenticationは証明できたが、`init/tools`の直接観測に使うclient-side tool cacheが生成されない
+- 到達不能なサーバーと、正常だがtoolが0件のサーバーが同じempty inventoryに見える
+- beta adapterで安定したmachine-readable statusを取得できない
+- 必要なprotocol段階を確認する前にclient processが終了した
+- OAuth認証は確認できたが、`init/tools`を直接確認するclient-side stateが生成されなかった
 
-`unknown`を`pass`として扱わないでください。報告時には必ず正確なclient versionを含めてください。
+`unknown`を`pass`として読み替えないでください。
 
-## OAuthが必要なserver
+不具合報告では、必ず対象クライアントの正確なversionを含めてください。
+
+## OAuthが必要なRemote MCP
 
 ### Codex
 
-Codex OAuthは明示的に`--oauth`を指定した場合だけ開始します。
+OAuthは`--oauth`を明示した場合だけ開始します。
 
 ```console
 mcp-interop test https://example.com/mcp --client codex --oauth
 ```
 
-authorization URLはstderrへ表示されます。短時間有効なOAuth stateを含むため、Issueなどへ貼らないでください。
+authorization URLはstderrへ表示されます。短時間有効なOAuth `state`が含まれるため、Issueやログ共有へ貼らないでください。
 
-authorization URLが得られる前にCodex OAuthが失敗した場合は、text outputの`REASON`列またはJSONの`reason_code`を確認してください。
+認証開始前に失敗した場合は、`REASON`列またはJSONの`reason_code`を確認してください。
 
-たとえば`DCR_UNSUPPORTED`は、実Codex clientが対象OAuth flowについてDynamic Client Registration非対応を明示的に報告したことを意味します。推測したregistration URLが`404`になっただけでは、このreason codeを付けません。
+たとえば`DCR_UNSUPPORTED`は、**実Codexが対象OAuth経路でDynamic Client Registration非対応を明示した**場合に使われます。
 
-stableな判定ルールは[Reason code](reason-codes.ja.md)を参照してください。
+推測したregistration URLが404だっただけでは、このreason codeにはしません。
+
+詳しくは[Reason code](reason-codes.ja.md)を参照してください。
 
 ### Cursor
-
-v0.4.0以降ではCursor OAuthを明示的にopt-inできます。
 
 ```console
 mcp-interop test https://example.com/mcp --client cursor --oauth
 ```
 
-adapterはisolated temporary `HOME` + workspace内で実Cursor MCP login pathを起動し、authenticated `mcp list-tools`をreal-client evidenceとして使います。controlled fixtureでDCR、Authorization Code + PKCE、token exchange、Bearer付きMCP request、authenticated tool discoveryまで検証済みです。
+一時`HOME`とworkspaceの中で、実Cursor MCP login経路を使います。認証後の`mcp list-tools`成功を、実クライアントのツール発見証拠として扱います。
 
-localhost callbackまわりで失敗した場合、固定portを前提にしないでください。正確なCursor versionと、そのversionが表示したcallback addressを記録してください。明示的な証拠があるcallback bind conflictは`OAUTH_CALLBACK_PORT_CONFLICT`として分類される場合があります。
+controlled fixtureではDCR、Authorization Code + PKCE、token exchange、Bearer付きMCP request、認証後のtool discoveryまで検証しています。
+
+callbackで失敗した場合は、固定portを前提にしないでください。記録すべきなのは次です。
+
+- 正確なCursor version
+- そのversionが表示したcallback address
+- そのportが他processに使用されていたか
+- token / stateを除去した出力
+
+明示的なbind conflictを確認できた場合は`OAUTH_CALLBACK_PORT_CONFLICT`として分類されることがあります。
 
 ### Antigravity
-
-v0.4.0以降ではmacOS上でAntigravity OAuthを明示的にopt-inできます。
 
 ```console
 mcp-interop test https://example.com/mcp --client antigravity --oauth
 ```
 
-adapterはisolated PTY内で実Antigravity `/mcp` managerへ入ります。OAuth stateはtemporary HOME内だけに保存され、`mcp-interop`はtoken fileのmetadataだけを観測し、token内容を読み取ったりpersistしたりしません。
+一時`HOME`内のPTYで実Antigravity `/mcp`マネージャーを使います。
 
-検証済み`agy 1.1.11`ではauthenticationが完了しても、OAuth pathでno-auth時と同じclient-side tool cacheが生成されない場合があります。その場合、generic resultは意図的に`reach=pass`、`auth=pass`、`init=unknown`、`tools=unknown`を維持します。controlled localhost OAuth E2Eでは別途、authenticated `initialize`、`notifications/initialized`、`tools/list`のserver-side evidenceを必須にします。詳細は[Antigravity OAuth live-test boundary](antigravity-oauth.md)を参照してください。
+OAuth token stateは一時HOMEだけに保存され、`mcp-interop`はtokenファイルの内容を読みません。ファイルの存在などのメタデータだけを確認します。
 
-## ChatGPT custom MCP appが接続できない
+検証済み`agy 1.1.11`では、認証完了後でも認証不要時と同じtool cacheが生成されない場合があります。
 
-まずChatGPT preflight profileを実行します。
+その場合は意図的に次のような結果を維持します。
+
+```text
+reach=pass
+auth=pass
+init=unknown
+tools=unknown
+```
+
+認証できたという理由だけで、未観測の段階をPASSへしません。
+
+詳細は[Antigravity OAuth](antigravity-oauth.ja.md)を参照してください。
+
+## ChatGPTから接続できない
+
+まず公開メタデータの事前診断を実行します。
 
 ```console
 mcp-interop diagnose https://example.com/mcp --profile chatgpt
 ```
 
-blocking FAILが出た場合、Protected Resource Metadataを発見できない、usableなAuthorization Server Metadataがない、CIMD/DCRの両方が無い、CIMD token endpoint auth methodがChatGPTと非互換、広告されたPKCE methodに`S256`が無い、といったpublic metadata上の問題を切り分けられます。
+blocking FAILでは、たとえば次を切り分けられます。
 
-CIMD対応serverは、`registration_endpoint`が無いだけでは非互換扱いしません。ChatGPTはCIMD registration pathを利用できます。
+- Protected Resource Metadataを発見できない
+- usableなAuthorization Server Metadataがない
+- CIMD / DCRのどちらも利用できない
+- CIMD時のtoken endpoint authentication methodが非互換
+- PKCE `S256`が広告されていない
 
-最初の診断が`PREFLIGHT PASS`なのにChatGPT接続が失敗する場合は、Authorization Serverのsanitized logを確認します。実際のChatGPT authorization requestに非secretな`client_id` CIMD URLと`redirect_uri`があれば、次を実行します。
+ChatGPTはCIMDを利用できるため、`registration_endpoint`が無いだけではFAILにしません。
+
+### PreflightはPASSするがChatGPT接続は失敗する
+
+Authorization Serverのsanitized logから、秘密情報ではない実ChatGPTの`client_id` CIMD URLと`redirect_uri`が分かる場合は、次を実行します。
 
 ```console
 mcp-interop diagnose https://example.com/mcp \
@@ -105,91 +146,91 @@ mcp-interop diagnose https://example.com/mcp \
   --redirect-uri 'https://chatgpt.com/connector/oauth/...'
 ```
 
-これにより、実ChatGPT CIMD document、redirect URI登録、client/server間のtoken endpoint auth method、`private_key_jwt`利用時のJWKS到達性まで照合します。
+これにより次を追加確認できます。
 
-ここまでPASSしても失敗する場合、public metadataだけでは証明できないruntime boundaryをserver logで確認します。
+- 実ChatGPT CIMD document
+- redirect URI登録
+- client/server間のtoken endpoint auth method
+- `private_key_jwt`利用時のJWKS到達性
 
-1. authorization requestに期待する`client_id`、完全一致の`redirect_uri`、PKCE challenge、scope、protected-resource `resource`が来ているか
-2. CIMD documentをAuthorization Serverが取得・検証できているか
-3. `private_key_jwt`ならclient assertionをChatGPT JWKSで検証できているか
-4. token requestにPKCE `code_verifier`と一貫した`resource`が来ているか
-5. token responseが受理され、必要な構成ではrefresh tokenを取得できているか
-6. 続くMCP requestのBearer access tokenをResource Serverが受理しているか
-7. MCP initialize / tool discoveryまで進んでいるか
+それでも失敗する場合は、server-sideで次のruntime境界を確認します。
 
-`PREFLIGHT PASS`は、実ChatGPT clientがこのruntime flowを完遂したことを意味しません。詳細は[ChatGPT接続診断](chatgpt-diagnostics.ja.md)を参照してください。
+1. authorization requestの`client_id`、`redirect_uri`、PKCE、scope、`resource`
+2. Authorization ServerがCIMD documentを取得・検証できたか
+3. `private_key_jwt`ならclient assertionをJWKSで検証できたか
+4. token requestに`code_verifier`と一貫した`resource`が来ているか
+5. token responseが受理されたか
+6. MCP requestのBearer access tokenがResource Serverで受理されたか
+7. MCP initialization / tool discoveryまで進んだか
+
+`PREFLIGHT PASS`は、このruntime flowを実ChatGPTが完了した証明ではありません。
+
+詳しくは[ChatGPT接続診断](chatgpt-diagnostics.ja.md)を参照してください。
 
 OAuth `state`、authorization code、access/refresh token、cookie、private key、raw client assertionは共有しないでください。
 
-## CursorのOAuth callback port conflict
-
-検証済みOAuth pathではlocalhost callbackを使いますが、callback addressはversion-specificな挙動として扱います。固定portを永久仕様としてhard-codeしないでください。
-
-OAuth flowでcallback conflictが起きた場合は、以下を記録してください。
-
-- Cursorの正確なversion
-- clientが表示したcallback address
-- そのportを別processが使用していたか
-- token/stateを除去したsanitized output
-
 ## Antigravityが`unknown`になる
 
-macOS beta adapterはisolated client-observable stateを使い、generic resultをconservativeに保ちます。
+これは必ずしも異常ではありません。
 
-no-authでは、入力を送らないPTY startupとisolated HOME内のmachine-readable MCP tool cacheを使ってtool discoveryを観測します。有効なcacheを確認できない場合、設定ファイルを認識しただけで互換性成功とせず`unknown`を返します。
+Antigravity adapterは、クライアント自身から観測できる証拠だけで判定します。
 
-OAuthではisolated token persistenceにより`reach/auth`を証明できても、同じtool cacheが生成されなければ`init/tools`は`unknown`のままです。authenticationだけを根拠にunknown stageをpassへ昇格させないでください。adapter自体の検証にはcontrolled OAuth E2Eを使用します。
+認証不要時は、一時HOME内に生成されたmachine-readable MCP tool cacheを使います。設定ファイルを認識しただけではPASSにしません。
+
+OAuth時はtoken persistenceで`reach/auth`を確認できても、tool cacheが生成されなければ`init/tools`は`unknown`です。
 
 確認項目:
 
 - `agy`の正確なversion
-- OAuth-required targetなら`--oauth`を明示的に指定したか
-- isolated `~/.gemini/antigravity-cli/mcp/...` stateが生成されたか
-- OAuth時にisolated `~/.gemini/antigravity/mcp_oauth_tokens.json`のmetadataが確認できたか
+- OAuth targetなら`--oauth`を付けたか
+- 一時`~/.gemini/antigravity-cli/mcp/...` stateが生成されたか
+- OAuth時に一時`~/.gemini/antigravity/mcp_oauth_tokens.json`のメタデータを確認できたか
 - client processが早期終了していないか
-- OSがlive adapter対応対象か
+- OSが対応対象か
 
-現在のAntigravity live implementationはmacOSのみ対応です。
+現在のlive implementationはmacOSのみです。
 
 ## VS Codeは検出されるのにlive testできない
 
 VS Codeは現在research-onlyです。
 
-isolated環境へのMCP設定登録は安全にできますが、stableなsupported direct lifecycle/tool-discovery automation boundaryはまだlive adapterへ昇格していません。
+隔離環境へMCP設定を登録することはできますが、安定したdirect lifecycle / tool-discovery automation経路はまだlive adapterへ昇格していません。
 
-したがって、**設定を登録できたことだけではinterop PASSにしません。**
+**設定できたことだけではinterop PASSにしません。**
 
-## temporary state / process cleanup failure
+## 一時状態やプロセスが残った
 
 `reach/auth/init/tools`がすべてPASSでも、cleanupに失敗した場合はテスト失敗として扱ってください。
 
-報告時には以下を含めてください。
+報告時には次を含めてください。
 
 - client名と正確なversion
 - OS / architecture
-- 残存processがisolated test session由来か
-- secretを含まないtemporary path
+- 残存processが今回の隔離セッション由来か
+- 秘密情報を含まないtemporary path
 - cleanup error
 
-`codex`、`cursor-agent`、`agy`という名前だけを根拠に全processをkillしないでください。adapterは現在のtest session由来と証明できるprocessだけを終了する設計です。
+`codex`、`cursor-agent`、`agy`という実行ファイル名だけを理由に、全processをkillしないでください。
 
-## user configが変更された
+## 普段使っているユーザー設定が変更された
 
-これはbugとして扱うべきで、credentialやKeychainが関係する場合はsecurity issueの可能性もあります。
+これはbugです。credentialやKeychainが関係する場合はsecurity issueの可能性があります。
 
-public Issueへcredential値やraw credential fileを貼らないでください。credential leakage、通常設定の意図しない変更、Keychain write、isolation failureが関係する場合は[SECURITY.ja.md](../SECURITY.ja.md)に従ってprivate vulnerability reportingを使用してください。
+公開Issueへcredential値やcredential fileの内容を貼らないでください。
 
-## JSON output
+credential漏えい、通常設定の意図しない変更、Keychain write、隔離失敗が関係する場合は[セキュリティポリシー](../SECURITY.ja.md)に従ってPrivate Vulnerability Reportingを利用してください。
 
-live multi-client test:
+## JSON出力の読み方
+
+複数クライアントのlive test:
 
 ```console
 mcp-interop test https://example.com/mcp --client codex,cursor,antigravity --json
 ```
 
-multi-client JSONはarrayです。machine-readableな判定ではstage valueを正として扱い、表示テキストだけから成功を推測しないでください。
+JSONは配列です。自動判定では表示メッセージではなくstageの`status`を正として扱ってください。
 
-特定のfailureを安全に分類できたstageでは、stableな`reason_code`も含まれます。
+安全に分類できる失敗には`reason_code`が付く場合があります。
 
 ```json
 {
@@ -200,44 +241,41 @@ multi-client JSONはarrayです。machine-readableな判定ではstage valueを�
 }
 ```
 
-`reason_code`が無いからといって成功という意味ではありません。adapterがstableな分類を付けるだけの具体的証拠を持っていないことを意味します。
+`reason_code`が無いことは成功を意味しません。「安定した分類を付けられるだけの明示的証拠がない」という意味です。
 
-preflight JSON:
+事前診断のJSON:
 
 ```console
 mcp-interop diagnose https://example.com/mcp --profile chatgpt --json
 ```
 
-`checks` arrayの`status`、`blocking`、sanitized messageをpreflight evidenceとして扱ってください。
+`checks`配列の`status`、`blocking`、秘密情報を除去したmessageを診断証拠として扱ってください。
 
-## Real-client E2E harness
+## 実クライアントE2E harness
 
-maintainer向けrelease gateはmacOSで次を実行できます。
+maintainer向けrelease gate:
 
 ```console
 bash scripts/e2e-real-clients.sh
 ```
 
-対応する実クライアントがインストールされている必要があります。
+対象の実クライアントがインストールされている必要があります。
 
-harnessはprotocol evidenceだけでなく、予期しない`tools/call`、user config metadata、Keychain DB変更、新規残存client process、temporary session漏れも確認します。
+protocol evidenceだけでなく、予期しない`tools/call`、user config metadata、Keychain DB変更、残存client process、一時session漏れも確認します。
 
-Cursor/AntigravityのOAuth専用harnessはcontrolled loopback fixtureに対してのみ実login flowを動かし、authorization code/tokenをpersisted evidenceへ含めないことを必須にします。
-
-release candidate検証では、greenにするためだけに安全性gateを無効化しないでください。
+安全性gateを無効にしてrelease candidateをgreenにしないでください。
 
 ## 再現可能なbugを報告する場合
 
-以下を含めてください。
+最低限、次を含めてください。
 
 - `mcp-interop version`
 - OS / architecture
-- live adapterの場合はMCP clientの正確なversion
-- 使用adapterまたはdiagnostic profile
-- Cursor/Antigravity OAuthを報告する場合、正確な`mcp-interop` version
-- stage resultと`reason_code`、またはpreflight checks
-- secretを除去したerror/diagnostic output
+- live adapterならMCP clientの正確なversion
+- 使用したadapterまたはdiagnostic profile
+- stage resultと`reason_code`、またはpreflight check
+- 秘密情報を除去したerror / diagnostic output
 - serverがOAuthを必要とするか
-- 必要に応じてlocalhost/synthetic fixtureでも再現するか
+- 必要に応じてlocalhost / synthetic fixtureでも再現するか
 
 Bearer token、OAuth code、client secret、cookie、credential file、OAuth `state`、private key、raw client assertionは絶対に含めないでください。
