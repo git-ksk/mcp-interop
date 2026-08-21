@@ -1,30 +1,36 @@
 # Live interoperability result artifact schema v1
 
-[English](live-result-schema-v1.md) | [日本語](live-result-schema-v1.ja.md)
+[English](live-result-schema-v1.md) | **日本語**
 
-この文書は、deployment-specificなreal-client interoperability runを保存・比較するための最初のportable result artifactを定義します。既存の`mcp-interop test --json`出力contractとは意図的に分離します。
+> この文書は英語版`live-result-schema-v1.md`の日本語訳です。schemaの正確な契約は英語版を正とします。
 
-schema v1の目的は、`reach -> auth -> init -> tools`の意味を一切弱めずに、正確なclient version間のregressionをlocal fileだけで継続比較できるようにすることです。
+このschemaは、**特定のRemote MCPを実クライアントで検証した結果を保存し、あとから比較するためのportable artifact**を定義します。
 
-## Compatibility boundary
+既存の`mcp-interop test --json`出力とは意図的に別契約です。
 
-既存commandはbackward-compatibleなままです。
+目的は、`reach -> auth -> init -> tools`の意味を弱めずに、クライアントのバージョン更新前後で退行をローカルファイルだけで比較できるようにすることです。
+
+## 既存JSON出力は変えない
+
+従来のコマンド:
 
 ```console
 mcp-interop test https://example.com/mcp --client codex --json
 ```
 
-stdoutは従来どおり、live `Result`のJSON arrayです。schema v1の導入によって、この既存payloadへ`schema_version`、timestamp、platform、artifact metadataなどを追加しません。
+は、これまでどおりlive `Result`のJSON配列を標準出力へ返します。
 
-portable artifactは明示的に指定したときだけ別fileへ出力します。
+artifact schema v1を導入しても、この既存payloadへ`schema_version`やtimestampなどを追加しません。
+
+artifactは明示した場合だけ別ファイルへ保存します。
 
 ```console
 mcp-interop test https://example.com/mcp --client codex --output result.json
 ```
 
-`--json`と`--output`は併用できます。`--output`がstdoutをredirectしたり、既存text/JSON出力を置き換えたりすることはありません。
+`--json`と`--output`は併用できます。`--output`は標準出力を置き換えません。
 
-## Top-level shape
+## 全体構造
 
 ```json
 {
@@ -67,67 +73,87 @@ mcp-interop test https://example.com/mcp --client codex --output result.json
 }
 ```
 
-各stageには、既存のstableな`reason_code`を必要に応じて含めます。一方、human-readableなstage messageやdiagnostic payloadはv1 artifactへ保存しません。regression比較には不要であり、secret-bearingな値をportable fileへ持ち出すsurfaceを減らすためです。
+各stageには、必要に応じて既存のstable `reason_code`を含められます。
 
-## Endpoint identityとsecret safety
+一方、人間向けの詳細messageやdiagnostic payloadはv1 artifactへ保存しません。
 
-portable artifactにはraw target URLを保存しません。
+理由は2つです。
 
-`endpoint.identity`へ残すのは次だけです。
+1. regression比較に必須ではない
+2. portable fileへ秘密情報を持ち出す面を減らせる
+
+## Endpoint identityと秘密情報
+
+artifactには**raw target URLを保存しません**。
+
+`endpoint.identity`へ残すのは次の形だけです。
 
 ```text
 http(s)://lowercase-host[:explicit-port]/path
 ```
 
-userinfo、query parameter、query value、fragmentは除外します。legacy redactionがcredential-likeと認識できないparameter名であっても、query valueは例外なく除外します。
+次は除外します。
 
-`endpoint.fingerprint`は、このsecret-safeなidentityに対するSHA-256で、`sha256:` prefixを付けます。raw URL自体をhashしないため、secretから派生したfingerprintもportable artifactへ残しません。
+- userinfo
+- query parameter
+- query value
+- fragment
 
-その代わり、v1ではquery parameterだけが異なる2つのdeployment targetを区別できません。これは意図したtrade-offで、secret safetyを優先します。
+query parameter名が秘密情報らしく見えなくても、query値は例外なく削除します。
 
-## Run context
+`endpoint.fingerprint`は、この安全化したidentityのSHA-256です。
+
+raw URLをhashしないため、secretそのものから派生したfingerprintを残しません。
+
+その代わり、queryだけが違う2つのdeploymentをv1では区別できません。これは秘密情報保護を優先した意図的なtrade-offです。
+
+## Runに保存する情報
 
 各runには次を保存します。
 
 - UTCの`executed_at`
-- secret-safeなendpoint identity / fingerprint
-- real-client adapter runの場合、client ID / product name / 正確に検出したclient version
+- 安全化したendpoint identity / fingerprint
+- 実クライアントrunではclient ID / product / 正確なversion
 - OS / architecture
-- `mcp-interop` version / commitとGo runtime version
-- invocation時のauth mode（現時点では`default`または明示的`oauth`）
-- evidence provenance
-- 順序固定の`reach` / `auth` / `init` / `tools` stage result
+- `mcp-interop` version / commit / Go runtime version
+- 実行時のauth mode（`default`または明示的`oauth`）
+- 証拠の出所
+- 順序固定の`reach` / `auth` / `init` / `tools`
 
-`auth_mode`はrunnerをどう起動したかを示します。server metadataから認証要否を推測した値ではありません。
+`auth_mode`は「runnerをどう起動したか」を表します。server metadataから認証要否を推測した値ではありません。
 
-## Evidence provenanceとPASS
+## 証拠の出所とPASS
 
-`evidence_provenance.kind`は次のどちらかです。
+`evidence_provenance.kind`は次の2種類です。
 
-- `real_client_adapter` — installed real clientを実際に実行したrun。`adapter_id`と正確なclient versionが必須です。
-- `runner_observation` — client未installなど、real-client adapterを実行する前にrunner自身が観測した状態です。
+- `real_client_adapter` — 実際にインストールされたクライアントを実行したrun。`adapter_id`と正確なclient versionが必須
+- `runner_observation` — client未installなど、アダプター実行前にrunner自身が観測した状態
 
-`runner_observation`に`pass` stageを含めることは禁止します。artifact layerは新しいPASS evidenceを作らず、adapter結果を再解釈もしません。complete live PASSの条件は従来どおり、4 stageすべてがreal-client evidenceにより`pass`であることです。
+`runner_observation`へ`pass` stageを入れることは禁止します。
+
+artifact層は新しいPASS証拠を作らず、アダプター結果を都合よく再解釈しません。
+
+完全なlive PASSは従来どおり、4stageすべてが実クライアントの証拠で`pass`である場合だけです。
 
 ## Strict validation
 
-schema v1をcomparison inputとして読むときはstrictにvalidateします。
+比較入力として読むときは厳密に検証します。
 
 - `schema_version`は`1`
 - `artifact_type`は`mcp-interop/live-results`
-- unknown JSON fieldはreject
-- 少なくとも1 run必須
+- 未知JSON fieldは拒否
+- runは1件以上必要
 - artifact内のcomparison identityは重複不可
-- `executed_at`はUTC必須
-- endpoint fingerprintはcanonicalなsecret-safe identityと一致必須
-- stageは`reach`, `auth`, `init`, `tools`の4つをこの順序でちょうど1回ずつ
-- statusは従来どおり`pass`, `fail`, `skip`, `unknown`のみ
+- `executed_at`はUTC
+- fingerprintはcanonical identityと一致
+- stageは`reach`, `auth`, `init`, `tools`をこの順序で1回ずつ
+- statusは`pass`, `fail`, `skip`, `unknown`だけ
 
-不足・不明なevidenceを都合よくsuccessへ正規化することはありません。invalidならrejectし、validな不確定状態はnon-PASSのまま保持します。
+不足した証拠をsuccessへ補正しません。invalidなartifactは拒否し、validだが不確定な結果はnon-PASSのまま保持します。
 
-## Comparison identity
+## 比較時に同じrunとみなす条件
 
-`mcp-interop compare`は次の組み合わせでbaseline/new runをpairingします。
+`mcp-interop compare`は次の組み合わせでbaselineとnew runを対応付けます。
 
 ```text
 endpoint fingerprint
@@ -137,11 +163,13 @@ endpoint fingerprint
 + platform.arch
 ```
 
-正確なclient version、execution time、runner/runtime versionはcontextとして保存しますが、pairing keyには含めません。これによりclient upgrade後のrunを「別物」として切り離さず、直前versionとのregression比較に使えます。
+client version、実行時刻、runner versionはcontextとして保存しますが、pairing keyには含めません。
 
-client versionだけが変わり、stage/reason evidenceが同じならregressionではありません。
+これにより、クライアント更新後も前versionと比較できます。
 
-## Regression semantics
+versionだけ変わり、stage / reason evidenceが同じならregressionではありません。
+
+## 退行の分類
 
 ```console
 mcp-interop compare old.json new.json
@@ -149,28 +177,36 @@ mcp-interop compare old.json new.json --json
 mcp-interop compare old.json new.json --fail-on-regression
 ```
 
-comparisonは次を明示的に分類します。
+明示的に分類するもの:
 
 - `PASS_TO_FAIL`
 - `PASS_TO_UNKNOWN`
 - `PASS_TO_SKIP`
-- `REASON_CODE_CHANGED` — reason codeの追加・削除・変更
-- `NEW_EVIDENCE_MISSING` — baselineにあったrunとpairingできるrunがnew artifactに存在しない
+- `REASON_CODE_CHANGED`
+- `NEW_EVIDENCE_MISSING`
 
-new-only runはreportには出しますが、それ自体はregressionではありません。stage/reasonが変わらないclient version変更もregression gateを失敗させません。
+new artifactにしか存在しないrunは表示しますが、それだけではregression扱いにしません。
 
-## Compare exit codes
+## compareのexit code
 
-`mcp-interop compare`のexit contractは次です。
+- `0` — validな比較が完了。`--fail-on-regression`なしならregressionがあっても0
+- `1` — `--fail-on-regression`指定時にregressionまたはbaseline evidence lossを検出
+- `2` — usage error、入力file読込失敗、invalid/unsupported schema、出力失敗
 
-- `0` — validなcomparisonが完了。`--fail-on-regression`なしの場合、report内にregressionがあっても0です。
-- `1` — `--fail-on-regression`指定時に、1件以上のregressionまたはbaseline evidence lossを検出。
-- `2` — usage error、input fileを読めない、unsupported/invalid artifact schema、comparison output failure。
-
-通常の`mcp-interop test`のexit contractは変更しません。portable artifactの生成・書き込み失敗はexecution failureとして`1`ですが、`test`自体がsuccessになる条件は今までどおり、必要なreal-client stageがすべてpassした場合だけです。
+通常の`mcp-interop test`のexit contractは変えません。
 
 ## Scope
 
-schema v1はlocal-file-firstです。hosted service、database、SQLite history、dashboard、新client adapter、generic MCP conformance suite、security scanner、LLM evaluation layerは導入しません。
+schema v1はlocal-file-firstです。
 
-将来artifact contractを変更する場合は、v1の意味をsilentに変更せず、新しい`schema_version`を使います。
+次は導入しません。
+
+- hosted service
+- database / SQLite history
+- dashboard
+- 新client adapter
+- generic MCP Conformance suite
+- security scanner
+- LLM evaluation layer
+
+将来artifact contractを変更する場合、v1の意味を黙って変更せず、新しい`schema_version`を使います。

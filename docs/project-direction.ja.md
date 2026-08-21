@@ -1,255 +1,263 @@
-# Project direction
+# プロジェクト方針
 
-[English](project-direction.md) | [日本語](project-direction.ja.md)
+[English](project-direction.md) | **日本語**
 
-この文書は`mcp-interop`のproduct directionを定義するcanonical documentです。MCP Conformance、Inspector、evaluation platform、client capability matrixなど周辺ecosystemが拡大しても、projectの焦点を維持するために使います。
+> この文書は英語版`project-direction.md`の日本語訳です。プロジェクト方針の正本は英語版です。
 
-公式MCP Conformanceとの詳細なcategory比較は[Conformance vs. mcp-interop](conformance-vs-interop.ja.md)を参照してください。この文書が決めるのは別の問いです。**このprojectは次に何を作るべきか、何にはならないか、そしてどのevidence品質を絶対に崩さないか。**
+この文書は、`mcp-interop`が**何を作るプロジェクトなのか、何を優先し、何にはならないのか**を整理します。
 
-## Mission
+MCP Conformance、Inspector、評価基盤、client capability matrixなど周辺ツールが増えても、役割を曖昧にしないための上位方針です。
 
-`mcp-interop`は、次の具体的なinterop tupleに対するrepeatable regression-testing layerを目指します。
+公式MCP Conformanceとの違いは[Conformanceとmcp-interopの違い](conformance-vs-interop.ja.md)を参照してください。
+
+## ミッション
+
+`mcp-interop`が継続的に検証したい単位は次です。
 
 ```text
 Remote MCP deployment
-  × real shipping client product
-  × exact client version
-  × relevant platform/runtime context
+  × 実際に配布されているclient product
+  × 正確なclient version
+  × 関係するplatform / runtime context
 ```
 
-主に答える問いは次です。
+主な問いはシンプルです。
 
-> 実際にdeployしているRemote MCP endpointは、usersが使う実client productとその正確なversionで、real MCP pathを通して今も動くか？
+> 実際にデプロイしているRemote MCPは、ユーザーが今使っているクライアント製品・バージョンから、本物のMCP経路を通して利用できるか？
 
-長期的な価値はclient名の数ではありません。特定deployment/client pairingが動いた、失敗した、またはregressionしたことを、信頼でき再現可能なevidenceで示すことです。
+長期的な価値は「対応クライアント数」ではありません。
 
-## Core product contract
+特定の組み合わせが動いた、壊れた、退行した、あるいは証拠不足で判断できなかったことを、**再現可能で信頼できる証拠として残せること**を重視します。
 
-live interoperability resultは、その結果を生成したexecutionにscopeします。観測したendpoint、client product/version、platform/runtime context、auth mode、そのrunで得られたevidenceを超えて一般化してはいけません。
+## コアとなる公開契約
 
-現在ship済みのcore live stageは次です。
+live resultが証明するのは、その実行で観測した範囲だけです。
+
+- 対象endpoint
+- client製品・正確なversion
+- platform / runtime
+- auth mode
+- そのrunで得られた証拠
+
+を超えて一般化してはいけません。
+
+現在の公開live stageは次です。
 
 ```text
 reach -> auth -> init -> tools
 ```
 
-これはexisting output/evidence contractであり、将来のすべてのMCP revisionにwire-level initialization phaseが存在するという仮定ではありません。[roadmap](roadmap.ja.md)では、MCP evolutionに合わせてinteroperabilityのsemantic meaningを維持するprotocol-aware workを定義します。
+完全なPASSには、必要な各段階が実クライアントの証拠で`pass`になっている必要があります。
 
-complete live PASSには、observed/supported pathで必要な全semantic stageがreal-client evidenceによって`pass`であることを要求します。`unknown`、`skip`、metadata compatibility、fixture-only success、sanitized runtime observationをdeployment-specific live PASSへ昇格させてはいけません。
+次をlive PASSの代わりにはしません。
 
-便利なfalse-positiveより、conservativeなfalse-negativeまたは`unknown`を選びます。
+- `unknown`
+- `skip`
+- 公開メタデータの互換性
+- fixtureだけの成功
+- sanitized Runtime Evidenceだけの成功
 
-## Evidence hierarchy
+便利なfalse positiveを出すくらいなら、`unknown`や保守的な失敗を選びます。
 
-implementation、output、documentation、将来schemaのすべてで次のlayerを分離します。
+## 証拠の階層
 
-1. specification / conformance evidence
-2. direct server inspection / debugging
-3. product-profile preflight metadata
-4. deploymentからのsanitized Runtime Evidence
-5. measurement pathを証明するdeterministic adapter / fixture evidence
-6. **real shipping clientから得たlive deployment-specific evidence**
+実装・出力・文書では、次を混ぜません。
 
-対象deploymentが対象client/versionでPASSしたことを証明できるのは6だけです。5が証明するのはadapterが主張どおり測定できることまでで、別のproduction deploymentがPASSしたことではありません。
+1. specification / Conformanceの証拠
+2. サーバーを直接調べたデバッグ情報
+3. 製品向けPreflightメタデータ
+4. デプロイ側から渡された秘密情報を含まないRuntime Evidence
+5. アダプターやfixtureの測定経路を検証する証拠
+6. **実際に配布されているクライアントから得た、対象デプロイ固有のlive evidence**
 
-## Real-client boundaryとして認めるもの
+対象Remote MCPが対象client/versionでPASSしたと主張できるのは6だけです。
 
-supported public automation surfaceが存在する場合、live adapterはそれを優先します。十分にstableで再現可能かつ制約を文書化できる場合にはobserved product surfaceも利用できますが、client数を増やすためにPASS semanticsを弱めてはいけません。
+## 実クライアントの観測経路として認めるもの
 
-許容できる例:
+公式にサポートされた自動操作インターフェースがある場合は、それを最優先します。
 
-- documented CLI MCP management command
-- documented local app-server / control protocol
-- MCP lifecycle/tool discoveryを直接反映するisolated client-owned state
-- より安全なsupported machine interfaceがない場合のactual installed clientへのcontrolled PTY interaction。ただしpathがdeterministicで、evidence解釈がconservativeであること
+十分に安定し、再現でき、制約を文書化できる場合は、製品が実際に生成する観測可能な状態を利用できます。
 
-core PASS oracleとして許容しないもの:
+例:
 
-- model promptやLLMのtool選択/tool call
-- brittle browser DOM automation
-- supported boundaryがないという理由だけで使うprivate/minified product endpointやinternal UI command identifier
-- testを通すための通常user authentication credentialのcopy/reuse
-- live discovery evidenceなしにconfig presence、enabled state、allowlistをdiscovered toolsとして扱うこと
-- server metadataやdirect server inspectionをclient-observed lifecycle evidenceの代わりに使うこと
+- 公開されたCLIのMCP管理コマンド
+- 公開されたlocal app-server / control protocol
+- MCP lifecycleやtool discoveryを直接反映する、隔離されたクライアント所有状態
+- より安全なmachine interfaceがない場合の、実クライアントへの限定的なPTY操作
 
-このboundaryを満たせないproductはresearch-onlyに維持するか、`unknown`/`skip`を返し、PASSの意味を変更しません。
+一方、コアPASSの判定には次を使いません。
 
-## Adapter lifecycle / graduation
+- model promptやLLMのtool選択
+- 壊れやすいbrowser DOM automation
+- coverageを増やすためだけのprivate/minified endpointや内部UI command
+- 通常ユーザーのcredentialのコピー・再利用
+- 実ツール発見の証拠なしに、設定済みtool allowlistをdiscovered toolsとみなすこと
+- server metadataや直接調査を、client側のlifecycle evidenceの代わりにすること
 
-client supportには明示的なmaturity stateを持たせます。
+この境界を満たせない製品はresearch-only、または`unknown` / `skip`のままにします。
+
+## アダプターの成熟度
 
 ### Research-only
 
-safe direct boundaryが存在するか調査中の状態です。partial stageを証明できても、不完全なevidenceをsupported live adapterとして扱いません。
+安全なdirect boundaryがあるか調査中の状態です。
 
-required stageがunsafe credential reuse、model prompt、brittle UI scraping、private internals、未証明のlifecycle/tool-discovery pathに依存する間はresearch-onlyです。
+一部段階を観測できても、必要な証拠がunsafe credential reuse、model prompt、壊れやすいUI、private internalsなどに依存するならsupported adapterへ昇格しません。
 
 ### Beta
 
-real-client pathが有用で再現可能でも、version/OS coverageやobserved product surfaceがまだ狭い場合はbetaとしてshipできます。
+実クライアント経路が有用で再現可能でも、version / OS coverageが狭い場合はbetaとして提供できます。
 
-beta前にsupported pathについて最低限すべて必要です。
+betaでも少なくとも次が必要です。
 
-- isolated config / credential state
-- exact client version capture
-- relevant platform/runtime context capture
-- no-model core execution
-- deterministicなreach/auth/init/tools interpretation
-- ambiguous evidenceに対するconservativeな`unknown`
+- 設定・credentialの隔離
+- exact client versionの記録
+- platform/runtime contextの記録
+- no-modelなコア実行
+- `reach/auth/init/tools`の決定的または保守的な判定
+- 証拠不足時の`unknown`
 - bounded timeout / cancellation
-- owned process/session cleanup
+- owned process / session cleanup
 - secret rejection / redaction
-- claimed real-client pathを証明するcontrolled fixture E2E
-- practicalな範囲でnormal user stateが変わっていないことを示すbefore/after check
+- controlled fixture E2E
 
 ### Stable
 
-measurement boundaryがone-version accidentではないことを示せるだけのrealistic client version/platform evidenceを得てからbetaを昇格させます。
+1バージョンで偶然動いただけではなく、現実的なversion/platform範囲で測定境界を説明できるようになってからstableへ昇格します。
 
-Stableはexternal clientが将来変わらないという意味ではありません。documented compatibility envelope、release gate、failure semantics、client変更時のmaintenance pathを持っていることを意味します。
+Stableは「外部クライアントが将来変わらない」という意味ではありません。
 
-## Priority order
+- 検証済みの互換範囲
+- release gate
+- failure semantics
+- クライアント変更時のmaintenance path
 
-roadmap項目が競合する場合、次の順で優先します。
+を持っている状態を意味します。
 
-### P0 — Evidence correctnessを守る
+## 優先順位
 
-最優先:
+### P0 — PASSの正しさを守る
+
+最優先です。
 
 - false live PASSを出さない
-- stage/result invariant
+- stage / result invariantを守る
 - secret safety
-- process/session cleanup
-- deterministic timeout/cancellation
-- reproducible fixture gate
-- CI/release provenanceとregression coverage
+- process / session cleanup
+- timeout / cancellation
+- fixtureによる再現性
+- CI / release provenance
 
-adapter数が増えてもこれらを弱める変更はmergeしません。
+クライアント数が増えても、これらを弱める変更は優先しません。
 
-### P1 — Regressionをfirst-classにする
+### P1 — 退行検出を第一級機能にする
 
-次のmajor product layerでは、version間/run間の差分を容易に検出できるようにします。
+目標:
 
-目標capability:
+- version付き結果・証拠schema
+- endpoint、client、version、platform、auth modeを含むrun identity
+- 秘密情報を含まないartifact export
+- run間compare / diff
+- `PASS -> AUTH FAIL`などのCI gate
+- reason code変化のmachine-readable化
+- hosted backend不要のlocal-file-first history
 
-- versioned interoperability result/evidence schema
-- endpoint identity/safe fingerprint、client product、exact version、platform/runtime、auth mode、stage resultを含むstable run identity
-- optional secret-free evidence bundle export
-- 2 run間のcompare/diff output
-- `PASS -> AUTH FAIL`や`TOOLS PASS -> UNKNOWN`などのCI-friendly regression gate
-- aggregate PASS/FAILだけでなくmachine-readableなreason change
-- core projectがhosted backendを必要としないlocal-file-first history
+### P2 — 既存アダプターを深く検証する
 
-目標workflow例:
+新クライアント追加より先に、Codex / Cursor / Antigravityのconfidenceを高めます。
 
-```text
-production endpoint + Cursor 2026.08.04 -> PASS
-production endpoint + Cursor 2026.08.11 -> AUTH FAIL
-                                      ^ regression
-```
+- 複数の最近のclient versionを確認
+- 安全に可能ならOS/platformを拡大
+- known-good / known-badな観測点を記録
+- クライアント側の出力変更を保守的に検出
+- 各platformでfixture / cleanup gateを維持
 
-将来hosted/dashboard layerがこれらartifactをconsumeすることはできますが、core value propositionに必須ではありません。
+浅いアダプターを多数持つより、深く信頼できるアダプターを優先します。
 
-### P2 — Existing adapterをversion/platform横断で強化
+### P3 — 新しいクライアントは選択的に追加する
 
-client追加を急ぐ前に、既存shipping adapterのconfidenceを高めます。
+人気があるだけでは追加理由になりません。
 
-- feasibleなら複数のrecent client versionをtest
-- client自体がsupportする場合はOS/platform coverageを拡大
-- known-good / known-bad compatibility envelopeを記録
-- output/control-surface変化をconservativeに検出
-- 各supported platformでfixture/cleanup gateを維持
+少なくとも次を確認します。
 
-PASS semanticsが異なる複数adapterより、深く信頼できる1 adapterの方が価値があります。
+1. 通常ユーザー状態を隔離できるか
+2. model promptなしにRemote MCPへ到達できるか
+3. authを安全に完了・分類できるか
+4. initialization / protocol readinessを観測できるか
+5. 実tool discoveryを証明できるか
+6. exact version / platformを取得できるか
+7. sessionを確実に片付けられるか
+8. controlled fixtureで測定経路を証明できるか
 
-### P3 — New real clientを選択的に追加
+満たせなければresearch-onlyです。
 
-credible automation/evidence boundaryを持つclientだけを追加します。人気だけでは十分ではありません。
+### P4 — 必要な製品固有診断だけ追加する
 
-candidate評価では次を確認します。
+`diagnose --profile <product>`は、実際のdeployment/client mismatchを説明できる場合に追加します。
 
-1. normal user stateをisolateできるか
-2. model promptなしでreal clientにtargetへ到達させられるか
-3. authを安全にcomplete/classifyできるか
-4. initializationを直接観測、またはdocumented product surfaceからconservativeに判断できるか
-5. actual tool discoveryを証明できるか
-6. exact version/platform contextを取得できるか
-7. sessionをdeterministicにcleanupできるか
-8. controlled fixtureでmeasurement pathを証明できるか
+第二のgeneric OAuth/MCP Conformance suiteにはしません。
 
-required itemが満たせなければresearchに維持します。
+## 周辺ツールとの役割分担
 
-### P4 — Live failureを説明するproduct-specific diagnosticsだけを追加
+### 公式MCP Conformance
 
-`diagnose --profile <product>`は、documented compatibility patternが実際のdeployment/client mismatchを説明する場合に有用です。
+仕様適合性を担当します。`mcp-interop`は独自certification layerを作りません。
 
-diagnosticsを第二のgeneric OAuth/MCP conformance suiteへ拡張しません。specification questionには公式MCP Conformanceを優先します。
+### Inspector / testing・evaluation platform
 
-## Competitive boundary
-
-隣接toolとは意図的に補完関係を取り、重複を避けます。
-
-### Official MCP Conformance
-
-specification correctnessとconformance scenarioを担当します。独自certification layerを作るためだけにgeneric protocol requirementを再実装しません。
-
-### Inspector / MCP testing・evaluation platform
-
-interactive server debugging、emulation、playground、model evaluation、広いdeveloper UXを担当します。`mcp-interop`がoverlapするのはdeployment-specific interoperability questionに答えるためdirect real-client executionが必要な部分だけです。
+server debugging、playground、model evaluationなど広い開発体験を担当します。
 
 ### Static client capability matrix
 
-「client Xは一般にどのfeatureをsupportするか」を担当します。何をtestするか決める入力にはなりますが、static capability dataはdeploymentに対するlive evidenceではありません。
+「製品Xが一般に何をsupportするか」を整理する用途です。テスト対象選定には使えますが、特定デプロイのlive evidenceではありません。
 
 ### Security scanner / governance product
 
-vulnerability scanning、policy、permission、sandboxing、security certificationを担当します。connectivity PASSをsecurity resultとして扱いません。
+脆弱性検査、policy、permission、sandboxingなどを担当します。接続PASSをsecurity resultにしません。
 
-### LLM/tool-selection benchmark
+### LLM / tool-selection benchmark
 
-modelがtoolを適切に選択・利用できるかを担当します。model behaviorはdownstreamの別test layerになり得ますが、core interoperability PASSの前提にはしません。
+モデルがツールを適切に選ぶかを評価します。コアinterop PASSとは分離します。
 
-## Ecosystemが変化したときの再評価条件
+## 周辺ecosystemが変わった場合
 
-この方向性が有効なのは、projectがdeployment-specific real-client evidenceというdistinct boundaryを持つ間です。
+主要な別プロジェクトが次をすべて第一級機能として提供するようになった場合は、このプロジェクトの位置付けを再評価します。
 
-major adjacent projectが次をfirst-classかつreproducible workflowとしてすべて提供し始めた場合、positioningを再評価します。
+- 実際に配布されているクライアント製品を起動する
+- 任意のRemote MCP deploymentを対象にできる
+- client config / credentialを隔離する
+- exact version / platformを記録する
+- model promptなしにreach/auth/init/tool discoveryを証明する
+- 比較可能なmachine-readable evidenceをexportする
 
-- emulate/configureだけでなくactual released client productを実行する
-- arbitrary user-supplied Remote MCP deploymentをtargetにできる
-- client config/credentialをisolateする
-- exact client version/platform contextを記録する
-- model promptに依存せずreach/auth/init/tool discoveryを証明する
-- regression compareに利用できるmachine-readable per-run evidenceをexportする
+その場合、重複を守ること自体を目的にせず、より強いupstreamとの統合や貢献を選ぶ可能性があります。
 
-その場合、同じlayerを維持する前にmaintenance cost、adoption、evidence quality、extension pointを比較します。重複を守ること自体を目的にせず、より強いupstream projectとのintegration/contributionを選ぶ可能性もあります。
+## 判断に迷ったときの順序
 
-## Decisions under pressure
+成長と証拠品質が衝突した場合は、次の順で優先します。
 
-growthとevidence qualityが衝突した場合、次の順で判断します。
+1. PASSの意味
+2. ユーザーのcredential / local state
+3. 再現性とcleanup
+4. exact client/version/platform provenance
+5. regression detection
+6. version / OS coverage
+7. client追加
+8. convenience UX
 
-1. PASSの意味を守る
-2. user credential/local stateを守る
-3. reproducibility/cleanupを守る
-4. exact client/version/platform provenanceを守る
-5. regression detectionを改善する
-6. version/OS coverageを広げる
-7. clientを追加する
-8. convenience UXを追加する
+## 現在の方向性
 
-この順序は意図的です。green resultを得やすくする代わりに信頼性が落ちれば、`mcp-interop`は存在理由を失います。
+具体的なmilestoneは[Roadmap](roadmap.ja.md)で管理します。
 
-## Current strategic direction
+直近では次に集中します。
 
-milestone-level planは[Stable interoperability contractに向けたRoadmap](roadmap.ja.md)で管理します。この文書はより上位のproduct-direction contractであり、roadmapはwork sequenceを定義しても、ここで定義するevidence/safety priorityをoverrideしません。
+1. real-client-only PASSを弱めず、MCP protocolの世代差を扱えるcoreへする
+2. portable artifactを日常的に共有する前にdeployment identity privacyを整理する
+3. artifact / compareを安全で繰り返し可能なregression workflowへ発展させる
+4. Codex / Cursor / Antigravityをversion/platform横断で強化する
+5. ChatGPT / VS Code / GitHub Copilot CLIは、必要なdirect automation boundaryを満たすまでresearch-onlyにする
+6. public contractは実運用で十分に検証してからstable化する
 
-near-term workは次に集中します。
+目指すのは「最も多くのMCPクライアントに対応するツール」ではありません。
 
-1. existing real-client-only PASS semanticsを弱めず、core interoperability meaningをprotocol-era-awareにする
-2. portable artifactが通常のregression/baseline inputになる前にdeployment privacyを維持できる設計を固める
-3. ship済みartifact/compare primitiveをsafeでrepeatableなregression workflowへ発展させる
-4. Codex/Cursor/Antigravityをobserved client versionとsupported platform横断で強化する
-5. ChatGPT、VS Code、GitHub Copilot CLIなどはdirect automation boundaryがgraduation criteriaを満たすまでresearch-onlyに維持する
-6. public contractはreal regression workflowで十分にexerciseしてからstabilizeする
-
-目指すのは「最大のMCP client list」ではありません。**real Remote MCP deploymentが、usersが実際に使うclient versionで今も動くかを最も信頼できる形で答えるproject**です。
+**実際のRemote MCPが、ユーザーの実クライアント・実バージョンで今も動くかを、最も信頼できる形で答えること**が目標です。

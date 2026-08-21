@@ -1,27 +1,84 @@
-# Antigravity OAuth live-test boundary
+# Antigravity OAuth live-testの境界
 
-[English](antigravity-oauth.md) | [日本語](antigravity-oauth.ja.md)
+[English](antigravity-oauth.md) | **日本語**
 
-`mcp-interop test <url> --client antigravity --oauth`は、macOS上でAntigravityの実MCP OAuth managerを明示的に有効化します。adapterはインストール済みの`agy` clientをisolated temporary `HOME`とworkspaceを持つPTY内で実行し、`/mcp`を開き、単一のisolated test serverを選択し、operatorが入力したauthorization codeを実clientへ直接転送します。model promptは使用しません。
+> この文書は英語版`antigravity-oauth.md`の日本語訳です。挙動の正確な定義は英語版を正とします。
 
-## Credential isolation
+`mcp-interop test <url> --client antigravity --oauth`は、macOS上で**実AntigravityクライアントのMCP OAuth経路**を明示的に有効化します。
 
-検証済み`agy 1.1.11` baselineでは、AntigravityはMCP OAuth stateを次へ保存します。
+アダプターは、インストール済みの`agy`を一時`HOME`とworkspaceを持つPTY内で起動し、実`/mcp`マネージャーを操作します。
+
+モデルへのプロンプトは使いません。
+
+## 認証情報の隔離
+
+検証済み`agy 1.1.11`では、AntigravityのMCP OAuth stateは通常、次へ保存されます。
 
 ```text
 ~/.gemini/antigravity/mcp_oauth_tokens.json
 ```
 
-`HOME`をtemporary session homeへ置き換えるため、このpathはユーザーが通常利用するAntigravity stateから隔離されます。`mcp-interop`が観測するのはfile metadata（存在、regular-file type、non-zero size）のみです。token fileを開いたりparseしたりせず、authorization URL、authorization code、access token、refresh token、cookie、credential-file contentsをpersistしません。
+テスト時は`HOME`そのものを一時directoryへ差し替えるため、このパスも通常ユーザーのAntigravity状態から隔離されます。
 
-## Result semantics
+`mcp-interop`が確認するのはファイルのメタデータだけです。
 
-OAuth pathは意図的にconservativeです。isolated token fileの生成を確認できた場合、`reach`と`auth`は`pass`として報告できます。`init`と`tools`は、client-side Antigravity tool cacheも観測できた場合にのみ`pass`として報告します。
+- ファイルが存在するか
+- regular fileか
+- サイズが0ではないか
 
-検証済み`agy 1.1.11`のOAuth pathでは、実clientがauthenticated `initialize`、`notifications/initialized`、`tools/list`を完了しても、no-auth adapter pathで使うものと同じtool-cache fileを生成しません。この場合、authenticationだけから成功を推測せず、generic live resultは`init=unknown`、`tools=unknown`を維持します。
+**tokenファイルの内容は開きません。**
 
-controlled localhost release E2Eでは別途、実Antigravity clientがauthenticated `initialize`、`notifications/initialized`、`tools/list`を実行したことを示すsecret-free server-side evidenceを必須にします。このE2E evidenceによって、任意のRemote MCP targetに対するgeneric four-stage verdictの意味を変更することはありません。
+次も保存しません。
 
-## Safety gates
+- authorization URL
+- authorization code
+- access token
+- refresh token
+- cookie
+- credential fileの内容
 
-real-client OAuth E2Eでは、通常のAntigravity configuration、通常のOAuth-token state、macOS login Keychain、事前に存在していた`agy` process setがisolated test後も変化していないことを検証します。temporary PTY descendantはsuccess/failureのどちらでもcleanup中に終了させます。
+## 結果をどう判定するか
+
+OAuth経路の判定は意図的に保守的です。
+
+一時tokenファイルの生成を確認できれば、`reach`と`auth`は`pass`にできます。
+
+一方、`init`と`tools`を`pass`にするには、Antigravity自身が生成したtool cacheなど、クライアント側から直接確認できる証拠が必要です。
+
+検証済み`agy 1.1.11`では、OAuth認証後に実クライアントが`initialize`、`notifications/initialized`、`tools/list`まで実行しても、認証不要経路と同じtool-cache fileを生成しない場合があります。
+
+その場合、認証成功から後続段階を推測せず、generic live resultは次を維持します。
+
+```text
+reach=pass
+auth=pass
+init=unknown
+tools=unknown
+```
+
+## controlled localhost E2Eとの違い
+
+release向けのcontrolled localhost E2Eでは、server側で次を直接観測できることを要求します。
+
+```text
+initialize
+notifications/initialized
+tools/list
+```
+
+これは**Antigravityアダプターの測定経路が正しいことを検証する証拠**です。
+
+任意のRemote MCPに対するgeneric four-stage verdictの意味を変更するものではありません。
+
+## Safety gate
+
+実クライアントOAuth E2Eでは、実行前後で次が変化していないことを確認します。
+
+- 通常のAntigravity設定
+- 通常のOAuth token state
+- macOS login Keychain
+- テスト前から存在していた`agy` process set
+
+テスト用PTYから派生したprocessだけをcleanup対象にします。
+
+成功・失敗にかかわらず、一時HOME / workspace / owned processを片付けます。

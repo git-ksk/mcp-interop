@@ -1,67 +1,76 @@
-# MCP Conformance と mcp-interop の違い
+# MCP Conformanceとmcp-interopの違い
 
-[English](conformance-vs-interop.md) | [日本語](conformance-vs-interop.ja.md)
+[English](conformance-vs-interop.md) | **日本語**
 
-`mcp-interop` は、公式の [MCP Conformance Test Framework](https://github.com/modelcontextprotocol/conformance) を置き換えるものではありません。両者は別の問いに答えるツールであり、**補完関係にあるテストレイヤー**として使うのが適切です。
+> この文書は英語版`conformance-vs-interop.md`の日本語訳です。内容に差がある場合は英語版を正とします。
 
-## 中心となる違い
+`mcp-interop`は、公式の[MCP Conformance Test Framework](https://github.com/modelcontextprotocol/conformance)を置き換えるものではありません。
+
+両者は**別の問いに答えるテスト**で、併用するのが適切です。
+
+## 何が違うのか
 
 | | MCP Conformance | `mcp-interop` |
 | --- | --- | --- |
-| 主な問い | このMCP implementationは仕様どおりに動くか？ | このRemote MCP deploymentは、このclient product/versionで実際に動くか？ |
-| 比較軸 | implementation × specification | deployment × client product × client version |
-| 正解の基準 | MCP specification、scenario、expected check | 実際にインストールされたclientが観測した事実 |
-| Client testの構成 | conformance test server → client under test | user指定Remote MCP ↔ 実client product |
-| Server testの構成 | conformance client → server under test | 実client product群 → 同じRemote MCP deployment |
-| 主な結果 | scenario/checkのconformance PASS/FAIL | `reach` / `auth` / `init` / `tools` のinterop evidence |
-| 製品固有挙動 | conformance scenario違反時に問題になる | 結果そのものの重要な一部 |
+| 主な問い | このMCP実装は仕様どおりか | このRemote MCPは、このクライアント製品・バージョンで実際に使えるか |
+| 比較するもの | implementation × specification | deployment × client product × client version |
+| 判定基準 | MCP仕様とscenarioの期待動作 | 実際にインストールされたクライアントから観測した事実 |
+| 主な結果 | 仕様適合のPASS / FAIL | `reach` / `auth` / `init` / `tools` |
+| 製品固有の挙動 | 仕様違反なら問題 | 相互運用性を左右する重要な観測対象 |
 
-違いは「synthetic testかreal softwareか」ではありません。公式Conformanceは**実client commandを起動でき、実server URLも直接テストできます**。違うのは、テストの構成と何を正解として判定するかです。
+「MCP Conformanceはsynthetic、mcp-interopはreal software」という区別ではありません。
 
-## 公式Conformanceが検証するもの
+公式Conformanceも実クライアントコマンドを起動でき、実サーバーURLを直接テストできます。
 
-Client testでは、公式frameworkがscenario-controlledなMCP test serverを起動し、client-under-testのcommandを実行し、protocol interactionを収集してMCP仕様上のexpected behaviorと比較します。
+違いは、**仕様を基準に採点するのか、特定製品との実相互運用を観測するのか**です。
 
-Server testでは、指定されたserver URLへconformance clientとして接続し、scenarioを実行して仕様への適合性を判定します。
+## MCP Conformanceが検証するもの
 
-したがって、次のような問いは公式Conformanceの担当です。
+公式Conformanceは主に次を検証します。
 
-- client/serverがMCP wire/lifecycle要件を満たしているか
-- 特定のMCP specification revisionに準拠しているか
-- OAuth/MCP authorization scenarioを仕様どおり実装しているか
-- JSON-RPC messageやprotocol behaviorが仕様に適合しているか
+- MCP wire / lifecycle要件を満たすか
+- 特定のMCP specification revisionへ適合するか
+- OAuth / MCP authorization scenarioを仕様どおり実装しているか
+- JSON-RPC messageやprotocol behaviorが仕様に適合するか
 
-`mcp-interop` は、これらのgeneric conformance checkを重複実装しません。
+`mcp-interop`は、これらのgenericな仕様適合テストを再実装しません。
 
 ## mcp-interopが検証するもの
 
-`mcp-interop test` は、ユーザーが実際に公開・利用しようとしている**Remote MCP deployment**を入力として始まります。
+`mcp-interop test`は、ユーザーが実際に利用しようとしているRemote MCPデプロイを入力にします。
 
-そのdeploymentを、各製品自身のMCP surfaceを使って実clientに登録し、同じserverが複数clientでどう見えるかを確認します。現在のadapterにはCodex CLI、Cursor CLI、Antigravity CLIがあります。
+同じRemote MCPを、各製品自身のMCP機能から実クライアントへ登録し、どこまで成立するかを確認します。
 
 ```text
-same Remote MCP deployment
-        |
-        +--> Codex CLI version X
-        +--> Cursor CLI version Y
-        +--> Antigravity CLI version Z
+同じRemote MCP
+   |
+   +--> Codex CLI version X
+   +--> Cursor CLI version Y
+   +--> Antigravity CLI version Z
 ```
 
-各clientについて、次のevidenceを観測します。
+各クライアントで次を観測します。
 
 ```text
 reach -> auth -> init -> tools
 ```
 
-serverとclientが個別には仕様適合しているように見えても、製品固有の設定、OAuth discovery順序、credential storage、callback handling、registration strategy、released version regressionなどにより、特定の組み合わせだけ失敗することがあります。
+サーバーとクライアントが個別には仕様適合していても、次のような製品固有差で特定の組み合わせだけ失敗することがあります。
 
-そのため`mcp-interop`では、**client productとversion自体がinterop evidenceの一部**です。
+- 設定形式
+- OAuth discovery順序
+- credential storage
+- callback処理
+- registration方式
+- クライアントバージョンの退行
 
-## Static client compatibility matrixではない
+そのため、**製品名と正確なバージョン自体が相互運用性の証拠の一部**です。
 
-client capability matrixが答えるのは「product/version Xが一般に何をsupportするか」です。これは有用ですが、`mcp-interop` は別のuniversal feature tableを手作業で競うべきではありません。
+## 静的な互換性一覧とは違う
 
-このprojectが最も強く証明できるのは、deployment-specificで再現可能なevidenceです。
+「Cursorは一般に機能Xをサポートする」といったcapability matrixは便利ですが、それだけでは特定のRemote MCPが動くことを証明できません。
+
+`mcp-interop`が強く証明できるのは、次のような実行単位の結果です。
 
 ```text
 endpoint A + client X version 1 -> PASS
@@ -69,87 +78,87 @@ endpoint A + client X version 2 -> AUTH FAIL
 endpoint A + client Y version 7 -> PASS
 ```
 
-つまりversion間のregression detectionをfirst-class use caseとして扱います。resultは必ず、実際にtestしたendpoint、client product、client version、必要に応じてOS/runtime context、そしてそのrunで観測したevidenceにscopeします。実行していないproduct/versionへの互換性へ一般化しません。
+つまり、**バージョン間の退行検出**を重要な用途として扱います。
 
-static compatibility documentationは「どのtestを走らせるか」を決める材料にはなりますが、対象deploymentに対するlive resultの代わりにはなりません。
+結果を、テストしていない製品・バージョンまで一般化しません。
 
-## Evidence hierarchy
+## 証拠を混ぜない
 
-次のevidence layerを分離します。
+このプロジェクトでは次の証拠を区別します。
 
-1. specification / conformance evidence
-2. direct server inspection / debugging
-3. product-profile preflight metadata
-4. deploymentから提供されたsanitized Runtime Evidence
-5. **live deployment-specific real-client evidence**
+1. 仕様・Conformanceの証拠
+2. サーバーを直接調査したデバッグ情報
+3. 製品向け事前診断（Preflight）の公開メタデータ
+4. サーバー側で取得した秘密情報を含まないRuntime Evidence
+5. **対象Remote MCPを実クライアントで動かして得たlive evidence**
 
-対象deploymentについて`mcp-interop`のreal-client `reach/auth/init/tools` PASSを出せるのは5だけです。
+対象デプロイについて`reach/auth/init/tools`のPASSを出せるのは5だけです。
 
-fixtureやlocalhost adapter self-testが証明するのはmeasurement pathの正しさです。別のproduction deploymentがPASSしたことまでは証明しません。
+localhost fixtureの成功は「アダプターが正しく測定できる」ことを示しますが、別の本番デプロイがPASSしたことまでは示しません。
 
-## Adapter graduation criteria
+## アダプターを対応済みにする条件
 
-client名を増やすことより、evidenceの信頼性を守ることを優先します。live adapterをresearch/betaから昇格させる前に、measurement boundaryを明確に文書化・再現できる必要があります。
+クライアント名を増やすことより、PASSの信頼性を優先します。
 
-少なくとも次を評価します。
+少なくとも次を確認します。
 
-- **isolation** — 通常userのconfig / credentialを再利用・変更しない
-- **supportedまたは意図的に観測するclient surface** — coverage数を増やすためだけにprivate/minified UI internalsへ依存しない
-- **no-model core path** — core interop evidenceをLLMのtool選択正しさへ依存させない
-- **machine-readableまたは保守的に解釈可能なevidence** — evidence不足は`unknown`であり、PASSを推測しない
-- **cleanup** — temporary credential / config / process / stateを除去、または独立確認する
-- **version context** — shipping client versionと関連platform contextを記録する
-- **deterministic fixture proof** — controlled E2Eでadapterが主張どおりreal client pathを観測していることを示す
+- **隔離** — 通常ユーザーの設定・credentialを再利用・変更しない
+- **安全に観測できるクライアント経路** — private/minifiedな内部UIへ安易に依存しない
+- **モデル非依存** — コアのinterop証拠をLLMのツール選択に依存させない
+- **保守的な判定** — 証拠不足は`unknown`にする
+- **終了処理** — 一時credential / config / process / stateを片付ける
+- **バージョン情報** — 実際に検証した製品バージョンとplatformを記録する
+- **fixtureによる検証** — controlled E2Eで、アダプターが本当に実クライアント経路を測定していると確認する
 
-この境界を満たせないclientは、project全体のPASS意味を弱めるよりresearch-onlyに維持します。
+この条件を満たせないクライアントは、PASSの意味を弱めるよりresearch-onlyのままにします。
 
-## 両方を使う理由
+## 併用する場合
 
-release pipelineでは、次のように二段階で使えます。
+推奨するrelease pipelineは次のとおりです。
 
 ```text
-1. protocol/specification correctness
+1. MCP仕様への適合性
    -> modelcontextprotocol/conformance
 
-2. 実Remote MCP endpointをdeploy
+2. 実Remote MCPをデプロイ
 
-3. product-level interoperability
-   -> usersが実際に使うclientでmcp-interop
+3. 実製品との相互運用性
+   -> mcp-interop
 ```
 
-Conformance PASSだけでは、特定deploymentがすべてのreleased client productで動くことまでは証明しません。逆に`mcp-interop` PASSだけでも、MCP仕様への完全な適合性は証明しません。
+Conformance PASSとmcp-interop PASSは、どちらか一方で他方を代替できません。
 
-## OAuth / diagnose の境界
+## OAuth / diagnoseの境界
 
-OAuthは最も重複しやすい領域なので、明確な境界を維持します。
+genericなMCP/OAuth仕様適合性は公式Conformanceの担当です。
 
-**GenericなMCP/OAuth protocol conformanceは公式Conformanceの担当です。**
+`mcp-interop diagnose --profile <product>`は、特定製品向けの**互換性診断**です。
 
-`mcp-interop diagnose --profile <product>` は、特定client product向けの**product compatibility profile**です。たとえばChatGPT profileでは、公開metadataやsanitized runtime observationを、その製品の公開された認証挙動と照合します。これをgeneric MCP conformanceとして扱いません。
+たとえばChatGPT profileでは、公開メタデータや秘密情報を含まないRuntime Evidenceを、ChatGPTの公開されている認証パターンと照合します。
 
-Diagnostic profileのルール:
+ルールは次のとおりです。
 
-- product-specific expectationを明示する
-- generic MCP/OAuth conformance scenarioを第二のconformance suiteとして再実装しない
-- `PREFLIGHT`、sanitized Runtime Evidence、real-client interoperabilityを別のevidence layerとして扱う
-- metadata互換性をreal-client `reach/auth/init/tools` PASSへ昇格させない
-- 「仕様適合しているか」だけが問いなら公式Conformanceを優先する
+- 製品固有の期待動作を明示する
+- generic MCP/OAuth Conformance suiteを再実装しない
+- Preflight、Runtime Evidence、real-client interopを別の証拠として扱う
+- メタデータ互換性を`reach/auth/init/tools` PASSへ昇格させない
+- 仕様適合性だけを確認したい場合は公式Conformanceを使う
 
 ## localhost fixtureの役割
 
-repo内のdeterministic localhost MCP fixtureは、adapterが本当に実clientを観測できているか、isolation/cleanupが壊れていないかをrelease前に検証するためのものです。
+リポジトリ内のfixtureは、アダプターが本当に実クライアントを観測できているか、隔離やcleanupが壊れていないかをrelease前に検証するためのものです。
 
-これは**adapterのself-test / release gate**であり、任意のclient/serverをMCP conformantと認定するためのconformance suiteではありません。
+これは**アダプターのself-test / release gate**であり、任意のclient/serverを仕様適合と認定するためのsuiteではありません。
 
-## `mcp-interop` が主張しないこと
+## mcp-interopが主張しないこと
 
 Interop PASSは次を証明しません。
 
-- MCP仕様への完全なconformance
-- server/clientのsecurity
+- MCP仕様への完全な適合
+- server / clientのsecurity
 - 各tool実装の正しさ
-- destructive operationの安全性
+- 破壊的操作の安全性
 - modelが正しいtoolを選ぶこと
-- 実際に走らせていないclient product/versionとの互換性
+- テストしていないclient product / versionとの互換性
 
-runtime設計の詳細は[Architecture](architecture.ja.md)を参照してください。
+内部設計は[アーキテクチャ](architecture.ja.md)を参照してください。
