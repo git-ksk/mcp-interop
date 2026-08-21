@@ -1,24 +1,26 @@
 # mcp-interopへのコントリビューション
 
-[English](CONTRIBUTING.md) | [日本語](CONTRIBUTING.ja.md)
+[English](CONTRIBUTING.md) | **日本語**
 
-real-client MCP interoperability testingの改善に協力いただきありがとうございます。
+> この文書は英語版`CONTRIBUTING.md`の日本語訳です。運用上の差異がある場合は英語版を正とします。
 
-## Pull Requestを開く前に
+`mcp-interop`の改善に協力いただき、ありがとうございます。
 
-1. 関連する既存Issue/PRがないか確認してください。
-2. 新しいclient adapterを追加する場合は、そのclientが提供するsupportedまたはsafely observableなMCP surfaceとisolation戦略を記録したIssueを作成または参照してください。
-3. new client workは`issue/research -> safe observable-surface proof -> bounded PoC -> implementation`の順で進めてください。先にlive adapterを実装し、後からevidence modelを決めてはいけません。
-4. ユーザーが普段使うclient configurationやcredential stateを黙って変更するlive adapterは追加しないでください。
-5. unsupported / blocked / experimental / research-only clientは、その状態を明示したままにしてください。partial observationをshipped supportとして表現してはいけません。
+このプロジェクトで最も重要なのは、対応クライアントの数ではなく、**相互運用性PASSの意味を信頼できる状態に保つこと**です。
 
-## 開発
+## Pull Requestを作る前に
 
-必要条件:
+1. 関連するIssueやPull Requestがないか確認してください。
+2. 新しいクライアント向けアダプターを追加する場合は、そのクライアントで安全に観測できるMCPインターフェースと、設定・認証情報を隔離する方法をIssueへ記録してください。
+3. 新しいクライアント対応は、原則として `Issue / 調査 → 安全に観測できる経路の確認 → 範囲を限定したPoC → 実装` の順で進めます。先にアダプターを作り、あとから「何を証拠とするか」を決めないでください。
+4. ユーザーが普段使っているクライアント設定や認証情報を、黙って変更する実装は追加しないでください。
+5. unsupported / blocked / experimental / research-onlyの状態は正確に表示してください。一部しか観測できないものを「対応済み」と表現しないでください。
 
-- `go.mod`で宣言されているGo version
+## 開発環境
 
-CIと同じ基本checkを実行します。
+必要なGoバージョンは`go.mod`を確認してください。
+
+通常はCIと同じ基本チェックを実行します。
 
 ```console
 gofmt -w .
@@ -28,93 +30,104 @@ go test ./...
 go build ./cmd/mcp-interop
 ```
 
-process lifecycle、OAuth、shared state、release gateに関係する変更では、追加で次も実行してください。
+プロセス管理、OAuth、共有状態、release gateに関係する変更では、追加で次も確認してください。
 
 ```console
 go test -race ./...
 govulncheck ./...
 ```
 
-`govulncheck`がローカルに無い場合はPRへ明記し、CIで固定versionのscanを通してください。
+`govulncheck`をローカルで実行できなかった場合はPRへ明記し、CIの固定バージョンによる検査結果を確認してください。
 
-Pull Requestでrequiredになっているstatus checkはLinux / macOS / Windowsの`test (...)` jobです。required checkがfailまたはmissingの間はmerge可能な状態とは扱いません。
+必須status checkが失敗中、または未実行の状態ではmerge可能とは扱いません。
 
-## Evidence / adapter要件
+## 実クライアント向けアダプターの要件
 
-live client adapterは次を満たすべきです。
+アダプターは次の原則を守ってください。
 
-- client挙動をemulateせず、実際にインストールされたclientを呼び出す
-- client management/control surfaceで結果を証明できる場合、model promptを使わない
-- config/credentialをtemporary profile/HOME/config directoryへ隔離する
-- client surfaceだけではstageを証明できない場合、成功を推測せず`unknown`を返す
-- `reach`、`auth`、`init`、`tools`を別々の観測として扱う
-- success/failure両方でtemporary stateとowned client processをcleanupする
-- report/errorからBearer/OAuth credential等のsecretをredactする
-- 検証したclient versionを記録する
-- successおよび主要なfailure/inconclusive pathのtestを追加する
+- クライアントの挙動を模倣せず、実際にインストールされたクライアントを起動する
+- クライアント自身の管理・制御インターフェースで確認できる場合は、モデルへのプロンプトを使わない
+- 設定や認証情報を一時profile / `HOME` / config directoryへ隔離する
+- クライアント側から結果を証明できない場合は、成功を推測せず`unknown`を返す
+- `reach`、`auth`、`init`、`tools`を別々の観測結果として扱う
+- 成功・失敗にかかわらず、一時状態と今回のテストが所有するプロセスを片付ける
+- reportやerrorからBearer/OAuth情報などの秘密情報を除去する
+- 実際に検証したクライアントの正確なバージョンを記録する
+- 成功経路だけでなく、主要な失敗・判定不能経路にもテストを追加する
 
-fixtureはmeasurement pathを証明しますが、それだけでdeployment-specific live interoperabilityを証明するものではありません。fixture-only success、configuration presence、metadata compatibility、configured tool allowlistをreal-client live PASSへ昇格させてはいけません。
+fixtureの成功は、アダプターの測定経路が正しく動くことを示すためのものです。別の本番Remote MCPが実クライアントでPASSしたことまでは証明しません。
 
-cleanup failureはtest上重要です。isolated runがtemporary credential/configuration stateやowned processを残した場合、interop結果だけをcleanとして扱わず、test/harnessでfailureとして表面化させてください。
+設定ファイルに登録できた、メタデータ上は互換だった、許可リストにツール名があった、といった事実だけをlive PASSへ昇格させないでください。
 
-安全なisolationを確立できないclientは、既存ユーザー設定を変更して無理に対応せず、experimental/research-onlyのままにしてください。
+安全な隔離ができないクライアントは、無理にユーザー設定を変更して対応せず、research-onlyや`unknown` / `skip`のままにしてください。
 
-## OAuth変更
+## OAuthを変更するとき
 
 OAuthは特に慎重に扱います。
 
-- user interactionを発生させる可能性があるauthenticationは明示的opt-inにする
-- CLI contractで明示されていないauthorization URLを勝手にopenしない
-- test credentialを通常のOS Keychain/client credential storeへ保存しない
-- normal-user browser/client credentialをtest profileへcopyしない
-- authorization URL、authorization code、callback state、access/refresh token、cookie、client secret、private keyをmachine-readable resultやpublic evidenceへ含めない
-- automated testではproduction credentialではなくlocal/synthetic OAuth fixtureを使用する
+- 人間の操作を必要とする可能性がある認証は、必ず明示的なopt-inにする
+- クライアント契約で明示されていないauthorization URLを自動で開かない
+- テスト用credentialを通常のOS Keychainやクライアントの永続credential storeへ保存しない
+- 通常ユーザーのブラウザ・クライアント認証情報を一時profileへコピーしない
+- authorization URL、authorization code、callback state、access/refresh token、cookie、client secret、private keyをmachine-readable resultや公開証拠へ含めない
+- 自動テストでは本番credentialではなく、ローカルまたはsyntheticなOAuth fixtureを使う
 
-## Pull Request運用
+## Pull Requestの運用
 
-developmentはPR-firstです。`main`へ入れる変更はfocused branchで作業し、Pull Requestを通してmergeしてください。通常のdevelopment workflowとして`main`へ直接pushしません。
+開発はPR-firstです。`main`へ入れる変更は専用branchで作業し、Pull Request経由でmergeします。
 
-PRは焦点を絞ってください。最低限、次を含めます。
+PRには最低限、次を記載してください。
 
-- 該当する場合はrelated issue/research context
-- scopeと明示的なnon-goal
-- client behaviorに関係する場合は検証したclient/version
-- interoperabilityを証明するために使った具体的なobservable surface
-- isolation/cleanupの挙動
-- local test結果と該当するCI/E2E結果
-- secret-safety上の確認
-- documentation sync状況
+- 関連Issueや調査背景
+- 変更範囲と明確な非目標
+- クライアント挙動に関係する場合は、確認した製品名とバージョン
+- 相互運用性を証明するために使った具体的な観測手段
+- 設定・認証情報の隔離方法と終了処理
+- ローカルテスト、CI、必要に応じてE2Eの結果
+- 秘密情報が出力されないことの確認
+- 関連ドキュメントの更新状況
 - 意図的に`unknown`として残す制限
 
-通常のPR integrationにはsquash mergeを使用します。required CIがgreenになる前にmergeしません。同じcontract、安全境界、user-facing behaviorを変更する場合はEnglish/Japanese document pairを原則同時に更新してください。`SECURITY.md`が定めるsecurity policyのcanonical版は英語です。
+通常のPRはsquash mergeを使用します。必須CIがgreenになる前にmergeしません。
 
-Product directionやroadmapを変更するPRでは、`docs/project-direction*.md`と`docs/roadmap*.md`の役割を混同しないでください。roadmap milestoneの変更には、目的、exit criteria、明示的non-goal、既存evidence/security invariantへの影響を記載し、English/Japanese pairを同期してください。roadmap上のfuture capabilityをship済みbehaviorとしてREADMEへ記載してはいけません。
+同じ公開契約、安全境界、ユーザー向け挙動を変更する場合は、英語版と日本語版の文書を原則として同じPRで更新してください。
 
-## Release / versioning
+## Project directionとRoadmap
 
-release preparationもPR-firstです。通常のrelease sequenceは次です。
+`docs/project-direction*.md`と`docs/roadmap*.md`は役割が異なります。
 
-1. focused release-prep PRを作成する
-2. 必要に応じて`CHANGELOG.md`とEnglish/Japanese READMEのcurrent-release referenceを更新する
-3. required CIがgreenになってからmergeする
-4. `main`に既に含まれているcommitへrelease tagを作成する
-5. `.github/workflows/release.yml`をauthoritative publication gateとして実行する
-6. generated archive、`checksums.txt`、embedded version output、packaged CLI regression smoke、GitHub artifact attestationを確認してからrelease完了とする
+- Project direction — プロジェクトが何を目指し、何を優先するか
+- Roadmap — その方針をどの順序・完了条件で進めるか
 
-release workflowは、`origin/main`に含まれないcommitを指すrelease tagをrejectし、artifact publish前にsource quality/security gateを再実行します。外部GitHub Actionsはfull commit SHAへのpinを維持し、`.github/dependabot.yml`を通常の更新経路とします。
+ロードマップ上の将来機能を、現在提供済みの機能としてREADMEへ書かないでください。
 
-version numberは`v0.x`期間中もSemVerの意図に沿って扱います。
+## リリースとバージョニング
 
-- **patch**: public contractを意図的に壊さないbug/security fix、documentation、maintenance
-- **minor**: backward-compatible featureまたは意味のあるcapability追加
-- **major**: project maturity上その区別が有効になった段階で、意図的なbreaking public contract向けに予約
+リリース準備もPR-firstで行います。
 
-`v0.x`はpre-1.0で進化中のcontractを意味するため、`v1.0`前にcompatibility changeが必要になる可能性はあります。ただし既知のbreaking behaviorはscopeとrelease noteで明示し、routine patch releaseへ紛れ込ませてはいけません。
+通常の流れ:
 
-pre-1.0 minor versionは小数ではなく通常のSemVer integerです。必要なら`v0.9.0`の次に`v0.10.0`、その後`v0.11.0`以降を継続できます。特定の`v0.x`番号へ到達したことだけを理由に`v1.0.0`へ昇格せず、[docs/roadmap.ja.md](docs/roadmap.ja.md)のstable-contract exit criteriaを使用してください。
+1. release-prep PRを作成する
+2. 必要に応じて`CHANGELOG.md`とREADMEの日英ペアを更新する
+3. 必須CIがgreenになってからmergeする
+4. `main`に含まれるcommitへrelease tagを作る
+5. `.github/workflows/release.yml`を実行する
+6. アーカイブ、`checksums.txt`、埋め込みバージョン、CLI smoke、artifact attestationを確認する
 
-## Security reporting / support
+release workflowは、`origin/main`に含まれないcommitを指すtagを拒否します。また、artifact公開前にsource quality/security gateを再実行します。
 
-security vulnerabilityはpublic Issue/PRではなく、[SECURITY.ja.md](SECURITY.ja.md)に従ってprivateに報告してください。security reporting policyのcanonical版は[SECURITY.md](SECURITY.md)です。
+`v0.x`でもSemVerの意図に沿って扱います。
 
-bug report、interoperability report、feature request、usage questionは[SUPPORT.ja.md](SUPPORT.ja.md)とrepositoryのIssue templateを参照してください。public reportにはprivate production service identity、sensitive endpoint value、credential materialを含めないでください。
+- **patch** — 公開契約を意図的に壊さないbug/security fix、documentation、maintenance
+- **minor** — backward-compatibleな機能追加、意味のあるcapability追加
+- **major** — プロジェクトの成熟後、意図的なbreaking public contract向け
+
+`v0.9.0`の次が`v1.0.0`とは限りません。必要なら`v0.10.0`、`v0.11.0`以降を継続し、[roadmap](docs/roadmap.ja.md)のstable-contract完了条件を満たした場合だけ`v1.0.0`へ進みます。
+
+## セキュリティ報告とサポート
+
+セキュリティ上の問題は公開Issueへ書かず、[SECURITY.ja.md](SECURITY.ja.md)に従ってPrivate Vulnerability Reportingを利用してください。正式なセキュリティポリシーは[SECURITY.md](SECURITY.md)です。
+
+通常の不具合、相互運用性レポート、機能要望、使い方の質問は[SUPPORT.ja.md](SUPPORT.ja.md)とIssue templateを参照してください。
+
+公開レポートには、本番サービスの機密識別情報、秘密のendpoint値、credentialを含めないでください。
