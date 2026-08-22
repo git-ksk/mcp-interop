@@ -3,7 +3,7 @@ name: Copilot CLI 1.0.80 research PoC
 # Temporary research workflow for #48. Remove after the observation is recorded.
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - .github/workflows/poc-copilot-cli-1.0.80.yml
       - scripts/poc-copilot-cli-mcp.sh
