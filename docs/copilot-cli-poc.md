@@ -12,19 +12,21 @@ GitHub's current Copilot CLI documentation exposes a supported non-interactive M
 - `copilot mcp get <name> [--json]`
 - `copilot mcp add --transport http <name> <url>`
 
-The command reference describes `copilot mcp` as usable from the command line without starting an interactive session, and `mcp get` as showing a server's configuration and tools.
+The CLI also supports isolated configuration/cache roots and explicit headless authentication inputs:
 
-The CLI also supports:
+- `COPILOT_HOME`
+- `COPILOT_CACHE_HOME`
+- `--additional-mcp-config`
+- `COPILOT_MCP_TOOL_CACHE=false`
+- `COPILOT_GITHUB_TOKEN`, `GH_TOKEN`, or `GITHUB_TOKEN` for non-interactive authentication
 
-- `COPILOT_HOME` to replace the normal `~/.copilot` configuration/state directory;
-- `COPILOT_CACHE_HOME` to separately redirect the cache directory;
-- `--additional-mcp-config` for session-only MCP definitions;
-- `COPILOT_MCP_TOOL_CACHE=false` to disable MCP tool snapshot caching.
+GitHub documents environment-variable authentication as the recommended method for CI/CD, containers, and other non-interactive environments. `COPILOT_GITHUB_TOKEN` has the highest precedence over stored credentials. Supported user-scoped token types include fine-grained PATs with the **Copilot Requests** account permission and supported OAuth/user tokens; classic `ghp_` PATs are not supported.
 
 Official references:
 
 - https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference
-- https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-config-dir-reference
+- https://docs.github.com/en/copilot/how-tos/copilot-cli/set-up-copilot-cli/authenticate-copilot-cli
+- https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-programmatic-reference
 - https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-mcp-servers
 
 ## Tested baselines
@@ -71,9 +73,9 @@ Therefore the tested terminal `mcp list/get` path is **configuration/inventory m
 
 ## No-input real-client startup result
 
-`scripts/poc-copilot-cli-startup.sh` starts the real `copilot` TUI under a PTY with **no input and no model prompt**. It uses the same isolated state and loopback-only MCP target.
+`scripts/poc-copilot-cli-startup.sh` starts the real `copilot` TUI under a PTY with **no input and no model prompt**. It uses isolated state and a controlled localhost MCP target.
 
-Both tested versions produced the same decisive wire boundary:
+Both tested unauthenticated versions produced the same decisive wire boundary:
 
 ```text
 initialize                  observed
@@ -102,11 +104,37 @@ The refresh confirmed rather than changed the boundary:
 
 `copilot plugins list --kind mcp --json` was not used as evidence in this re-run. Configuration/resource inventory remains distinct from fixture-observed live discovery.
 
+## Supported authenticated-isolation path
+
+Current GitHub documentation resolves the earlier question of whether Copilot CLI has a supported headless authentication input: **it does**. For automated environments, a supported user-scoped token can be supplied through an environment variable, with `COPILOT_GITHUB_TOKEN` taking precedence over keychain and `gh` fallback credentials.
+
+The startup PoC now has an explicit research-only authenticated mode. It is deliberately separate from ambient credentials:
+
+```console
+MCP_INTEROP_COPILOT_TEST_TOKEN='github_pat_...' \
+MCP_INTEROP_COPILOT_ALLOW_NETWORK=1 \
+bash scripts/poc-copilot-cli-startup.sh
+```
+
+Safety rules for this mode:
+
+- the harness never consumes ambient `COPILOT_GITHUB_TOKEN`, `GH_TOKEN`, or `GITHUB_TOKEN`; only `MCP_INTEROP_COPILOT_TEST_TOKEN` opts in;
+- the dedicated token is injected into the child process as `COPILOT_GITHUB_TOKEN` and is never printed;
+- authenticated mode requires the separate `MCP_INTEROP_COPILOT_ALLOW_NETWORK=1` opt-in because Copilot account/API access cannot be tested through the loopback-only network boundary;
+- startup output and Copilot debug-log content are not printed in authenticated mode;
+- authenticated temporary state cannot be retained with `MCP_INTEROP_KEEP_COPILOT_POC_TMP=1`;
+- normal `~/.copilot` state and login-keychain file metadata/hash are compared before and after the run;
+- `tools/call` remains forbidden; fixture-observed tool discovery is the only graduation signal.
+
+Use a dedicated, revocable test credential with the minimum required Copilot permission. Do not reuse a normal day-to-day token merely to make the PoC pass. Repository/Actions installation tokens are not treated as a substitute for the documented user-scoped Copilot authentication types.
+
+This harness capability is **not** evidence that authenticated `tools/list` succeeds. The adapter remains blocked until an actual controlled authenticated run satisfies the evidence and state-isolation gates.
+
 ## Current verdict
 
 **BLOCKED for a complete direct `mcp-interop` adapter.**
 
-The project requires direct evidence for the full core path, including tool discovery. The 1.0.79 and 1.0.80 tested baselines currently provide:
+The project requires direct evidence for the full core path, including tool discovery. The 1.0.79 and 1.0.80 tested unauthenticated baselines currently provide:
 
 - terminal management: safe configuration visibility, but no live server contact;
 - no-input real-client startup: live `initialize` + `notifications/initialized`, but no `tools/list` without an authenticated/model backend.
@@ -115,18 +143,18 @@ Do not ship a Copilot adapter that reports `tools=pass` from `Tools: *`, configu
 
 ## Next safe gate
 
-The remaining research question is specifically **Copilot account/session authentication isolation**: can a supported authenticated Copilot session reach `tools/list` without copying or mutating the user's normal credential state and without requiring a model prompt as the interoperability oracle?
+The remaining gate is now an **actual controlled authenticated run**, not discovery of an isolation mechanism.
 
-The next controlled PoC should:
+The run must:
 
-1. establish a supported authenticated Copilot session in isolated state;
+1. use a dedicated supported user-scoped Copilot test token through the explicit harness opt-in;
 2. retain temporary config/cache/workspace isolation and the no-model core path;
 3. require fixture-observed `tools/list`;
 4. continue to reject `tools/call`;
 5. prove normal user configuration/credential state remains unchanged;
 6. prove all owned processes are cleaned up.
 
-Do not copy normal user tokens, Keychain entries, or `~/.copilot` credential state into the PoC merely to make discovery occur. If Copilot does not expose a supported isolation mechanism suitable for this test, keep issue #48 research-only.
+If that run cannot produce `tools/list` without introducing a model prompt or weakening credential isolation, keep issue #48 research-only.
 
 ## PASS contract for a future adapter
 
@@ -145,20 +173,22 @@ A future PoC may graduate only when all of the following are true:
 
 ## OAuth
 
-Copilot account authentication and Remote-MCP OAuth are separate concerns and must not be conflated. The documented Remote-MCP `client_credentials` option authenticates the client to an MCP server; it does not by itself solve the Copilot account/model-backend boundary that still blocks this adapter.
+Copilot account authentication and Remote-MCP OAuth are separate concerns and must not be conflated. The documented Remote-MCP `client_credentials` option authenticates the client to an MCP server; it does not by itself solve the Copilot account/model-backend boundary.
 
 ## Running
 
-Terminal management PoC:
-
-```console
-bash scripts/poc-copilot-cli-mcp.sh
-```
-
-No-input startup PoC:
+Unauthenticated startup PoC:
 
 ```console
 bash scripts/poc-copilot-cli-startup.sh
 ```
 
-Set `MCP_INTEROP_KEEP_COPILOT_POC_TMP=1` only when sanitized diagnostics need to be retained. Kept directories may contain client logs, so review them before sharing.
+Explicit authenticated research PoC:
+
+```console
+MCP_INTEROP_COPILOT_TEST_TOKEN='github_pat_...' \
+MCP_INTEROP_COPILOT_ALLOW_NETWORK=1 \
+bash scripts/poc-copilot-cli-startup.sh
+```
+
+Set `MCP_INTEROP_KEEP_COPILOT_POC_TMP=1` only for unauthenticated sanitized diagnostics. Authenticated mode rejects retained temporary state.
