@@ -27,9 +27,9 @@ Official references:
 - https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-config-dir-reference
 - https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-mcp-servers
 
-## Tested baseline
+## Tested baselines
 
-Hosted macOS research used the official npm package:
+The original hosted macOS research used:
 
 ```text
 GitHub Copilot CLI 1.0.79
@@ -37,7 +37,14 @@ macOS 26 arm64
 Node.js 22
 ```
 
-The CLI was run with an isolated temporary `COPILOT_HOME`, `COPILOT_CACHE_HOME`, and workspace. Common GitHub/model token environment variables were removed. Ordinary outbound HTTP(S) was redirected to an unreachable loopback proxy while localhost remained available.
+PR #69 repeated the decisive paths on 2026-08-23 with:
+
+```text
+GitHub Copilot CLI 1.0.80
+GitHub-hosted macOS 15.7.7 arm64
+```
+
+Both runs used isolated temporary `COPILOT_HOME`, `COPILOT_CACHE_HOME`, and workspace state. Common GitHub/model token environment variables were removed. Ordinary outbound HTTP(S) was redirected to an unreachable loopback proxy while localhost remained available. MCP tool caching was disabled and no model prompt was used.
 
 ## Terminal MCP management result
 
@@ -51,7 +58,7 @@ copilot mcp get mcp-interop-fixture --json
 
 The controlled configuration uses `deferTools: "never"` and the process sets `COPILOT_MCP_TOOL_CACHE=false`.
 
-Observed on Copilot CLI 1.0.79:
+On both 1.0.79 and 1.0.80:
 
 - all three terminal management commands exit successfully;
 - text reports `Status: Enabled` and `Tools: * (all)`;
@@ -66,7 +73,7 @@ Therefore the tested terminal `mcp list/get` path is **configuration/inventory m
 
 `scripts/poc-copilot-cli-startup.sh` starts the real `copilot` TUI under a PTY with **no input and no model prompt**. It uses the same isolated state and loopback-only MCP target.
 
-A 30-second hosted-macOS observation showed:
+Both tested versions produced the same decisive wire boundary:
 
 ```text
 initialize                  observed
@@ -75,17 +82,31 @@ tools/list                  not observed
 tools/call                  not observed
 ```
 
-Copilot's debug log also records that the MCP service initialized as a client and recognized the fixture server's `tools` capability. At the same time, no model backend/account authentication was available in the isolated environment (`Login status unknown`; no GitHub auth token was available).
+On 1.0.80, Copilot's debug log recorded the MCP service as initialized as a client and identified the fixture server's tools capability. The same isolated process reported `Login status unknown`, no available model backend, and no GitHub authentication token.
 
 This proves a useful partial boundary: **real Copilot CLI startup can reach and initialize the configured Remote MCP server without a model prompt**, but the tested unauthenticated/no-model startup does not progress to observable tool discovery.
 
 The most likely interpretation is that `tools/list` is gated behind a later authenticated/model-session lifecycle step. That is an inference from the observed wire trace and debug logs, not a documented Copilot contract.
 
+## Copilot CLI 1.0.80 refresh — 2026-08-23
+
+PR #69 installed the exact stable `@github/copilot` 1.0.80 package on GitHub-hosted macOS and re-ran both existing controlled PoCs.
+
+The refresh confirmed rather than changed the boundary:
+
+- terminal `mcp list/get` remains configuration-only and sends no MCP lifecycle traffic to the fixture;
+- no-input startup reaches `initialize` and `notifications/initialized`;
+- no-input startup still does **not** send `tools/list`;
+- no `tools/call` occurs;
+- the bounded PTY run leaves no Copilot process behind.
+
+`copilot plugins list --kind mcp --json` was not used as evidence in this re-run. Configuration/resource inventory remains distinct from fixture-observed live discovery.
+
 ## Current verdict
 
 **BLOCKED for a complete direct `mcp-interop` adapter.**
 
-The project requires direct evidence for the full core path, including tool discovery. Copilot CLI 1.0.79 currently provides:
+The project requires direct evidence for the full core path, including tool discovery. The 1.0.79 and 1.0.80 tested baselines currently provide:
 
 - terminal management: safe configuration visibility, but no live server contact;
 - no-input real-client startup: live `initialize` + `notifications/initialized`, but no `tools/list` without an authenticated/model backend.
@@ -94,9 +115,18 @@ Do not ship a Copilot adapter that reports `tools=pass` from `Tools: *`, configu
 
 ## Next safe gate
 
-The remaining research question is whether an **isolated authenticated Copilot session** can reach `tools/list` without copying or mutating the user's normal credential state and without requiring a model prompt as the interoperability oracle.
+The remaining research question is specifically **Copilot account/session authentication isolation**: can a supported authenticated Copilot session reach `tools/list` without copying or mutating the user's normal credential state and without requiring a model prompt as the interoperability oracle?
 
-Do not copy normal user tokens, Keychain entries, or `~/.copilot` credential state into the PoC. If Copilot does not expose a supported isolated authentication mechanism suitable for this test, keep issue #48 research-only.
+The next controlled PoC should:
+
+1. establish a supported authenticated Copilot session in isolated state;
+2. retain temporary config/cache/workspace isolation and the no-model core path;
+3. require fixture-observed `tools/list`;
+4. continue to reject `tools/call`;
+5. prove normal user configuration/credential state remains unchanged;
+6. prove all owned processes are cleaned up.
+
+Do not copy normal user tokens, Keychain entries, or `~/.copilot` credential state into the PoC merely to make discovery occur. If Copilot does not expose a supported isolation mechanism suitable for this test, keep issue #48 research-only.
 
 ## PASS contract for a future adapter
 
@@ -105,9 +135,9 @@ A future PoC may graduate only when all of the following are true:
 1. the real installed Copilot CLI/version is recorded;
 2. config/cache/workspace and credential state are safely isolated;
 3. no model prompt is used as the core evidence mechanism;
-4. the fixture observes `initialize`;
-5. the fixture observes `notifications/initialized`;
-6. the fixture observes `tools/list`;
+4. the fixture observes `initialize` or the relevant protocol-era readiness evidence;
+5. the fixture observes the corresponding initialized/readiness progression where applicable;
+6. the fixture observes `tools/list` or equivalent direct real-client tool-discovery evidence;
 7. client-observable inventory identifies the controlled `ping` tool where a supported surface exists;
 8. the fixture does **not** observe `tools/call`;
 9. normal user configuration/credential state is unchanged;
@@ -115,7 +145,7 @@ A future PoC may graduate only when all of the following are true:
 
 ## OAuth
 
-Remote-MCP OAuth is out of scope until the no-auth/tool-discovery boundary is solved. Copilot account authentication and Remote-MCP OAuth are separate concerns and must not be conflated.
+Copilot account authentication and Remote-MCP OAuth are separate concerns and must not be conflated. The documented Remote-MCP `client_credentials` option authenticates the client to an MCP server; it does not by itself solve the Copilot account/model-backend boundary that still blocks this adapter.
 
 ## Running
 
