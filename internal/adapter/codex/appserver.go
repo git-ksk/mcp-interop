@@ -9,9 +9,9 @@ import (
 )
 
 const (
-	maxAppServerMessageBytes      = 32 << 20
-	maxQueuedNotifications       = 128
-	maxQueuedNotificationBytes   = 8 << 20
+	maxAppServerMessageBytes   = 32 << 20
+	maxQueuedNotifications     = 128
+	maxQueuedNotificationBytes = 8 << 20
 )
 
 type rpcClient struct {
