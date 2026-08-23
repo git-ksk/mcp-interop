@@ -172,6 +172,7 @@ func TestTargetValidation(t *testing.T) {
 	for _, endpoint := range []string{
 		"",
 		"ftp://example.com/mcp",
+		"https://:443/mcp",
 		"https://user:pass@example.com/mcp",
 		"https://example.com/mcp#fragment",
 	} {
