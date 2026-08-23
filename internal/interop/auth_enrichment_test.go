@@ -227,6 +227,32 @@ func TestAuthProtectedResourceCandidatesPreserveQuery(t *testing.T) {
 	}
 }
 
+func TestFetchAuthJSONRejectsTrailingJSON(t *testing.T) {
+	server := newLocalTLSServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"issuer":"one"}{"issuer":"two"}`))
+	}))
+	defer server.Close()
+
+	var metadata authAuthorizationServerMetadata
+	if err := fetchAuthJSON(context.Background(), server.Client(), server.URL, &metadata); err == nil {
+		t.Fatal("expected trailing JSON value to be rejected")
+	}
+}
+
+func TestFetchAuthJSONRejectsOversizedMetadata(t *testing.T) {
+	server := newLocalTLSServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"issuer":"test","padding":"`))
+		_, _ = w.Write([]byte(strings.Repeat("x", int(maxAuthMetadataBytes))))
+		_, _ = w.Write([]byte(`"}`))
+	}))
+	defer server.Close()
+
+	var metadata authAuthorizationServerMetadata
+	if err := fetchAuthJSON(context.Background(), server.Client(), server.URL, &metadata); err == nil {
+		t.Fatal("expected oversized metadata to be rejected")
+	}
+}
+
 func TestEnrichAuthFailureIgnoresUnrelatedAuthFailures(t *testing.T) {
 	result := NewResult("client", "Client", "test", "https://example.com/mcp")
 	result.SetWithReason(StageAuth, StatusFail, ReasonClientAuthRejected, "invalid client")
