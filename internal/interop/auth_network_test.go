@@ -2,6 +2,7 @@ package interop
 
 import (
 	"net"
+	"net/url"
 	"testing"
 )
 
@@ -32,5 +33,32 @@ func TestAuthMetadataIPAllowed(t *testing.T) {
 				t.Fatalf("authMetadataIPAllowed(%s) = %v, want %v", test.ip, got, test.allowed)
 			}
 		})
+	}
+}
+
+func TestAuthMetadataAddressMatchesEndpointRequiresExactEffectivePort(t *testing.T) {
+	endpoint, err := url.Parse("https://localhost/mcp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !authMetadataAddressMatchesEndpoint(endpoint, "localhost", "443") {
+		t.Fatal("expected explicit HTTPS endpoint host and default port to match")
+	}
+	if authMetadataAddressMatchesEndpoint(endpoint, "localhost", "8443") {
+		t.Fatal("different port must not inherit explicit endpoint trust")
+	}
+	if authMetadataAddressMatchesEndpoint(endpoint, "127.0.0.1", "443") {
+		t.Fatal("different host must not inherit explicit endpoint trust")
+	}
+
+	explicitPort, err := url.Parse("http://127.0.0.1:8080/mcp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !authMetadataAddressMatchesEndpoint(explicitPort, "127.0.0.1", "8080") {
+		t.Fatal("expected explicit host and non-default port to match")
+	}
+	if authMetadataAddressMatchesEndpoint(explicitPort, "127.0.0.1", "80") {
+		t.Fatal("default HTTP port must not match an explicitly different port")
 	}
 }
