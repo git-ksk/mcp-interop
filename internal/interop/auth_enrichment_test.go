@@ -7,7 +7,9 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
+	"reflect"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -75,7 +77,10 @@ func TestEnrichAuthFailureDistinguishesAdvertisedDCRFailure(t *testing.T) {
 			w.Header().Set("WWW-Authenticate", `Bearer resource_metadata="`+baseURL+`/.well-known/oauth-protected-resource/mcp"`)
 			w.WriteHeader(http.StatusUnauthorized)
 		case "/.well-known/oauth-protected-resource/mcp":
-			_ = json.NewEncoder(w).Encode(map[string]any{"authorization_servers": []string{baseURL}})
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"resource":              baseURL + "/mcp",
+				"authorization_servers": []string{baseURL},
+			})
 		case "/.well-known/oauth-authorization-server":
 			_ = json.NewEncoder(w).Encode(map[string]any{
 				"issuer":                baseURL,
@@ -109,6 +114,7 @@ func TestEnrichAuthFailureKeepsMultipleAuthorizationServersInconclusive(t *testi
 			w.WriteHeader(http.StatusUnauthorized)
 		case "/.well-known/oauth-protected-resource/mcp":
 			_ = json.NewEncoder(w).Encode(map[string]any{
+				"resource":              baseURL + "/mcp",
 				"authorization_servers": []string{baseURL + "/issuer-a", baseURL + "/issuer-b"},
 			})
 		default:
@@ -143,7 +149,10 @@ func TestEnrichAuthFailureMalformedMetadataIsInconclusive(t *testing.T) {
 			w.Header().Set("WWW-Authenticate", `Bearer resource_metadata="`+baseURL+`/.well-known/oauth-protected-resource/mcp"`)
 			w.WriteHeader(http.StatusUnauthorized)
 		case "/.well-known/oauth-protected-resource/mcp":
-			_ = json.NewEncoder(w).Encode(map[string]any{"authorization_servers": []string{baseURL}})
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"resource":              baseURL + "/mcp",
+				"authorization_servers": []string{baseURL},
+			})
 		case "/.well-known/oauth-authorization-server", "/.well-known/openid-configuration":
 			_, _ = w.Write([]byte("not-json"))
 		default:
@@ -162,6 +171,85 @@ func TestEnrichAuthFailureMalformedMetadataIsInconclusive(t *testing.T) {
 	}
 	if result.Diagnostics[0].AuthCapabilities != nil {
 		t.Fatalf("malformed metadata must not produce capabilities: %#v", result.Diagnostics[0].AuthCapabilities)
+	}
+}
+
+func TestEnrichAuthFailureRejectsMismatchedProtectedResourceMetadata(t *testing.T) {
+	var baseURL string
+	var authorizationServerHits atomic.Int32
+	server := newLocalTLSServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/mcp":
+			w.Header().Set("WWW-Authenticate", `Bearer resource_metadata="`+baseURL+`/.well-known/oauth-protected-resource/mcp"`)
+			w.WriteHeader(http.StatusUnauthorized)
+		case "/.well-known/oauth-protected-resource/mcp":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"resource":              baseURL + "/different-resource",
+				"authorization_servers": []string{baseURL},
+			})
+		case "/.well-known/oauth-authorization-server", "/.well-known/openid-configuration":
+			authorizationServerHits.Add(1)
+			_ = json.NewEncoder(w).Encode(map[string]any{"issuer": baseURL})
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+	baseURL = server.URL
+
+	result := NewResult("client", "Client", "test", baseURL+"/mcp")
+	result.SetWithReason(StageAuth, StatusFail, ReasonDCRUnsupported, "unsupported")
+	EnrichAuthFailure(context.Background(), baseURL+"/mcp", &result, server.Client())
+
+	if len(result.Diagnostics) != 1 || result.Diagnostics[0].Conclusion != "inconclusive" {
+		t.Fatalf("diagnostics = %#v", result.Diagnostics)
+	}
+	if result.Diagnostics[0].AuthCapabilities != nil {
+		t.Fatalf("mismatched resource metadata must not produce capabilities: %#v", result.Diagnostics[0].AuthCapabilities)
+	}
+	if authorizationServerHits.Load() != 0 {
+		t.Fatalf("authorization-server metadata was fetched after resource mismatch: %d", authorizationServerHits.Load())
+	}
+}
+
+func TestAuthProtectedResourceCandidatesPreserveQuery(t *testing.T) {
+	endpoint, err := url.Parse("https://example.com/mcp?tenant=acme&mode=readonly")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := authProtectedResourceCandidates(endpoint)
+	want := []string{
+		"https://example.com/.well-known/oauth-protected-resource/mcp?tenant=acme&mode=readonly",
+		"https://example.com/.well-known/oauth-protected-resource?tenant=acme&mode=readonly",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("candidates = %#v, want %#v", got, want)
+	}
+}
+
+func TestFetchAuthJSONRejectsTrailingJSON(t *testing.T) {
+	server := newLocalTLSServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"issuer":"one"}{"issuer":"two"}`))
+	}))
+	defer server.Close()
+
+	var metadata authAuthorizationServerMetadata
+	if err := fetchAuthJSON(context.Background(), server.Client(), server.URL, &metadata); err == nil {
+		t.Fatal("expected trailing JSON value to be rejected")
+	}
+}
+
+func TestFetchAuthJSONRejectsOversizedMetadata(t *testing.T) {
+	server := newLocalTLSServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"issuer":"test","padding":"`))
+		_, _ = w.Write([]byte(strings.Repeat("x", int(maxAuthMetadataBytes))))
+		_, _ = w.Write([]byte(`"}`))
+	}))
+	defer server.Close()
+
+	var metadata authAuthorizationServerMetadata
+	if err := fetchAuthJSON(context.Background(), server.Client(), server.URL, &metadata); err == nil {
+		t.Fatal("expected oversized metadata to be rejected")
 	}
 }
 
