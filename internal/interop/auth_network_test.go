@@ -2,6 +2,7 @@ package interop
 
 import (
 	"net"
+	"net/http"
 	"net/url"
 	"testing"
 )
@@ -60,5 +61,63 @@ func TestAuthMetadataAddressMatchesEndpointRequiresExactEffectivePort(t *testing
 	}
 	if authMetadataAddressMatchesEndpoint(explicitPort, "127.0.0.1", "80") {
 		t.Fatal("default HTTP port must not match an explicitly different port")
+	}
+}
+
+func TestValidateAuthMetadataRedirectRejectsHTTPSDowngrade(t *testing.T) {
+	initial, err := http.NewRequest(http.MethodGet, "https://auth.example/.well-known/oauth-authorization-server", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	downgrade, err := http.NewRequest(http.MethodGet, "http://auth.example/metadata", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := validateAuthMetadataRedirect(downgrade, []*http.Request{initial}); err == nil {
+		t.Fatal("expected HTTPS-to-HTTP metadata redirect to be rejected")
+	}
+
+	secure, err := http.NewRequest(http.MethodGet, "https://login.example/metadata", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := validateAuthMetadataRedirect(secure, []*http.Request{initial}); err != nil {
+		t.Fatalf("expected HTTPS redirect to remain allowed: %v", err)
+	}
+}
+
+func TestValidateAuthMetadataRedirectAllowsExplicitHTTPProbeChain(t *testing.T) {
+	initial, err := http.NewRequest(http.MethodPost, "http://127.0.0.1:8080/mcp", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	redirect, err := http.NewRequest(http.MethodGet, "http://127.0.0.1:8080/mcp/", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := validateAuthMetadataRedirect(redirect, []*http.Request{initial}); err != nil {
+		t.Fatalf("explicit HTTP MCP probe redirect should remain supported: %v", err)
+	}
+}
+
+func TestValidateAuthMetadataRedirectRejectsUnsafeURLComponents(t *testing.T) {
+	initial, err := http.NewRequest(http.MethodGet, "https://auth.example/metadata", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, raw := range []string{
+		"https://user:pass@auth.example/metadata",
+		"https://auth.example/metadata#fragment",
+		"ftp://auth.example/metadata",
+	} {
+		t.Run(raw, func(t *testing.T) {
+			redirect, err := http.NewRequest(http.MethodGet, raw, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := validateAuthMetadataRedirect(redirect, []*http.Request{initial}); err == nil {
+				t.Fatalf("expected unsafe redirect target to be rejected: %s", raw)
+			}
+		})
 	}
 }
