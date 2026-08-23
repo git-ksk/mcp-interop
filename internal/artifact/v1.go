@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/git-ksk/mcp-interop/internal/interop"
+	"github.com/git-ksk/mcp-interop/internal/privatefile"
 )
 
 const (
@@ -317,20 +318,5 @@ func WriteFile(path string, value Artifact) error {
 	if err := ValidateArtifact(value); err != nil {
 		return err
 	}
-
-	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
-	if err != nil {
-		return err
-	}
-	if err := file.Chmod(0o600); err != nil && runtime.GOOS != "windows" {
-		_ = file.Close()
-		return err
-	}
-	encoder := json.NewEncoder(file)
-	encoder.SetIndent("", "  ")
-	if err := encoder.Encode(value); err != nil {
-		_ = file.Close()
-		return err
-	}
-	return file.Close()
+	return privatefile.WriteJSON(path, value)
 }
