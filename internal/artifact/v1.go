@@ -1,6 +1,7 @@
 package artifact
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -20,6 +21,8 @@ import (
 const (
 	SchemaVersion = 1
 	ArtifactType  = "mcp-interop/live-results"
+
+	maxArtifactFileBytes = 4 << 20
 
 	ProvenanceRealClientAdapter = "real_client_adapter"
 	ProvenanceRunnerObservation = "runner_observation"
@@ -280,7 +283,15 @@ func ReadFile(path string) (Artifact, error) {
 	}
 	defer file.Close()
 
-	decoder := json.NewDecoder(file)
+	data, err := io.ReadAll(io.LimitReader(file, maxArtifactFileBytes+1))
+	if err != nil {
+		return Artifact{}, fmt.Errorf("read artifact: %w", err)
+	}
+	if len(data) > maxArtifactFileBytes {
+		return Artifact{}, fmt.Errorf("artifact exceeds %d bytes", maxArtifactFileBytes)
+	}
+
+	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.DisallowUnknownFields()
 	var value Artifact
 	if err := decoder.Decode(&value); err != nil {
