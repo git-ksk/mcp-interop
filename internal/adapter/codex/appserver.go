@@ -9,15 +9,17 @@ import (
 )
 
 const (
-	maxAppServerMessageBytes = 32 << 20
-	maxQueuedNotifications   = 128
+	maxAppServerMessageBytes   = 32 << 20
+	maxQueuedNotifications     = 128
+	maxQueuedNotificationBytes = 8 << 20
 )
 
 type rpcClient struct {
-	writer        io.Writer
-	scan          *bufio.Scanner
-	nextID        int64
-	notifications []rpcNotification
+	writer            io.Writer
+	scan              *bufio.Scanner
+	nextID            int64
+	notifications     []rpcNotification
+	notificationBytes int
 }
 
 type rpcMessage struct {
@@ -124,6 +126,10 @@ func (c *rpcClient) waitNotification(method string, out any) error {
 			if notification.Method != method {
 				continue
 			}
+			c.notificationBytes -= notificationSize(notification)
+			if c.notificationBytes < 0 {
+				c.notificationBytes = 0
+			}
 			c.notifications = append(c.notifications[:i], c.notifications[i+1:]...)
 			return decodeNotification(notification, out)
 		}
@@ -164,12 +170,20 @@ func (c *rpcClient) readMessage() (rpcMessage, error) {
 }
 
 func (c *rpcClient) queueNotification(notification rpcNotification) {
-	if len(c.notifications) >= maxQueuedNotifications {
-		copy(c.notifications, c.notifications[1:])
-		c.notifications[len(c.notifications)-1] = notification
+	size := notificationSize(notification)
+	if size > maxQueuedNotificationBytes {
 		return
 	}
+	for len(c.notifications) > 0 && (len(c.notifications) >= maxQueuedNotifications || c.notificationBytes+size > maxQueuedNotificationBytes) {
+		c.notificationBytes -= notificationSize(c.notifications[0])
+		c.notifications = c.notifications[1:]
+	}
 	c.notifications = append(c.notifications, notification)
+	c.notificationBytes += size
+}
+
+func notificationSize(notification rpcNotification) int {
+	return len(notification.Method) + len(notification.Params)
 }
 
 func decodeNotification(notification rpcNotification, out any) error {
