@@ -27,7 +27,10 @@ const (
 	commandWaitDelay    = 2 * time.Second
 )
 
-var httpURLPattern = regexp.MustCompile(`https?://[^\s<>"']+`)
+var (
+	httpURLPattern                = regexp.MustCompile(`https?://[^\s<>"']+`)
+	httpUnauthorizedStatusPattern = regexp.MustCompile(`(?:^|[^0-9])401(?:[^0-9]|$)`)
+)
 
 // AuthorizationHandler handles the authorization URL emitted by Cursor's real
 // MCP login command. The adapter never opens a browser itself.
@@ -363,11 +366,13 @@ func requiresOAuth(output string) bool {
 		"requires oauth",
 		"oauth required",
 		"unauthorized",
-		"401",
 	} {
 		if strings.Contains(lower, marker) {
 			return true
 		}
+	}
+	if httpUnauthorizedStatusPattern.MatchString(lower) {
+		return true
 	}
 	return strings.Contains(lower, "mcp login") && (strings.Contains(lower, "run") || strings.Contains(lower, "use"))
 }
