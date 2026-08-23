@@ -47,7 +47,6 @@ func WithOAuthTimeout(timeout time.Duration) Option {
 		if timeout > 0 {
 			adapter.oauthTimeout = timeout
 		}
-	}
 }
 
 // Adapter tests a Remote MCP server through the installed Codex app-server.
@@ -368,15 +367,15 @@ func interpretStatus(result *interop.Result, status serverStatus) {
 }
 
 func replaceEnv(env []string, key, value string) []string {
-	prefix := key + "="
 	out := make([]string, 0, len(env)+1)
 	for _, item := range env {
-		if strings.HasPrefix(item, prefix) {
+		itemKey, _, ok := strings.Cut(item, "=")
+		if ok && strings.EqualFold(itemKey, key) {
 			continue
 		}
 		out = append(out, item)
 	}
-	return append(out, prefix+value)
+	return append(out, key+"="+value)
 }
 
 func stopProcess(cmd *exec.Cmd, stdin io.Closer) {
