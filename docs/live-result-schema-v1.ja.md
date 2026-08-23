@@ -84,7 +84,7 @@ mcp-interop test https://example.com/mcp --client codex --output result.json
 
 ## Endpoint identityと秘密情報
 
-artifactには**raw target URLを保存しません**。
+artifactには**完全なraw target URLを保存しません**。schema v1はcredentialが入りやすいURL要素を除外しますが、deployment identityとしてpathは意図的に保持します。
 
 `endpoint.identity`へ残すのは次の形だけです。
 
@@ -101,18 +101,18 @@ http(s)://lowercase-host[:explicit-port]/path
 
 query parameter名が秘密情報らしく見えなくても、query値は例外なく削除します。
 
-`endpoint.fingerprint`は、この安全化したidentityのSHA-256です。
+**schema v1はURL path自体が秘密情報ではないことを前提にします。** たとえば`https://example.com/mcp/<opaque-secret>`のようにAPI key、bearer相当token、signed capabilityなどをpathへ埋め込むdeploymentでは、そのendpointのv1 portable artifactをexportしないでください。credentialはpathではなく通常のMCP/OAuth認証で扱うことを推奨します。protected path対応は、明示的な非secret deployment identityを持つartifact v2としてIssue #87で設計します。
 
-raw URLをhashしないため、secretそのものから派生したfingerprintを残しません。
+`endpoint.fingerprint`は、artifactへ保存するv1 identityのSHA-256です。完全なraw URLのうち、除外したquery/userinfo/fragmentはhashしません。一方、pathはv1 identityに含まれるため、fingerprintにも同じ「pathは非secret」という前提が適用されます。
 
-その代わり、queryだけが違う2つのdeploymentをv1では区別できません。これは秘密情報保護を優先した意図的なtrade-offです。
+その代わり、queryだけが違う2つのdeploymentをv1では区別できません。これはquery materialを持ち出さないことを優先した意図的なtrade-offです。
 
 ## Runに保存する情報
 
 各runには次を保存します。
 
 - UTCの`executed_at`
-- 安全化したendpoint identity / fingerprint
+- 上記v1 path-safety前提に基づくendpoint identity / fingerprint
 - 実クライアントrunではclient ID / product / 正確なversion
 - OS / architecture
 - `mcp-interop` version / commit / Go runtime version
@@ -139,13 +139,14 @@ artifact層は新しいPASS証拠を作らず、アダプター結果を都合�
 
 比較入力として読むときは厳密に検証します。
 
+- JSON decode前にartifact入力を4 MiBへ制限
 - `schema_version`は`1`
 - `artifact_type`は`mcp-interop/live-results`
 - 未知JSON fieldは拒否
 - runは1件以上必要
 - artifact内のcomparison identityは重複不可
 - `executed_at`はUTC
-- fingerprintはcanonical identityと一致
+- fingerprintはcanonicalなv1 identityと一致
 - stageは`reach`, `auth`, `init`, `tools`をこの順序で1回ずつ
 - statusは`pass`, `fail`, `skip`, `unknown`だけ
 
@@ -182,10 +183,10 @@ mcp-interop compare old.json new.json --fail-on-regression
 - `PASS_TO_FAIL`
 - `PASS_TO_UNKNOWN`
 - `PASS_TO_SKIP`
-- `REASON_CODE_CHANGED`
+- new stageがnon-PASSのまま、reason codeが追加・削除・変更された場合の`REASON_CODE_CHANGED`
 - `NEW_EVIDENCE_MISSING`
 
-new artifactにしか存在しないrunは表示しますが、それだけではregression扱いにしません。
+stageがnon-PASSから`pass`へ回復した場合は、failure reason codeが消えたことも含めて`stage_changes`には表示しますが、その回復自体をregression扱いにはしません。new artifactにしか存在しないrunも表示しますが、それだけではregressionではありません。
 
 ## compareのexit code
 

@@ -71,7 +71,7 @@ A stage may additionally contain an existing stable `reason_code`. Human stage m
 
 ## Endpoint identity and secret safety
 
-Portable artifacts never persist the raw target URL.
+Portable artifacts never persist the complete raw target URL. Schema v1 removes URL components that commonly carry credentials, but it intentionally retains the path as deployment identity.
 
 `endpoint.identity` contains only:
 
@@ -81,16 +81,18 @@ http(s)://lowercase-host[:explicit-port]/path
 
 User information, query parameters, query values, and fragments are excluded. Query values are excluded even when their parameter names are not recognized as credential-like by legacy redaction.
 
-`endpoint.fingerprint` is SHA-256 of that already secret-safe identity, prefixed with `sha256:`. The raw URL is never hashed, so a portable artifact does not retain a secret-derived fingerprint.
+**Schema v1 assumes the URL path itself is non-secret.** If a deployment embeds an API key, bearer-like token, signed capability, or other credential in the path (for example `https://example.com/mcp/<opaque-secret>`), do not export a v1 portable artifact for that endpoint. Prefer normal MCP/OAuth authentication rather than path credentials. Artifact v2 will address protected-path deployments with an explicit non-secret deployment identity; see issue #87.
 
-The consequence is intentional: v1 cannot distinguish two deployment targets whose only identity difference is in query parameters. Secret safety takes priority over that distinction.
+`endpoint.fingerprint` is SHA-256 of the persisted v1 identity, prefixed with `sha256:`. The complete raw URL, including its removed query/userinfo/fragment components, is never hashed. Because the path is part of v1 identity, the same non-secret-path assumption applies to the fingerprint.
+
+The query trade-off is intentional: v1 cannot distinguish two deployment targets whose only identity difference is in query parameters. Removing query material takes priority over that distinction.
 
 ## Run context
 
 Each run records:
 
 - UTC `executed_at`;
-- secret-safe endpoint identity and fingerprint;
+- endpoint identity and fingerprint under the v1 path-safety assumption above;
 - client ID, product name, and exact detected client version for a real-client adapter run;
 - operating system and architecture;
 - `mcp-interop` version/commit and Go runtime version;
@@ -113,13 +115,14 @@ A `runner_observation` is never allowed to contain a `pass` stage. The artifact 
 
 Schema v1 comparison input is decoded strictly:
 
+- artifact input is bounded to 4 MiB before JSON decoding;
 - `schema_version` must be `1`;
 - `artifact_type` must be `mcp-interop/live-results`;
 - unknown JSON fields are rejected;
 - at least one run is required;
 - each comparison identity must be unique within an artifact;
 - `executed_at` must use UTC;
-- endpoint fingerprints must match their canonical secret-safe identity;
+- endpoint fingerprints must match their canonical v1 identity;
 - stages must appear exactly once and in `reach`, `auth`, `init`, `tools` order;
 - stage statuses remain limited to `pass`, `fail`, `skip`, and `unknown`.
 
@@ -154,10 +157,10 @@ The comparison explicitly classifies:
 - `PASS_TO_FAIL`;
 - `PASS_TO_UNKNOWN`;
 - `PASS_TO_SKIP`;
-- `REASON_CODE_CHANGED` when a reason code is added, removed, or changed;
+- `REASON_CODE_CHANGED` when a reason code is added, removed, or changed while the new stage remains non-PASS;
 - `NEW_EVIDENCE_MISSING` when a baseline run has no paired run in the new artifact.
 
-A new-only run is reported but is not itself a regression. A client-version change with stable stage/reason evidence is reported as context and does not fail the gate.
+A stage that recovers from a non-PASS state to `pass` remains visible in `stage_changes`, including any removed failure reason code, but that recovery is not a regression. A new-only run is reported but is not itself a regression. A client-version change with stable stage/reason evidence is reported as context and does not fail the gate.
 
 ## Compare exit codes
 
