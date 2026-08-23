@@ -3,6 +3,7 @@ package interop
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"net/netip"
@@ -68,7 +69,35 @@ func newAuthMetadataHTTPClient(endpoint *url.URL) *http.Client {
 		}
 		return nil, errors.New("auth metadata cross-origin host did not resolve to an allowed public address")
 	}
-	return &http.Client{Timeout: authMetadataHTTPTimeout, Transport: transport}
+	return &http.Client{
+		Timeout:       authMetadataHTTPTimeout,
+		Transport:     transport,
+		CheckRedirect: validateAuthMetadataRedirect,
+	}
+}
+
+func validateAuthMetadataRedirect(req *http.Request, via []*http.Request) error {
+	if req == nil || req.URL == nil {
+		return errors.New("auth metadata redirect has no target URL")
+	}
+	if len(via) >= 10 {
+		return errors.New("auth metadata redirect limit exceeded")
+	}
+	if req.URL.Host == "" || req.URL.User != nil || req.URL.Fragment != "" {
+		return errors.New("auth metadata redirect target must not contain user info or fragment")
+	}
+	scheme := strings.ToLower(req.URL.Scheme)
+	if scheme != "http" && scheme != "https" {
+		return fmt.Errorf("auth metadata redirect target uses unsupported scheme %q", req.URL.Scheme)
+	}
+	// The default client is also used for the initial user-supplied MCP probe,
+	// which may deliberately be HTTP for local testing. Metadata fetches always
+	// start at HTTPS URLs, so once a redirect chain starts on HTTPS it must never
+	// downgrade to plaintext HTTP.
+	if len(via) > 0 && strings.EqualFold(via[0].URL.Scheme, "https") && scheme != "https" {
+		return errors.New("auth metadata HTTPS redirect cannot downgrade to HTTP")
+	}
+	return nil
 }
 
 func authMetadataAddressMatchesEndpoint(endpoint *url.URL, host, port string) bool {
