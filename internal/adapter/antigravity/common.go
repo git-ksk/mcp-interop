@@ -25,6 +25,13 @@ const (
 
 	maxToolCacheJSONFiles = 4096
 	maxToolCacheFileBytes = 1 << 20
+
+	// Antigravity's documented Gemini API-key mode never establishes a signed-in
+	// account session. mcp-interop never sends a model prompt, so a fixed
+	// non-secret sentinel is sufficient to select that mode without relying on
+	// normal-user Keychain credentials.
+	isolatedModelProvider = "gemini"
+	isolatedGeminiAPIKey  = "mcp-interop-no-model"
 )
 
 // Option configures optional live-adapter behavior.
@@ -124,6 +131,22 @@ func writeConfig(home, endpoint string) error {
 	if err := os.WriteFile(path, encoded.Bytes(), 0o600); err != nil {
 		return fmt.Errorf("write isolated Antigravity configuration: %w", err)
 	}
+
+	settingsDir := filepath.Join(home, ".gemini", "antigravity-cli")
+	if err := os.MkdirAll(settingsDir, 0o700); err != nil {
+		return fmt.Errorf("create isolated Antigravity settings directory: %w", err)
+	}
+	settings := struct {
+		ModelProvider string `json:"modelProvider"`
+	}{ModelProvider: isolatedModelProvider}
+	encoded.Reset()
+	if err := encoder.Encode(settings); err != nil {
+		return fmt.Errorf("encode isolated Antigravity settings: %w", err)
+	}
+	settingsPath := filepath.Join(settingsDir, "settings.json")
+	if err := os.WriteFile(settingsPath, encoded.Bytes(), 0o600); err != nil {
+		return fmt.Errorf("write isolated Antigravity settings: %w", err)
+	}
 	return nil
 }
 
@@ -207,13 +230,21 @@ func validBoundedToolCacheJSON(path string) (bool, error) {
 }
 
 func replaceEnv(env []string, key, value string) []string {
-	prefix := key + "="
-	out := make([]string, 0, len(env)+1)
+	forceNoAccountSession := strings.EqualFold(key, "HOME")
+	out := make([]string, 0, len(env)+2)
 	for _, item := range env {
-		if strings.HasPrefix(item, prefix) {
+		itemKey, _, ok := strings.Cut(item, "=")
+		if ok && strings.EqualFold(itemKey, key) {
+			continue
+		}
+		if forceNoAccountSession && ok && strings.EqualFold(itemKey, "GEMINI_API_KEY") {
 			continue
 		}
 		out = append(out, item)
 	}
-	return append(out, prefix+value)
+	out = append(out, key+"="+value)
+	if forceNoAccountSession {
+		out = append(out, "GEMINI_API_KEY="+isolatedGeminiAPIKey)
+	}
+	return out
 }
