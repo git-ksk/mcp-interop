@@ -1,11 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"text/tabwriter"
 
@@ -145,18 +148,14 @@ func runEvidenceMerge(args []string) int {
 		return 1
 	}
 
-	writer := io.Writer(os.Stdout)
-	var file *os.File
 	if options.output != "" && options.output != "-" {
-		file, err = os.OpenFile(options.output, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "open evidence output: %v\n", err)
+		if err := writePrivateJSONFile(options.output, merged); err != nil {
+			fmt.Fprintf(os.Stderr, "write merged evidence: %v\n", err)
 			return 1
 		}
-		defer file.Close()
-		writer = file
+		return 0
 	}
-	if err := writeJSON(writer, merged); err != nil {
+	if err := writeJSON(os.Stdout, merged); err != nil {
 		fmt.Fprintf(os.Stderr, "write merged evidence: %v\n", err)
 		return 1
 	}
@@ -200,6 +199,46 @@ func writeEvidenceSummary(output io.Writer, summary diagnosepkg.RuntimeEvidenceI
 		fmt.Fprintf(writer, "%s\t%d\n", section.Section, section.Supplied)
 	}
 	return writer.Flush()
+}
+
+func writePrivateJSONFile(path string, value any) error {
+	var encoded bytes.Buffer
+	if err := writeJSON(&encoded, value); err != nil {
+		return fmt.Errorf("encode private JSON output: %w", err)
+	}
+
+	dir := filepath.Dir(path)
+	temp, err := os.CreateTemp(dir, "."+filepath.Base(path)+".tmp-*")
+	if err != nil {
+		return fmt.Errorf("create private output temp file: %w", err)
+	}
+	tempPath := temp.Name()
+	keep := false
+	defer func() {
+		if keep {
+			return
+		}
+		_ = temp.Close()
+		_ = os.Remove(tempPath)
+	}()
+
+	if err := temp.Chmod(0o600); err != nil && runtime.GOOS != "windows" {
+		return fmt.Errorf("restrict private output permissions: %w", err)
+	}
+	if _, err := temp.Write(encoded.Bytes()); err != nil {
+		return fmt.Errorf("write private output temp file: %w", err)
+	}
+	if err := temp.Sync(); err != nil {
+		return fmt.Errorf("sync private output temp file: %w", err)
+	}
+	if err := temp.Close(); err != nil {
+		return fmt.Errorf("close private output temp file: %w", err)
+	}
+	if err := os.Rename(tempPath, path); err != nil {
+		return fmt.Errorf("replace private output: %w", err)
+	}
+	keep = true
+	return nil
 }
 
 func writeJSON(output io.Writer, value any) error {
