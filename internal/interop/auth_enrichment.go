@@ -18,6 +18,7 @@ const authCapabilityDiagnosticID = "auth_registration_capability"
 var authResourceMetadataPattern = regexp.MustCompile(`(?i)resource_metadata\s*=\s*"([^"]+)"`)
 
 type authProtectedResourceMetadata struct {
+	Resource             string   `json:"resource"`
 	AuthorizationServers []string `json:"authorization_servers"`
 }
 
@@ -116,6 +117,12 @@ func discoverAuthCapabilities(ctx context.Context, endpoint string, httpClient *
 	if err := fetchAuthJSON(ctx, client, metadataURL, &protected); err != nil {
 		return capabilities, err
 	}
+	if protected.Resource == "" {
+		return capabilities, errors.New("protected resource metadata is missing resource")
+	}
+	if protected.Resource != endpointURL.String() {
+		return capabilities, errors.New("protected resource metadata resource does not match target endpoint")
+	}
 	capabilities.AuthorizationServerCount = len(protected.AuthorizationServers)
 	if len(protected.AuthorizationServers) == 0 {
 		return capabilities, errors.New("protected resource metadata has no authorization server")
@@ -173,11 +180,15 @@ func discoverAuthProtectedResourceMetadata(ctx context.Context, client *http.Cli
 func authProtectedResourceCandidates(endpoint *url.URL) []string {
 	origin := endpoint.Scheme + "://" + endpoint.Host
 	path := strings.TrimPrefix(endpoint.EscapedPath(), "/")
+	query := ""
+	if endpoint.RawQuery != "" {
+		query = "?" + endpoint.RawQuery
+	}
 	candidates := make([]string, 0, 2)
 	if path != "" {
-		candidates = append(candidates, origin+"/.well-known/oauth-protected-resource/"+path)
+		candidates = append(candidates, origin+"/.well-known/oauth-protected-resource/"+path+query)
 	}
-	candidates = append(candidates, origin+"/.well-known/oauth-protected-resource")
+	candidates = append(candidates, origin+"/.well-known/oauth-protected-resource"+query)
 	return candidates
 }
 
