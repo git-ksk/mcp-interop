@@ -10,8 +10,9 @@ import (
 )
 
 const (
-	versionTimeout   = 3 * time.Second
-	versionWaitDelay = 2 * time.Second
+	versionTimeout        = 3 * time.Second
+	versionWaitDelay      = 2 * time.Second
+	maxVersionOutputBytes = 64 << 10
 )
 
 type lookPathFunc func(string) (string, error)
@@ -71,10 +72,29 @@ func (d *SystemDetector) Detect(ctx context.Context, spec Spec) Detection {
 	return result
 }
 
+type boundedVersionBuffer struct {
+	buffer bytes.Buffer
+}
+
+func (b *boundedVersionBuffer) Write(p []byte) (int, error) {
+	if remaining := maxVersionOutputBytes - b.buffer.Len(); remaining > 0 {
+		write := p
+		if len(write) > remaining {
+			write = write[:remaining]
+		}
+		_, _ = b.buffer.Write(write)
+	}
+	return len(p), nil
+}
+
+func (b *boundedVersionBuffer) String() string {
+	return b.buffer.String()
+}
+
 func commandVersion(ctx context.Context, path string, args []string) (string, error) {
 	cmd := exec.CommandContext(ctx, path, args...)
 	cmd.WaitDelay = versionWaitDelay
-	var output bytes.Buffer
+	var output boundedVersionBuffer
 	cmd.Stdout = &output
 	cmd.Stderr = &output
 
