@@ -13,6 +13,8 @@ var secretPatterns = []*regexp.Regexp{
 	regexp.MustCompile(`(?i)("(?:access_token|refresh_token|client_secret|authorization_code)"\s*:\s*")[^"]+(")`),
 }
 
+var queryParameterPattern = regexp.MustCompile(`([?&])([^=&\s#]+)=([^&\s#]*)`)
+
 var sensitiveQueryWords = map[string]struct{}{
 	"authorization": {},
 	"code":          {},
@@ -27,13 +29,30 @@ var sensitiveQueryWords = map[string]struct{}{
 }
 
 // Redact removes common OAuth and bearer credential material from diagnostic
-// text before it can be emitted in reports or logs.
+// text before it can be emitted in reports or logs. Sensitive URL query values
+// are redacted even when a complete endpoint appears inside free-form text.
 func Redact(value string) string {
 	value = secretPatterns[0].ReplaceAllString(value, `${1}[REDACTED]`)
 	value = secretPatterns[1].ReplaceAllString(value, `${1}[REDACTED]`)
 	value = secretPatterns[2].ReplaceAllString(value, `${1}[REDACTED]`)
 	value = secretPatterns[3].ReplaceAllString(value, `${1}[REDACTED]${2}`)
+	value = queryParameterPattern.ReplaceAllStringFunc(value, redactSensitiveQueryParameter)
 	return value
+}
+
+func redactSensitiveQueryParameter(parameter string) string {
+	equals := strings.IndexByte(parameter, '=')
+	if equals < 2 {
+		return parameter
+	}
+	key := parameter[1:equals]
+	if decoded, err := url.QueryUnescape(key); err == nil {
+		key = decoded
+	}
+	if !sensitiveQueryKey(key) {
+		return parameter
+	}
+	return parameter[:equals+1] + "[REDACTED]"
 }
 
 // SanitizeEndpoint masks credential-like query values while preserving routing
