@@ -47,6 +47,7 @@ func WithOAuthTimeout(timeout time.Duration) Option {
 		if timeout > 0 {
 			adapter.oauthTimeout = timeout
 		}
+	}
 }
 
 // Adapter tests a Remote MCP server through the installed Codex app-server.
