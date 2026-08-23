@@ -19,6 +19,15 @@ var blockedAuthMetadataPrefixes = []netip.Prefix{
 	netip.MustParsePrefix("198.18.0.0/15"), // benchmarking
 }
 
+// NewAuthMetadataHTTPClient treats the user-supplied endpoint origin as an
+// explicit network trust decision. Any cross-origin metadata hop discovered
+// from that endpoint is constrained to public IP space to avoid turning OAuth
+// metadata discovery into an SSRF primitive. The helper lives under internal/
+// and is shared by live-result enrichment and metadata diagnostics.
+func NewAuthMetadataHTTPClient(endpoint *url.URL) *http.Client {
+	return newAuthMetadataHTTPClient(endpoint)
+}
+
 // newAuthMetadataHTTPClient treats the user-supplied MCP endpoint origin as an
 // explicit network trust decision. Any cross-origin metadata hop discovered
 // from that endpoint is constrained to public IP space to avoid turning
