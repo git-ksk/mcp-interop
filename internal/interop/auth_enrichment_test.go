@@ -253,6 +253,12 @@ func TestFetchAuthJSONRejectsOversizedMetadata(t *testing.T) {
 	}
 }
 
+func TestDiscoverAuthAuthorizationServerRejectsIssuerQuery(t *testing.T) {
+	if _, err := discoverAuthAuthorizationServer(context.Background(), &http.Client{}, "https://example.com/issuer?tenant=acme"); err == nil {
+		t.Fatal("expected RFC 8414 issuer with query component to be rejected")
+	}
+}
+
 func TestEnrichAuthFailureIgnoresUnrelatedAuthFailures(t *testing.T) {
 	result := NewResult("client", "Client", "test", "https://example.com/mcp")
 	result.SetWithReason(StageAuth, StatusFail, ReasonClientAuthRejected, "invalid client")

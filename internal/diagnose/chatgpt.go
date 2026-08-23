@@ -141,7 +141,8 @@ func ChatGPT(ctx context.Context, endpoint string, options ChatGPTOptions) (Repo
 
 	client := options.HTTPClient
 	if client == nil {
-		client = &http.Client{Timeout: defaultTimeout}
+		client = interop.NewAuthMetadataHTTPClient(endpointURL)
+		client.Timeout = defaultTimeout
 	}
 
 	metadataURL, challengeObserved, err := discoverProtectedResourceMetadata(ctx, client, endpointURL)
@@ -164,19 +165,18 @@ func ChatGPT(ctx context.Context, endpoint string, options ChatGPTOptions) (Repo
 	report.Resource = interop.SanitizeEndpoint(prm.Resource)
 	if prm.Resource == "" {
 		report.add("protected_resource_metadata", StatusFail, true, "Protected Resource Metadata is missing resource")
-	} else if len(prm.AuthorizationServers) == 0 {
+		return report, nil
+	}
+	if prm.Resource != endpointURL.String() {
+		report.add("resource_consistency", StatusFail, true, "Protected Resource Metadata resource does not exactly match the MCP endpoint; RFC 9728 requires mismatched metadata to be rejected")
+		return report, nil
+	}
+	report.add("resource_consistency", StatusPass, false, "Protected Resource Metadata resource exactly matches the MCP endpoint")
+	if len(prm.AuthorizationServers) == 0 {
 		report.add("protected_resource_metadata", StatusFail, true, "Protected Resource Metadata is missing authorization_servers")
-	} else {
-		report.add("protected_resource_metadata", StatusPass, true, fmt.Sprintf("Protected Resource Metadata advertises %d authorization server(s)", len(prm.AuthorizationServers)))
+		return report, nil
 	}
-
-	if prm.Resource != "" {
-		if equivalentResource(prm.Resource, endpoint) {
-			report.add("resource_consistency", StatusPass, false, "Protected Resource Metadata resource matches the MCP endpoint")
-		} else {
-			report.add("resource_consistency", StatusWarn, false, "Protected Resource Metadata resource differs from the supplied MCP endpoint; verify token audience/resource validation accepts the advertised canonical resource")
-		}
-	}
+	report.add("protected_resource_metadata", StatusPass, true, fmt.Sprintf("Protected Resource Metadata advertises %d authorization server(s)", len(prm.AuthorizationServers)))
 
 	for _, issuer := range prm.AuthorizationServers {
 		server, err := discoverAuthorizationServer(ctx, client, issuer)
@@ -418,18 +418,22 @@ func discoverProtectedResourceMetadata(ctx context.Context, client *http.Client,
 func protectedResourceCandidates(endpoint *url.URL) []string {
 	origin := endpoint.Scheme + "://" + endpoint.Host
 	path := strings.TrimPrefix(endpoint.EscapedPath(), "/")
+	query := ""
+	if endpoint.RawQuery != "" {
+		query = "?" + endpoint.RawQuery
+	}
 	candidates := make([]string, 0, 2)
 	if path != "" {
-		candidates = append(candidates, origin+"/.well-known/oauth-protected-resource/"+path)
+		candidates = append(candidates, origin+"/.well-known/oauth-protected-resource/"+path+query)
 	}
-	candidates = append(candidates, origin+"/.well-known/oauth-protected-resource")
+	candidates = append(candidates, origin+"/.well-known/oauth-protected-resource"+query)
 	return candidates
 }
 
 func discoverAuthorizationServer(ctx context.Context, client *http.Client, issuer string) (AuthorizationServer, error) {
 	issuerURL, err := url.Parse(issuer)
-	if err != nil || issuerURL.Scheme != "https" || issuerURL.Host == "" {
-		return AuthorizationServer{}, errors.New("authorization server issuer is not a valid HTTPS URL")
+	if err != nil || issuerURL.Scheme != "https" || issuerURL.Host == "" || issuerURL.User != nil || issuerURL.RawQuery != "" || issuerURL.Fragment != "" {
+		return AuthorizationServer{}, errors.New("authorization server issuer must be an HTTPS URL without user info, query, or fragment")
 	}
 	for _, metadataURL := range authorizationServerCandidates(issuerURL) {
 		var metadata authorizationServerMetadata
@@ -484,9 +488,17 @@ func fetchJSON(ctx context.Context, client *http.Client, rawURL string, out any)
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return fmt.Errorf("HTTP %d", resp.StatusCode)
 	}
-	decoder := json.NewDecoder(io.LimitReader(resp.Body, maxMetadataBytes+1))
+	limited := &io.LimitedReader{R: resp.Body, N: maxMetadataBytes + 1}
+	decoder := json.NewDecoder(limited)
 	if err := decoder.Decode(out); err != nil {
 		return errors.New("invalid JSON metadata")
+	}
+	var trailing any
+	if err := decoder.Decode(&trailing); err != io.EOF {
+		return errors.New("invalid JSON metadata")
+	}
+	if limited.N == 0 {
+		return errors.New("metadata response exceeds size limit")
 	}
 	return nil
 }
