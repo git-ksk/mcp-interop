@@ -22,6 +22,9 @@ const (
 	defaultOAuthTimeout    = 5 * time.Minute
 	defaultManagerOpenWait = 4 * time.Second
 	defaultAuthSelectWait  = 4 * time.Second
+
+	maxToolCacheJSONFiles = 4096
+	maxToolCacheFileBytes = 1 << 20
 )
 
 // Option configures optional live-adapter behavior.
@@ -148,6 +151,7 @@ func oauthTokenObserved(home string) (bool, error) {
 func countValidToolCacheFiles(home string) (int, error) {
 	root := toolCacheRoot(home)
 	count := 0
+	jsonFilesSeen := 0
 	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			if os.IsNotExist(walkErr) {
@@ -158,11 +162,15 @@ func countValidToolCacheFiles(home string) (int, error) {
 		if entry.IsDir() || !strings.HasSuffix(strings.ToLower(entry.Name()), ".json") {
 			return nil
 		}
-		content, err := os.ReadFile(path)
+		jsonFilesSeen++
+		if jsonFilesSeen > maxToolCacheJSONFiles {
+			return fmt.Errorf("isolated Antigravity MCP cache exceeds %d JSON files", maxToolCacheJSONFiles)
+		}
+		valid, err := validBoundedToolCacheJSON(path)
 		if err != nil {
 			return err
 		}
-		if json.Valid(content) {
+		if valid {
 			count++
 		}
 		return nil
@@ -171,6 +179,23 @@ func countValidToolCacheFiles(home string) (int, error) {
 		return 0, nil
 	}
 	return count, err
+}
+
+func validBoundedToolCacheJSON(path string) (bool, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return false, err
+	}
+	defer file.Close()
+
+	content, err := io.ReadAll(io.LimitReader(file, maxToolCacheFileBytes+1))
+	if err != nil {
+		return false, err
+	}
+	if len(content) > maxToolCacheFileBytes {
+		return false, fmt.Errorf("isolated Antigravity MCP cache file exceeds %d bytes", maxToolCacheFileBytes)
+	}
+	return json.Valid(content), nil
 }
 
 func replaceEnv(env []string, key, value string) []string {
