@@ -136,9 +136,10 @@ func oauthTokenPath(home string) string {
 }
 
 // oauthTokenObserved intentionally checks metadata only. Token bytes are never
-// opened or parsed by the adapter and therefore cannot enter reports/logs.
+// opened or parsed by the adapter and therefore cannot enter reports/logs. A
+// symlink is not accepted as evidence because it could escape the isolated HOME.
 func oauthTokenObserved(home string) (bool, error) {
-	info, err := os.Stat(oauthTokenPath(home))
+	info, err := os.Lstat(oauthTokenPath(home))
 	if err == nil {
 		return info.Mode().IsRegular() && info.Size() > 0, nil
 	}
@@ -160,6 +161,13 @@ func countValidToolCacheFiles(home string) (int, error) {
 			return walkErr
 		}
 		if entry.IsDir() || !strings.HasSuffix(strings.ToLower(entry.Name()), ".json") {
+			return nil
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
+		if !info.Mode().IsRegular() {
 			return nil
 		}
 		jsonFilesSeen++
