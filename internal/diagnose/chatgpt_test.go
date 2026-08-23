@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"strings"
 	"testing"
@@ -193,7 +194,7 @@ func TestChatGPTObservedRedirectMismatchFails(t *testing.T) {
 	}
 }
 
-func TestChatGPTWarnsWhenResourceDiffersFromEndpoint(t *testing.T) {
+func TestChatGPTRejectsResourceThatDiffersFromEndpoint(t *testing.T) {
 	fixture := newAuthFixture(t, authFixtureOptions{
 		CIMD:             true,
 		TokenAuthMethods: []string{"none"},
@@ -206,9 +207,12 @@ func TestChatGPTWarnsWhenResourceDiffersFromEndpoint(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assertCheck(t, report, "resource_consistency", StatusWarn, "differs")
-	if !report.Passed() {
-		t.Fatalf("canonical resource difference should be advisory: %#v", report.Checks)
+	assertCheck(t, report, "resource_consistency", StatusFail, "does not exactly match")
+	if report.Passed() {
+		t.Fatal("RFC 9728 resource mismatch must block metadata use")
+	}
+	if len(report.AuthorizationServers) != 0 {
+		t.Fatalf("mismatched resource metadata must not be used: %#v", report.AuthorizationServers)
 	}
 }
 
@@ -336,6 +340,58 @@ func assertCheck(t *testing.T, report Report, id string, status Status, messageC
 		return
 	}
 	t.Fatalf("missing check %s: %#v", id, report.Checks)
+}
+
+func TestProtectedResourceCandidatesPreserveQuery(t *testing.T) {
+	endpoint, err := url.Parse("https://example.com/mcp?tenant=acme&mode=readonly")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := protectedResourceCandidates(endpoint)
+	want := []string{
+		"https://example.com/.well-known/oauth-protected-resource/mcp?tenant=acme&mode=readonly",
+		"https://example.com/.well-known/oauth-protected-resource?tenant=acme&mode=readonly",
+	}
+	if len(got) != len(want) {
+		t.Fatalf("candidates = %#v, want %#v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("candidate %d = %q, want %q", i, got[i], want[i])
+		}
+	}
+}
+
+func TestDiscoverAuthorizationServerRejectsIssuerQuery(t *testing.T) {
+	if _, err := discoverAuthorizationServer(context.Background(), &http.Client{}, "https://example.com/issuer?tenant=acme"); err == nil {
+		t.Fatal("expected RFC 8414 issuer with query component to be rejected")
+	}
+}
+
+func TestFetchJSONRejectsTrailingJSON(t *testing.T) {
+	server := newLocalTLSServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"issuer":"one"}{"issuer":"two"}`))
+	}))
+	defer server.Close()
+
+	var metadata authorizationServerMetadata
+	if err := fetchJSON(context.Background(), server.Client(), server.URL, &metadata); err == nil {
+		t.Fatal("expected trailing JSON value to be rejected")
+	}
+}
+
+func TestFetchJSONRejectsOversizedMetadata(t *testing.T) {
+	server := newLocalTLSServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"issuer":"test","padding":"`))
+		_, _ = w.Write([]byte(strings.Repeat("x", maxMetadataBytes)))
+		_, _ = w.Write([]byte(`"}`))
+	}))
+	defer server.Close()
+
+	var metadata authorizationServerMetadata
+	if err := fetchJSON(context.Background(), server.Client(), server.URL, &metadata); err == nil {
+		t.Fatal("expected oversized metadata to be rejected")
+	}
 }
 
 func TestChatGPTRuntimeEvidenceDetectsTokenAuthMethodMismatch(t *testing.T) {

@@ -196,8 +196,8 @@ func authProtectedResourceCandidates(endpoint *url.URL) []string {
 
 func discoverAuthAuthorizationServer(ctx context.Context, client *http.Client, issuer string) (authAuthorizationServerMetadata, error) {
 	issuerURL, err := url.Parse(issuer)
-	if err != nil || issuerURL.Scheme != "https" || issuerURL.Host == "" || issuerURL.User != nil || issuerURL.Fragment != "" {
-		return authAuthorizationServerMetadata{}, errors.New("authorization server issuer is not a valid HTTPS URL")
+	if err != nil || issuerURL.Scheme != "https" || issuerURL.Host == "" || issuerURL.User != nil || issuerURL.RawQuery != "" || issuerURL.Fragment != "" {
+		return authAuthorizationServerMetadata{}, errors.New("authorization server issuer must be an HTTPS URL without user info, query, or fragment")
 	}
 	for _, metadataURL := range authAuthorizationServerCandidates(issuerURL) {
 		var metadata authAuthorizationServerMetadata
