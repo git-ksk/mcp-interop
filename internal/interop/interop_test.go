@@ -52,6 +52,27 @@ func TestRedactSecrets(t *testing.T) {
 	}
 }
 
+func TestRedactSensitiveQueryValuesInFreeFormText(t *testing.T) {
+	input := "request failed: https://example.com/mcp?tenant=acme&api_key=very-secret&X-Amz-Credential=aws-secret&password=pw-secret&auth%5Btoken%5D=nested-secret"
+	got := Redact(input)
+	for _, secret := range []string{"very-secret", "aws-secret", "pw-secret", "nested-secret"} {
+		if strings.Contains(got, secret) {
+			t.Fatalf("free-form diagnostic leaked %q: %s", secret, got)
+		}
+	}
+	if !strings.Contains(got, "tenant=acme") {
+		t.Fatalf("expected non-sensitive query value to remain: %s", got)
+	}
+}
+
+func TestRedactDoesNotOverRedactOrdinaryQueryValuesInFreeFormText(t *testing.T) {
+	input := "request failed: https://example.com/mcp?author=alice&design=compact&tenant=acme"
+	got := Redact(input)
+	if got != input {
+		t.Fatalf("ordinary query values were unexpectedly changed: %s", got)
+	}
+}
+
 func TestSanitizeEndpointMasksCredentialQueries(t *testing.T) {
 	input := "https://example.com/mcp?tenant=acme&api_key=very-secret&access_token=token-secret&X-Amz-Credential=aws-secret&X-Amz-Signature=signed-secret"
 	got := SanitizeEndpoint(input)
