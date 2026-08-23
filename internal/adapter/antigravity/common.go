@@ -237,7 +237,7 @@ func replaceEnv(env []string, key, value string) []string {
 		if ok && strings.EqualFold(itemKey, key) {
 			continue
 		}
-		if forceNoAccountSession && ok && strings.EqualFold(itemKey, "GEMINI_API_KEY") {
+		if forceNoAccountSession && ok && isAmbientAntigravityModelEnv(itemKey) {
 			continue
 		}
 		out = append(out, item)
@@ -247,4 +247,13 @@ func replaceEnv(env []string, key, value string) []string {
 		out = append(out, "GEMINI_API_KEY="+isolatedGeminiAPIKey)
 	}
 	return out
+}
+
+func isAmbientAntigravityModelEnv(key string) bool {
+	switch strings.ToUpper(key) {
+	case "GEMINI_API_KEY", "GOOGLE_GEMINI_BASE_URL", "GOOGLE_API_KEY", "GOOGLE_GENERATIVE_AI_API_KEY":
+		return true
+	default:
+		return false
+	}
 }
