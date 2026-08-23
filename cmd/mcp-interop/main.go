@@ -353,6 +353,13 @@ func parseTestOptions(args []string) (testOptions, error) {
 	if len(options.clients) == 0 {
 		return options, fmt.Errorf("--client must name at least one client")
 	}
+	for _, clientID := range options.clients {
+		switch clientID {
+		case "codex", "cursor", "antigravity":
+		default:
+			return options, fmt.Errorf("live adapter %q is not implemented yet", clientID)
+		}
+	}
 	if options.output == "-" {
 		return options, fmt.Errorf("--output must be a file path; stdout remains reserved for existing text/JSON output")
 	}
