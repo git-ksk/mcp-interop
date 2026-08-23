@@ -61,6 +61,9 @@ func TestReplaceEnvForHomeForcesNoAccountSessionMode(t *testing.T) {
 		"PATH=/usr/bin",
 		"HOME=/Users/example",
 		"GEMINI_API_KEY=normal-user-secret",
+		"GOOGLE_GEMINI_BASE_URL=https://private.example.invalid",
+		"GOOGLE_API_KEY=legacy-secret",
+		"GOOGLE_GENERATIVE_AI_API_KEY=legacy-generative-secret",
 		"OTHER=value",
 	}
 	got := replaceEnv(env, "HOME", "/tmp/isolated-home")
@@ -79,9 +82,16 @@ func TestReplaceEnvForHomeForcesNoAccountSessionMode(t *testing.T) {
 	if keys := values["GEMINI_API_KEY"]; len(keys) != 1 || keys[0] != isolatedGeminiAPIKey {
 		t.Fatalf("GEMINI_API_KEY values = %#v", keys)
 	}
+	for _, key := range []string{"GOOGLE_GEMINI_BASE_URL", "GOOGLE_API_KEY", "GOOGLE_GENERATIVE_AI_API_KEY"} {
+		if values[key] != nil {
+			t.Fatalf("ambient %s unexpectedly reached isolated environment: %#v", key, values[key])
+		}
+	}
 	for _, item := range got {
-		if strings.Contains(item, "normal-user-secret") {
-			t.Fatalf("ambient Gemini API key leaked into isolated environment: %q", item)
+		for _, forbidden := range []string{"normal-user-secret", "private.example.invalid", "legacy-secret", "legacy-generative-secret"} {
+			if strings.Contains(item, forbidden) {
+				t.Fatalf("ambient Antigravity model state leaked into isolated environment: %q", item)
+			}
 		}
 	}
 }
