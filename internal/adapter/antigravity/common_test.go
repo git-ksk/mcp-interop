@@ -36,6 +36,54 @@ func TestWriteConfigUsesIsolatedGlobalConfig(t *testing.T) {
 			t.Fatalf("config permissions = %o, want 600", got)
 		}
 	}
+
+	settingsPath := filepath.Join(home, ".gemini", "antigravity-cli", "settings.json")
+	settings, err := os.ReadFile(settingsPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(settings), `"modelProvider": "gemini"`) {
+		t.Fatalf("isolated account-bypass setting missing: %s", settings)
+	}
+	if runtime.GOOS != "windows" {
+		info, err := os.Stat(settingsPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := info.Mode().Perm(); got != 0o600 {
+			t.Fatalf("settings permissions = %o, want 600", got)
+		}
+	}
+}
+
+func TestReplaceEnvForHomeForcesNoAccountSessionMode(t *testing.T) {
+	env := []string{
+		"PATH=/usr/bin",
+		"HOME=/Users/example",
+		"GEMINI_API_KEY=normal-user-secret",
+		"OTHER=value",
+	}
+	got := replaceEnv(env, "HOME", "/tmp/isolated-home")
+
+	values := map[string][]string{}
+	for _, item := range got {
+		key, value, ok := strings.Cut(item, "=")
+		if !ok {
+			continue
+		}
+		values[strings.ToUpper(key)] = append(values[strings.ToUpper(key)], value)
+	}
+	if home := values["HOME"]; len(home) != 1 || home[0] != "/tmp/isolated-home" {
+		t.Fatalf("HOME values = %#v", home)
+	}
+	if keys := values["GEMINI_API_KEY"]; len(keys) != 1 || keys[0] != isolatedGeminiAPIKey {
+		t.Fatalf("GEMINI_API_KEY values = %#v", keys)
+	}
+	for _, item := range got {
+		if strings.Contains(item, "normal-user-secret") {
+			t.Fatalf("ambient Gemini API key leaked into isolated environment: %q", item)
+		}
+	}
 }
 
 func TestCountValidToolCacheFiles(t *testing.T) {
