@@ -208,7 +208,7 @@ func (a *Adapter) Run(ctx context.Context, target interop.Target, session *inter
 		return result, err
 	}
 
-	env := replaceEnv(os.Environ(), "HOME", home)
+	env := isolatedCursorEnv(os.Environ(), home)
 	enable := a.runCommand(ctx, workspace, env, "mcp", "enable", testServerName)
 	listed := a.runCommand(ctx, workspace, env, "mcp", "list")
 	tools := a.runCommand(ctx, workspace, env, "mcp", "list-tools", testServerName)
