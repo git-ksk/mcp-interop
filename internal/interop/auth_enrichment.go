@@ -13,7 +13,10 @@ import (
 	"time"
 )
 
-const authCapabilityDiagnosticID = "auth_registration_capability"
+const (
+	authCapabilityDiagnosticID = "auth_registration_capability"
+	maxAuthMetadataBytes       = int64(2 << 20)
+)
 
 var authResourceMetadataPattern = regexp.MustCompile(`(?i)resource_metadata\s*=\s*"([^"]+)"`)
 
@@ -240,9 +243,18 @@ func fetchAuthJSON(ctx context.Context, client *http.Client, rawURL string, out 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return fmt.Errorf("HTTP %d", resp.StatusCode)
 	}
-	decoder := json.NewDecoder(io.LimitReader(resp.Body, (2<<20)+1))
+
+	limited := &io.LimitedReader{R: resp.Body, N: maxAuthMetadataBytes + 1}
+	decoder := json.NewDecoder(limited)
 	if err := decoder.Decode(out); err != nil {
 		return errors.New("invalid JSON metadata")
+	}
+	var trailing any
+	if err := decoder.Decode(&trailing); err != io.EOF {
+		return errors.New("invalid JSON metadata")
+	}
+	if limited.N == 0 {
+		return errors.New("metadata response exceeds size limit")
 	}
 	return nil
 }
