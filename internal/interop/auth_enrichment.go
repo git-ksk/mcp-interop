@@ -10,7 +10,6 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
-	"time"
 )
 
 const (
@@ -109,7 +108,7 @@ func discoverAuthCapabilities(ctx context.Context, endpoint string, httpClient *
 	}
 	client := httpClient
 	if client == nil {
-		client = &http.Client{Timeout: 8 * time.Second}
+		client = newAuthMetadataHTTPClient(endpointURL)
 	}
 
 	metadataURL, err := discoverAuthProtectedResourceMetadata(ctx, client, endpointURL)
