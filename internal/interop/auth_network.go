@@ -19,12 +19,11 @@ var blockedAuthMetadataPrefixes = []netip.Prefix{
 	netip.MustParsePrefix("198.18.0.0/15"), // benchmarking
 }
 
-// newAuthMetadataHTTPClient treats the user-supplied MCP endpoint as an
+// newAuthMetadataHTTPClient treats the user-supplied MCP endpoint origin as an
 // explicit network trust decision. Any cross-origin metadata hop discovered
 // from that endpoint is constrained to public IP space to avoid turning
 // diagnostic enrichment into an SSRF primitive.
 func newAuthMetadataHTTPClient(endpoint *url.URL) *http.Client {
-	trustedHost := strings.ToLower(endpoint.Hostname())
 	dialer := &net.Dialer{Timeout: authMetadataHTTPTimeout, KeepAlive: 30 * time.Second}
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	// A proxy could perform DNS resolution and network access outside the guarded
@@ -35,7 +34,7 @@ func newAuthMetadataHTTPClient(endpoint *url.URL) *http.Client {
 		if err != nil {
 			return nil, err
 		}
-		if strings.EqualFold(host, trustedHost) {
+		if authMetadataAddressMatchesEndpoint(endpoint, host, port) {
 			return dialer.DialContext(ctx, network, address)
 		}
 
@@ -61,6 +60,22 @@ func newAuthMetadataHTTPClient(endpoint *url.URL) *http.Client {
 		return nil, errors.New("auth metadata cross-origin host did not resolve to an allowed public address")
 	}
 	return &http.Client{Timeout: authMetadataHTTPTimeout, Transport: transport}
+}
+
+func authMetadataAddressMatchesEndpoint(endpoint *url.URL, host, port string) bool {
+	if endpoint == nil || !strings.EqualFold(host, endpoint.Hostname()) {
+		return false
+	}
+	trustedPort := endpoint.Port()
+	if trustedPort == "" {
+		switch strings.ToLower(endpoint.Scheme) {
+		case "https":
+			trustedPort = "443"
+		case "http":
+			trustedPort = "80"
+		}
+	}
+	return trustedPort != "" && port == trustedPort
 }
 
 func authMetadataIPAllowed(ip net.IP) bool {
