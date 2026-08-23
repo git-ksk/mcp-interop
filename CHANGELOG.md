@@ -8,6 +8,15 @@ All notable project changes will be summarized here. GitHub Releases remain the 
 
 - Hardened OSS supply-chain defaults with CodeQL default setup, full-SHA GitHub Actions pins maintained by Dependabot, and build-provenance attestations for tagged release artifacts.
 - Added a bilingual milestone/exit-criteria roadmap through the stable-contract gate, including protocol-era handling, deployment-identity privacy, CI trust boundaries, baseline/compatibility-envelope semantics, and an explicit pre-1.0 stabilization buffer; the README now links to the canonical roadmap instead of duplicating a stale release checklist.
+- Clarified portable artifact schema v1: URL paths remain part of deployment identity and therefore must be non-secret; protected-path deployments require a future explicit non-secret identity/schema design tracked in issue #87. Recovery from a non-PASS stage to PASS remains visible in comparison output but is not a regression solely because its failure reason disappears.
+
+### Fixed
+
+- Hardened OAuth/network trust boundaries: guarded metadata redirects cannot downgrade HTTPS to plaintext HTTP, unsafe authorization URLs are rejected before display, loopback redirect handling remains narrowly scoped, and JSON/camelCase/compact credential-field variants are redacted from diagnostics.
+- Strengthened real-client isolation and CLI execution boundaries: Codex `CODEX_HOME` replacement is case-insensitive on Windows, unsupported `--client` values are rejected before any adapter runs, and Cursor no longer infers OAuth from unrelated numbers that merely contain `401`.
+- Bounded externally influenced memory use across Cursor command/OAuth output capture, Codex queued app-server notifications, client version-command output, Antigravity tool-cache inspection, and portable artifact input decoding.
+- Hardened portable/evidence output replacement by encoding before touching the destination, writing through private same-directory temporary files, syncing/closing before rename, tightening existing public-mode outputs to private files, and replacing symlink paths without truncating their targets.
+- Corrected regression gating so a failed stage that recovers to PASS does not make `--fail-on-regression` fail solely because the old failure `reason_code` was removed; reason changes on continuing non-PASS states remain regression signals.
 
 ## v0.5.1 — 2026-08-15
 
