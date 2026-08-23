@@ -19,16 +19,22 @@ func maybeAutoAuthorizeLoopback(ctx context.Context, authorizationURL string) (b
 	if os.Getenv(autoAuthorizeLoopbackEnv) != "1" {
 		return false, nil
 	}
-	u, err := url.Parse(authorizationURL)
-	if err != nil || u.Scheme != "http" || u.User != nil || u.Fragment != "" {
-		return true, fmt.Errorf("E2E auto-authorization requires a plain HTTP loopback authorization URL")
-	}
-	ip := net.ParseIP(u.Hostname())
-	if ip == nil || !ip.IsLoopback() {
-		return true, fmt.Errorf("E2E auto-authorization refuses non-loopback host %q", u.Hostname())
+	if err := validateAutoAuthorizeLoopbackURL(authorizationURL); err != nil {
+		return true, err
 	}
 
-	client := &http.Client{Timeout: 15 * time.Second}
+	client := &http.Client{
+		Timeout: 15 * time.Second,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if len(via) >= 10 {
+				return fmt.Errorf("E2E auto-authorization stopped after 10 redirects")
+			}
+			if err := validateAutoAuthorizeLoopbackURL(req.URL.String()); err != nil {
+				return fmt.Errorf("E2E auto-authorization redirect refused: %w", err)
+			}
+			return nil
+		},
+	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, authorizationURL, nil)
 	if err != nil {
 		return true, err
@@ -43,4 +49,16 @@ func maybeAutoAuthorizeLoopback(ctx context.Context, authorizationURL string) (b
 		return true, fmt.Errorf("loopback fixture authorization returned HTTP %d", resp.StatusCode)
 	}
 	return true, nil
+}
+
+func validateAutoAuthorizeLoopbackURL(raw string) error {
+	u, err := url.Parse(raw)
+	if err != nil || u.Scheme != "http" || u.User != nil || u.Fragment != "" || u.Host == "" {
+		return fmt.Errorf("E2E auto-authorization requires a plain HTTP loopback authorization URL")
+	}
+	ip := net.ParseIP(u.Hostname())
+	if ip == nil || !ip.IsLoopback() {
+		return fmt.Errorf("E2E auto-authorization refuses non-loopback host %q", u.Hostname())
+	}
+	return nil
 }
