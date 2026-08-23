@@ -155,7 +155,9 @@ func compareRun(oldRun, newRun artifact.Run) RunComparison {
 				change.RegressionKinds = append(change.RegressionKinds, RegressionPassToSkip)
 			}
 		}
-		if oldStage.ReasonCode != newStage.ReasonCode {
+		// A reason-code change remains visible in the StageChange itself, but a
+		// transition that recovers to PASS is an improvement, not a regression.
+		if oldStage.ReasonCode != newStage.ReasonCode && newStage.Status != interop.StatusPass {
 			change.RegressionKinds = append(change.RegressionKinds, RegressionReasonChanged)
 		}
 		change.Regression = len(change.RegressionKinds) > 0
