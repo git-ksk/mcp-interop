@@ -10,7 +10,7 @@ var secretPatterns = []*regexp.Regexp{
 	regexp.MustCompile(`(?i)(authorization\s*:\s*bearer\s+)[^\s"']+`),
 	regexp.MustCompile(`(?i)(bearer\s+)[A-Za-z0-9._~+/=-]{8,}`),
 	regexp.MustCompile(`(?i)([?&](?:access_token|refresh_token|client_secret|code)=)[^&\s]+`),
-	regexp.MustCompile(`(?i)("(?:access_token|refresh_token|client_secret|authorization_code)"\s*:\s*")[^"]+(")`),
+	regexp.MustCompile(`(?i)("(?:access[_-]?token|refresh[_-]?token|client[_-]?secret|authorization[_-]?code|code[_-]?verifier|api[_-]?key|password|credentials?|authorization|token|secret)"\s*:\s*")[^"]+(")`),
 }
 
 var queryParameterPattern = regexp.MustCompile(`([?&])([^=&\s#]+)=([^&\s#]*)`)
@@ -26,6 +26,15 @@ var sensitiveQueryWords = map[string]struct{}{
 	"sig":           {},
 	"signature":     {},
 	"token":         {},
+}
+
+var sensitiveCompactQueryKeys = map[string]struct{}{
+	"accesstoken":       {},
+	"apikey":            {},
+	"authorizationcode": {},
+	"clientsecret":      {},
+	"codeverifier":      {},
+	"refreshtoken":      {},
 }
 
 // Redact removes common OAuth and bearer credential material from diagnostic
@@ -82,7 +91,9 @@ func sensitiveQueryKey(key string) bool {
 			return true
 		}
 	}
-	return normalized == "apikey" || normalized == "api_key"
+	compact := strings.ReplaceAll(normalized, "_", "")
+	_, ok := sensitiveCompactQueryKeys[compact]
+	return ok
 }
 
 // RedactResult applies credential redaction to all user-visible report fields.
