@@ -20,8 +20,8 @@ func (t Target) Validate() error {
 	if u.Scheme != "http" && u.Scheme != "https" {
 		return errors.New("endpoint must use http or https")
 	}
-	if u.Host == "" {
-		return errors.New("endpoint must include a host")
+	if u.Host == "" || u.Hostname() == "" {
+		return errors.New("endpoint must include a hostname")
 	}
 	if u.User != nil {
 		return errors.New("endpoint must not embed user info")
