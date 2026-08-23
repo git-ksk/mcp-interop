@@ -8,14 +8,20 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 )
 
 const autoAuthorizeLoopbackEnv = "MCP_INTEROP_E2E_AUTO_AUTHORIZE_LOOPBACK"
 
-// maybeAutoAuthorizeLoopback is an intentionally narrow E2E-only escape hatch.
-// Production interactive runs never fetch authorization URLs automatically.
+// maybeAutoAuthorizeLoopback validates every authorization URL before the
+// caller displays it. Automatic fetching remains an intentionally narrow
+// E2E-only escape hatch; production interactive runs never fetch authorization
+// URLs themselves.
 func maybeAutoAuthorizeLoopback(ctx context.Context, authorizationURL string) (bool, error) {
+	if err := validateInteractiveAuthorizationURL(authorizationURL); err != nil {
+		return true, err
+	}
 	if os.Getenv(autoAuthorizeLoopbackEnv) != "1" {
 		return false, nil
 	}
@@ -49,6 +55,25 @@ func maybeAutoAuthorizeLoopback(ctx context.Context, authorizationURL string) (b
 		return true, fmt.Errorf("loopback fixture authorization returned HTTP %d", resp.StatusCode)
 	}
 	return true, nil
+}
+
+func validateInteractiveAuthorizationURL(raw string) error {
+	u, err := url.Parse(raw)
+	if err != nil || u.Host == "" || u.User != nil || u.Fragment != "" {
+		return fmt.Errorf("OAuth authorization URL must be HTTPS without user info or fragment")
+	}
+	switch strings.ToLower(u.Scheme) {
+	case "https":
+		return nil
+	case "http":
+		ip := net.ParseIP(u.Hostname())
+		if ip != nil && ip.IsLoopback() {
+			return nil
+		}
+		return fmt.Errorf("OAuth authorization URL may use HTTP only with a loopback IP host")
+	default:
+		return fmt.Errorf("OAuth authorization URL must use HTTPS")
+	}
 }
 
 func validateAutoAuthorizeLoopbackURL(raw string) error {
