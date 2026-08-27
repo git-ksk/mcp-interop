@@ -43,12 +43,13 @@ type ResultIndex struct {
 // ResultEntry points to one versioned live-result artifact. Endpoint values are
 // intentionally absent from the index.
 type ResultEntry struct {
-	TargetID string     `json:"target_id"`
-	ClientID string     `json:"client_id"`
-	AuthMode AuthMode   `json:"auth_mode"`
-	Outcome  RunOutcome `json:"outcome"`
-	ExitCode int        `json:"exit_code"`
-	Artifact string     `json:"artifact,omitempty"`
+	TargetID     string     `json:"target_id"`
+	DeploymentID string     `json:"deployment_id"`
+	ClientID     string     `json:"client_id"`
+	AuthMode     AuthMode   `json:"auth_mode"`
+	Outcome      RunOutcome `json:"outcome"`
+	ExitCode     int        `json:"exit_code"`
+	Artifact     string     `json:"artifact,omitempty"`
 }
 
 // NewResultIndex builds and validates a deterministic trusted-suite index.
@@ -126,6 +127,9 @@ func validateResultEntry(entry ResultEntry) error {
 	if err := validateTargetID(entry.TargetID); err != nil {
 		return fmt.Errorf("target_id: %w", err)
 	}
+	if err := artifact.ValidateDeploymentID(entry.DeploymentID); err != nil {
+		return fmt.Errorf("deployment_id: %w", err)
+	}
 	if err := validateClientSelection(ExecutionTrusted, ClientSelection{ID: entry.ClientID, Auth: entry.AuthMode}); err != nil {
 		return err
 	}
@@ -171,7 +175,7 @@ func validateArtifactReference(reference string) error {
 }
 
 func resultEntryKey(entry ResultEntry) string {
-	return entry.TargetID + "\x00" + entry.ClientID + "\x00" + string(entry.AuthMode)
+	return entry.TargetID + "\x00" + entry.DeploymentID + "\x00" + entry.ClientID + "\x00" + string(entry.AuthMode)
 }
 
 // WriteResultIndex writes the index as a private JSON file.
