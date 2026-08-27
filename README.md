@@ -119,13 +119,24 @@ JSON output remains an array, preserving the existing machine-readable contract.
 
 ### Portable regression artifacts
 
-Export the same live run into a separate versioned, secret-safe local artifact without changing stdout:
+Export the same live run into a separate versioned, secret-safe local artifact without changing the existing result shape:
 
 ```console
 mcp-interop test https://example.com/mcp --client codex --output result.json
 ```
 
-The artifact records the exact detected client version, OS/architecture, runner/runtime context, invocation auth mode, evidence provenance, and the existing four stage status/reason results. The raw endpoint URL is not persisted; query values are excluded before deriving the endpoint fingerprint. Human stage messages and diagnostic payloads are also excluded from artifact v1.
+This default remains artifact schema v1. It records the exact detected client version, OS/architecture, runner/runtime context, invocation auth mode, evidence provenance, and the existing four stage status/reason results. The raw endpoint URL is not persisted; query values are excluded before deriving the endpoint fingerprint. Human stage messages and diagnostic payloads are also excluded.
+
+If the endpoint path itself contains credential material, use schema v2 protected-path identity instead of exporting v1:
+
+```console
+mcp-interop test 'https://example.com/mcp/<protected-path>' \
+  --client codex \
+  --output result.json \
+  --deployment-id production-a
+```
+
+The deployment ID is persisted verbatim and must be a stable non-secret operator label, never a value derived from the protected path. In this mode the artifact persists only the canonical origin plus that deployment ID; the path/query/userinfo/fragment are neither persisted nor hashed. Ordinary text/JSON output also avoids echoing the protected path. v1↔v2 comparison is rejected explicitly rather than guessing an identity mapping.
 
 Compare two artifacts across client versions or repeated runs:
 
@@ -137,7 +148,7 @@ mcp-interop compare old.json new.json --fail-on-regression
 
 The comparison explicitly reports `PASS_TO_FAIL`, `PASS_TO_UNKNOWN`, `PASS_TO_SKIP`, reason-code changes, and missing baseline evidence. A client-version change by itself is not a regression. `--fail-on-regression` exits `1` only when one of those regression/evidence-loss conditions is present; malformed or unsupported artifacts are usage/input errors and exit `2`.
 
-See [Live interoperability result artifact schema v1](docs/live-result-schema-v1.md) ([日本語](docs/live-result-schema-v1.ja.md)) for the exact compatibility, secret-safety, pairing, and exit-code contract.
+See [Live interoperability result artifact schema v1](docs/live-result-schema-v1.md) ([日本語](docs/live-result-schema-v1.ja.md)) and [schema v2 protected-path identity](docs/live-result-schema-v2.md) ([日本語](docs/live-result-schema-v2.ja.md)) for the exact compatibility, secret-safety, pairing, and migration contracts.
 
 OAuth flows are always explicit opt-in:
 
@@ -365,6 +376,7 @@ The runner is expected to have the real Codex, Cursor, and Antigravity CLIs inst
 - [Roadmap to a stable interoperability contract](docs/roadmap.md) ([日本語](docs/roadmap.ja.md))
 - [Conformance vs. interoperability](docs/conformance-vs-interop.md) ([日本語](docs/conformance-vs-interop.ja.md))
 - [Live result artifact schema v1](docs/live-result-schema-v1.md) ([日本語](docs/live-result-schema-v1.ja.md))
+- [Live result artifact schema v2](docs/live-result-schema-v2.md) ([日本語](docs/live-result-schema-v2.ja.md))
 - [Troubleshooting](docs/troubleshooting.md) ([日本語](docs/troubleshooting.ja.md))
 - [Reason codes](docs/reason-codes.md) ([日本語](docs/reason-codes.ja.md))
 - [ChatGPT connection diagnostics](docs/chatgpt-diagnostics.md) ([日本語](docs/chatgpt-diagnostics.ja.md))

@@ -89,7 +89,7 @@ fixtureで分かったprotocol versionを、別の本番runへ転記して「実
 - 公開`init` stageを互換表示として維持できるか検討する
 - fixtureでlegacy / modern protocol behaviorを確認する
 - 隔離、timeout、cleanup、secret redactionを維持する
-- portable artifactを日常的にbaseline共有する前にdeployment identity privacyを定義する
+- portable artifactを日常的にbaseline共有する前にdeployment identity privacy境界を維持する。schema v2は明示的な非secret deployment IDでcredential-bearing pathを除去するが、private originの共有は別問題として残す
 - schema v1で表現できない具体的問題を確認するまでは、安易にnew schemaへ上げない
 
 ### deployment identityのプライバシー
@@ -102,7 +102,7 @@ credential-safe != deployment-public
 
 単純なdeterministic hashだけでは、候補URLを推測して照合できる可能性があります。
 
-将来のbaseline共有では、`production-a`のようなユーザー定義のopaque identityなど、private hostname/pathを公開せずに同じ対象を比較できる方法を検討します。
+schema v2では`production-a`のようなユーザー定義opaque identityをprotected-path endpointに使い、canonical public originとその非secret identityの組でpairします。protected path自体はhashもしません。ただしcanonical originは保存するため、credential-bearing pathの問題は解消してもprivate hostnameまで公開可能になるわけではありません。
 
 ### 完了条件
 

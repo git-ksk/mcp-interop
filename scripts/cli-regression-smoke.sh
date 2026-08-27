@@ -55,6 +55,10 @@ old="$workdir/old.json"
 new="$workdir/new.json"
 regression="$workdir/regression.json"
 malformed="$workdir/malformed.json"
+protected_old="$workdir/protected-old.json"
+protected_new="$workdir/protected-new.json"
+protected_secret='cli-protected-path-secret'
+protected_endpoint="https://example.com/mcp/$protected_secret?token=protected-query-secret"
 
 MCP_INTEROP_FIXTURE_VERSION='codex-fixture 1.0.0' MCP_INTEROP_FIXTURE_MODE=pass \
   "$binary" test "$endpoint" --client codex --output "$old" >"$workdir/old.txt"
@@ -70,6 +74,32 @@ if grep -F 'cli-smoke-secret' "$old" "$new" >/dev/null; then
   echo "portable artifact leaked endpoint query secret" >&2
   exit 1
 fi
+
+MCP_INTEROP_FIXTURE_VERSION='codex-fixture 1.0.0' MCP_INTEROP_FIXTURE_MODE=pass \
+  "$binary" test "$protected_endpoint" --client codex --output "$protected_old" \
+  --deployment-id production-a >"$workdir/protected-old.txt"
+MCP_INTEROP_FIXTURE_VERSION='codex-fixture 2.0.0' MCP_INTEROP_FIXTURE_MODE=pass \
+  "$binary" test "$protected_endpoint" --client codex --output "$protected_new" \
+  --deployment-id production-a --json >"$workdir/protected-new.txt"
+
+grep -F '"schema_version": 2' "$protected_old" >/dev/null
+grep -F '"identity_kind": "deployment_id"' "$protected_old" >/dev/null
+grep -F '"identity": "production-a"' "$protected_old" >/dev/null
+"$binary" compare "$protected_old" "$protected_new" >"$workdir/protected-compare.txt"
+if grep -R -F "$protected_secret" "$protected_old" "$protected_new" "$workdir/protected-old.txt" "$workdir/protected-new.txt" "$workdir/protected-compare.txt" >/dev/null; then
+  echo "schema v2 protected-path output leaked endpoint path secret" >&2
+  exit 1
+fi
+
+set +e
+"$binary" compare "$old" "$protected_new" >"$workdir/schema-mismatch.out" 2>"$workdir/schema-mismatch.err"
+schema_mismatch_exit=$?
+set -e
+if [[ $schema_mismatch_exit -ne 2 ]]; then
+  echo "cross-schema compare exit=$schema_mismatch_exit, want 2" >&2
+  exit 1
+fi
+grep -F 'artifact schema mismatch' "$workdir/schema-mismatch.err" >/dev/null
 
 MCP_INTEROP_FIXTURE_VERSION='codex-fixture 2.0.0' MCP_INTEROP_FIXTURE_MODE=pass \
   "$binary" test "$endpoint" --client codex --json >"$workdir/legacy.json"
@@ -118,8 +148,8 @@ if [[ $malformed_exit -ne 2 ]]; then
   exit 1
 fi
 
-if grep -R -F 'cli-smoke-secret' "$workdir" >/dev/null; then
-  echo "CLI smoke output/log leaked endpoint query secret" >&2
+if grep -R -F 'cli-smoke-secret' "$workdir" >/dev/null || grep -R -F "$protected_secret" "$workdir" >/dev/null; then
+  echo "CLI smoke output/log leaked endpoint secret" >&2
   exit 1
 fi
 

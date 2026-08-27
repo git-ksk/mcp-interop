@@ -89,7 +89,7 @@ Make the core evidence model correct across legacy and modern MCP protocol eras 
 - Decide whether the existing public `init` stage can remain a compatibility projection over a more precise internal semantic model.
 - Test legacy and modern protocol behavior against controlled fixtures, including fallback/unsupported-era behavior where practical.
 - Re-run existing isolation, timeout, cancellation, process-cleanup, state-cleanup, and secret-redaction gates while protocol-aware changes are made.
-- Define the deployment-identity privacy boundary before portable artifacts become routine baseline/CI inputs.
+- Maintain the documented deployment-identity privacy boundary before portable artifacts become routine baseline/CI inputs; schema v2 now removes credential-bearing paths through an explicit non-secret deployment ID, while private-origin sharing remains a separate concern.
 - Keep portable artifact schema v1 unless a concrete protocol-aware requirement cannot be represented safely. Introduce a new schema version only after demonstrating that limitation.
 
 ### Deployment identity privacy
@@ -100,7 +100,7 @@ The current portable artifact deliberately removes raw query values and credenti
 credential-safe != deployment-public
 ```
 
-Before baseline artifacts are routinely committed or shared, evaluate an opaque user-defined target identity, such as `production-a`, or an equivalent pairing mechanism that does not require publishing a private deployment hostname/path. A deterministic hash alone must not be treated as sufficient privacy when likely deployment identities can be guessed and compared.
+Schema v2 now provides an opaque user-defined target identity such as `production-a` for protected-path endpoints. It never hashes the protected path and pairs on the canonical public origin plus that non-secret identity. The canonical origin is still persisted, so this closes the credential-bearing-path gap but does not make a private hostname safe to publish. A deterministic hash alone must not be treated as sufficient privacy when likely deployment identities can be guessed and compared.
 
 ### Exit criteria
 

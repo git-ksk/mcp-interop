@@ -11,7 +11,7 @@ import (
 func TestArtifactsVersionOnlyChangeIsNotRegression(t *testing.T) {
 	oldRun := testRun(t, "1.0.0")
 	newRun := testRun(t, "2.0.0")
-	report := Artifacts(artifact.NewArtifact([]artifact.Run{oldRun}), artifact.NewArtifact([]artifact.Run{newRun}))
+	report := mustArtifacts(t, artifact.NewArtifact([]artifact.Run{oldRun}), artifact.NewArtifact([]artifact.Run{newRun}))
 	if report.HasRegression {
 		t.Fatalf("version-only change marked regression: %#v", report)
 	}
@@ -37,7 +37,7 @@ func TestArtifactsPassToNonPassRegressions(t *testing.T) {
 			oldRun := testRun(t, "1.0.0")
 			newRun := testRun(t, "2.0.0")
 			newRun.Stages[1].Status = tc.to
-			report := Artifacts(artifact.NewArtifact([]artifact.Run{oldRun}), artifact.NewArtifact([]artifact.Run{newRun}))
+			report := mustArtifacts(t, artifact.NewArtifact([]artifact.Run{oldRun}), artifact.NewArtifact([]artifact.Run{newRun}))
 			if !report.HasRegression || len(report.Runs[0].StageChanges) != 1 {
 				t.Fatalf("expected regression: %#v", report)
 			}
@@ -67,7 +67,7 @@ func TestArtifactsReasonCodeChangesAreRegressions(t *testing.T) {
 			oldRun.Stages[1].ReasonCode = tc.old
 			newRun.Stages[1].ReasonCode = tc.new
 
-			report := Artifacts(artifact.NewArtifact([]artifact.Run{oldRun}), artifact.NewArtifact([]artifact.Run{newRun}))
+			report := mustArtifacts(t, artifact.NewArtifact([]artifact.Run{oldRun}), artifact.NewArtifact([]artifact.Run{newRun}))
 			if !report.HasRegression {
 				t.Fatal("reason-code change must be a regression signal")
 			}
@@ -86,7 +86,7 @@ func TestArtifactsMissingNewRunIsEvidenceLossRegression(t *testing.T) {
 	newRun.Client.Product = "Cursor CLI"
 	newRun.EvidenceProvenance.AdapterID = "cursor"
 
-	report := Artifacts(artifact.NewArtifact([]artifact.Run{oldRun}), artifact.NewArtifact([]artifact.Run{newRun}))
+	report := mustArtifacts(t, artifact.NewArtifact([]artifact.Run{oldRun}), artifact.NewArtifact([]artifact.Run{newRun}))
 	if !report.HasRegression {
 		t.Fatal("missing baseline run in new artifact must regress")
 	}
@@ -131,4 +131,61 @@ func contains(values []string, want string) bool {
 		}
 	}
 	return false
+}
+
+func mustArtifacts(t *testing.T, oldArtifact, newArtifact artifact.Artifact) Report {
+	t.Helper()
+	report, err := Artifacts(oldArtifact, newArtifact)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return report
+}
+
+func TestArtifactsV2PairsByDeploymentIDAcrossProtectedPathChange(t *testing.T) {
+	oldRun := testRunV2(t, "1.0.0", "https://example.com/mcp/old-secret", "production-a")
+	newRun := testRunV2(t, "2.0.0", "https://example.com/mcp/new-secret", "production-a")
+
+	report := mustArtifacts(t, artifact.NewArtifactV2([]artifact.Run{oldRun}), artifact.NewArtifactV2([]artifact.Run{newRun}))
+	if report.HasRegression || len(report.Runs) != 1 || report.Runs[0].State != RunCompared {
+		t.Fatalf("v2 deployment identity did not pair across protected-path change: %#v", report)
+	}
+}
+
+func TestArtifactsRejectCrossSchemaComparison(t *testing.T) {
+	v1 := artifact.NewArtifact([]artifact.Run{testRun(t, "1.0.0")})
+	v2 := artifact.NewArtifactV2([]artifact.Run{testRunV2(t, "2.0.0", "https://example.com/mcp/secret", "production-a")})
+	if _, err := Artifacts(v1, v2); err == nil {
+		t.Fatal("cross-schema comparison must be explicit, not silently paired")
+	}
+}
+
+func testRunV2(t *testing.T, version, endpoint, deploymentID string) artifact.Run {
+	t.Helper()
+	result := interop.NewResult("codex", "Codex CLI", version, endpoint)
+	for _, stage := range interop.OrderedStages {
+		result.Set(stage, interop.StatusPass, "ok")
+	}
+	run, err := artifact.NewRunV2ProtectedPath(
+		result,
+		endpoint,
+		deploymentID,
+		time.Date(2026, 8, 27, 12, 0, 0, 0, time.UTC),
+		"default",
+		artifact.EvidenceProvenance{Kind: artifact.ProvenanceRealClientAdapter, AdapterID: "codex"},
+		"v-test",
+		"deadbeef",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return run
+}
+
+func TestArtifactsV2UsesComparisonReportSchemaV2(t *testing.T) {
+	run := testRunV2(t, "1.0.0", "https://example.com/mcp/secret", "production-a")
+	report := mustArtifacts(t, artifact.NewArtifactV2([]artifact.Run{run}), artifact.NewArtifactV2([]artifact.Run{run}))
+	if report.SchemaVersion != ReportSchemaVersionV2 {
+		t.Fatalf("v2 comparison report schema=%d, want %d", report.SchemaVersion, ReportSchemaVersionV2)
+	}
 }

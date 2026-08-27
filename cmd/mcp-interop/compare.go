@@ -42,7 +42,11 @@ func runCompare(args []string) int {
 		return 2
 	}
 
-	report := interopcompare.Artifacts(oldArtifact, newArtifact)
+	report, err := interopcompare.Artifacts(oldArtifact, newArtifact)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "compare artifacts: %v\n", err)
+		return 2
+	}
 	if options.json {
 		encoder := json.NewEncoder(os.Stdout)
 		encoder.SetIndent("", "  ")
@@ -109,6 +113,10 @@ func writeComparison(output io.Writer, report interopcompare.Report) error {
 		fmt.Fprintf(writer, "CLIENT_ID\t%s\n", run.ClientID)
 		fmt.Fprintf(writer, "ENDPOINT\t%s\n", run.Endpoint.Identity)
 		fmt.Fprintf(writer, "FINGERPRINT\t%s\n", run.Endpoint.Fingerprint)
+		if run.Endpoint.IdentityKind != "" {
+			fmt.Fprintf(writer, "IDENTITY_KIND\t%s\n", run.Endpoint.IdentityKind)
+			fmt.Fprintf(writer, "ORIGIN\t%s\n", run.Endpoint.Origin)
+		}
 		fmt.Fprintf(writer, "AUTH_MODE\t%s\n", run.AuthMode)
 		fmt.Fprintf(writer, "PLATFORM\t%s/%s\n", run.Platform.OS, run.Platform.Arch)
 		fmt.Fprintf(writer, "STATE\t%s\n", strings.ToUpper(run.State))
