@@ -270,7 +270,7 @@ func setToolDiscoveryPass(result *interop.Result, count int, tokenSeen bool) {
 	} else {
 		result.Set(interop.StageAuth, interop.StatusPass, "tool discovery completed without an unresolved authentication gate")
 	}
-	result.Set(interop.StageInit, interop.StatusPass, "Antigravity tool cache proves MCP initialization completed")
+	result.SetProtocolReadiness(interop.StatusPass, interop.ProtocolObservation{Era: interop.ProtocolEraUnknown, Source: interop.ProtocolEvidenceRealClientSurface, Readiness: interop.ProtocolReadinessToolInventory}, "Antigravity tool cache proves MCP protocol readiness")
 	result.Set(interop.StageTools, interop.StatusPass, fmt.Sprintf("Antigravity cached %d MCP tool schema file(s)", count))
 }
 

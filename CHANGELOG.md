@@ -14,6 +14,7 @@ All notable project changes will be summarized here. GitHub Releases remain the 
 
 ### Changed
 
+- Defined public `init` as a backward-compatible projection of MCP protocol readiness rather than a permanent legacy handshake, with non-serialized internal protocol observations that reject fixture-only or unobserved evidence as a source of deployment-specific PASS.
 - Hardened OSS supply-chain defaults with CodeQL default setup, full-SHA GitHub Actions pins maintained by Dependabot, and build-provenance attestations for tagged release artifacts.
 - Added a bilingual milestone/exit-criteria roadmap through the stable-contract gate, including protocol-era handling, deployment-identity privacy, CI trust boundaries, baseline/compatibility-envelope semantics, and an explicit pre-1.0 stabilization buffer; the README now links to the canonical roadmap instead of duplicating a stale release checklist.
 - Clarified portable artifact schema v1: URL paths remain part of deployment identity and therefore must be non-secret; protected-path deployments can use schema v2 with an explicit non-secret deployment ID. Recovery from a non-PASS stage to PASS remains visible in comparison output but is not a regression solely because its failure reason disappears.

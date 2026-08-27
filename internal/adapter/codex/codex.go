@@ -350,7 +350,7 @@ func interpretStatus(result *interop.Result, status serverStatus) {
 
 	if toolCount > 0 {
 		result.Set(interop.StageReach, interop.StatusPass, "Codex returned live MCP inventory")
-		result.Set(interop.StageInit, interop.StatusPass, "tool discovery proves MCP initialization completed")
+		result.SetProtocolReadiness(interop.StatusPass, interop.ProtocolObservation{Era: interop.ProtocolEraUnknown, Source: interop.ProtocolEvidenceRealClientSurface, Readiness: interop.ProtocolReadinessToolInventory}, "tool discovery proves MCP protocol readiness")
 		result.Set(interop.StageTools, interop.StatusPass, fmt.Sprintf("Codex discovered %d MCP tool(s)", toolCount))
 		return
 	}

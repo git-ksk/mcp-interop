@@ -36,10 +36,18 @@ The current stages are:
 
 1. `reach` — the real client reached enough of the Remote MCP deployment to prove live interaction.
 2. `auth` — required client authentication completed, or live tool discovery proved authentication was not required.
-3. `init` — the real client established an MCP session.
+3. `init` — compatibility projection for **MCP protocol readiness**: the real client proved a usable protocol path. It does not require a literal `initialize` request in modern MCP.
 4. `tools` — the real client discovered the server's tools.
 
 A complete interoperability pass requires all four stages to be `pass`. Inconclusive states intentionally remain non-zero so CI cannot silently treat missing evidence as compatibility.
+
+### Protocol-aware `init` compatibility semantics
+
+The public `init` field remains unchanged for JSON/CLI compatibility, but its stable meaning is **protocol readiness**, not a permanent wire-level initialization handshake. Internally, adapters can attach a non-serialized `ProtocolObservation` containing an explicitly observed era/revision when the real-client surface exposes it and the direct readiness evidence used for the projection.
+
+`init=pass` requires direct real-client readiness evidence. Current Codex, Cursor, and Antigravity adapters use successful real-client tool inventory/materialization as stronger evidence that a usable MCP protocol path exists. Fixture-only lifecycle observations, configuration presence, metadata compatibility, or an unobserved protocol revision cannot create deployment-specific `init=pass`.
+
+If a deployment-specific client surface does not expose the negotiated protocol revision, the era/revision remains `unknown` even when protocol readiness and tool discovery pass. Legacy `initialize`/`initialized`, modern `server/discover` or direct self-describing requests, and future protocol-era mechanisms may all provide readiness evidence when directly observed by the real client; the public projection remains `init`.
 
 ## Quality-phase invariants
 
@@ -113,15 +121,7 @@ ChatGPT remains a diagnostics-only profile. A real-client adapter is blocked unt
 
 The repository includes a localhost-only MCP fixture and `scripts/e2e-real-clients.sh` for release-gate testing on a macOS machine with the real Codex, Cursor, and Antigravity clients installed.
 
-The harness requires protocol evidence for:
-
-```text
-initialize
-notifications/initialized
-tools/list
-```
-
-and fails if `tools/call` occurs. It also checks user configuration metadata, the login Keychain database, leaked client processes, and temporary session directories before/after the run.
+The current release-gate harness still requires the observed legacy `initialize` / `notifications/initialized` / `tools/list` path for the three shipping clients while #101 builds the explicit legacy/modern fixture matrix. It also records fixture-only protocol revision/source evidence and fails if `tools/call` occurs. Fixture protocol evidence never upgrades a deployment-specific result. It also checks user configuration metadata, the login Keychain database, leaked client processes, and temporary session directories before/after the run.
 
 OAuth-specific Cursor and Antigravity E2E harnesses use the same isolation principle but additionally exercise their real OAuth client paths against controlled loopback fixtures. Secret-bearing authorization codes and tokens are excluded from persisted evidence.
 
