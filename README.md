@@ -181,6 +181,8 @@ mcp-interop suite compare baseline-results attempt-1 attempt-2 --fail-on-regress
 
 Every attempt remains in the report. A failed/unknown first attempt followed by a passing retry is `regression_and_unstable`, not a clean PASS. The gated form exits `1` for regression or unstable evidence, `0` for a clean report, and `2` for invalid/unreadable input. See [Suite regression report v1](docs/suite-regression-report-v1.md) ([日本語](docs/suite-regression-report-v1.ja.md)).
 
+Self-hosted real-client GitHub Actions are a separate privileged path: the manual macOS workflow is main-only, uses a main-only Environment policy, records exact run provenance, and never accepts remote suite endpoints or OAuth credentials. See [Self-hosted real-client CI security boundary](docs/self-hosted-ci-security.md) ([日本語](docs/self-hosted-ci-security.ja.md)).
+
 OAuth flows are always explicit opt-in:
 
 ```console

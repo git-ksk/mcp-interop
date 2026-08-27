@@ -203,6 +203,8 @@ mcp-interop suite compare baseline-results attempt-1 attempt-2 --fail-on-regress
 
 reportには全attemptを残します。最初のattemptがFAIL/UNKNOWNでretry後にPASSしてもclean PASSへ上書きせず、`regression_and_unstable`になります。gate指定時はregressionまたはunstable evidenceでexit `1`、cleanで`0`、invalid/unreadable inputで`2`です。詳細は[Suite regression report v1](docs/suite-regression-report-v1.ja.md)を参照してください。
 
+self-hosted real-client GitHub Actionsは別のprivileged pathです。manual macOS workflowはmain-only、main-only Environment policy、exact run provenanceを使い、remote suite endpointやOAuth credentialを受け取りません。詳細は[Self-hosted real-client CI security boundary](docs/self-hosted-ci-security.ja.md)を参照してください。
+
 ## OAuth認証
 
 OAuthは**必ず明示的に指定した場合だけ**開始します。
