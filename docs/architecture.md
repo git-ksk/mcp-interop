@@ -121,7 +121,7 @@ ChatGPT remains a diagnostics-only profile. A real-client adapter is blocked unt
 
 The repository includes a localhost-only MCP fixture and `scripts/e2e-real-clients.sh` for release-gate testing on a macOS machine with the real Codex, Cursor, and Antigravity clients installed.
 
-The current release-gate harness still requires the observed legacy `initialize` / `notifications/initialized` / `tools/list` path for the three shipping clients while #101 builds the explicit legacy/modern fixture matrix. It also records fixture-only protocol revision/source evidence and fails if `tools/call` occurs. Fixture protocol evidence never upgrades a deployment-specific result. It also checks user configuration metadata, the login Keychain database, leaked client processes, and temporary session directories before/after the run.
+The release-gate harness is protocol-era-aware: fixture readiness accepts either a complete legacy `initialize` / `notifications/initialized` / `tools/list` path or a modern `tools/list` carrying explicit `2026-07-28` protocol evidence. A `server/discover` probe alone is insufficient. The separate legacy/modern/fallback matrix tests both eras, and `tools/call` remains forbidden for the core gate. Fixture protocol evidence never upgrades a deployment-specific result. It also checks user configuration metadata, the login Keychain database, leaked client processes, and temporary session directories before/after the run.
 
 OAuth-specific Cursor and Antigravity E2E harnesses use the same isolation principle but additionally exercise their real OAuth client paths against controlled loopback fixtures. Secret-bearing authorization codes and tokens are excluded from persisted evidence.
 

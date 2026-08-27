@@ -19,7 +19,8 @@ func newFixtureHandler(log io.Writer, resource, resourceMetadataURL string, gran
 		scopes[scope] = struct{}{}
 	}
 	return &fixtureHandler{
-		log: log,
+		log:          log,
+		protocolMode: protocolModeFallback,
 		oauth: oauthFixtureConfig{
 			resource:            resource,
 			resourceMetadataURL: resourceMetadataURL,

@@ -172,7 +172,7 @@ model prompt、DOM/UI automation、private endpoint、通常ユーザーのブ�
 
 リポジトリにはlocalhost限定のMCP fixtureと、macOSで実Codex / Cursor / Antigravityを確認する`scripts/e2e-real-clients.sh`があります。
 
-現在のrelease-gate harnessは、#101でlegacy/modern fixture matrixを完成させるまではshipping 3clientについて観測済みlegacy `initialize` / `notifications/initialized` / `tools/list` pathを引き続き要求します。同時にfixture-onlyのprotocol revision/sourceも記録します。`tools/call`が発生した場合はFAILで、fixture protocol evidenceをdeployment-specific resultの昇格には使いません。
+release-gate harnessはprotocol-era-awareです。fixture readinessはcompleteなlegacy `initialize` / `notifications/initialized` / `tools/list` path、または明示的な`2026-07-28` protocol evidenceを持つmodern `tools/list`のどちらかを受け付けます。`server/discover` probeだけでは不足です。別のlegacy/modern/fallback matrixで両eraを検証し、core gateでは`tools/call`を引き続き禁止します。fixture protocol evidenceをdeployment-specific resultの昇格には使いません。
 
 さらに、実行前後でユーザー設定のメタデータ、login Keychain DB、残存クライアントプロセス、一時セッションディレクトリを比較します。
 
