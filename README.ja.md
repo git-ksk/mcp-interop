@@ -22,21 +22,19 @@ MCP仕様への適合性は公式のMCP Conformance Test Frameworkが担当し�
 
 ## 現在の状態
 
-現在の公開リリースは **v0.5.1** です。
+現在の公開リリースは **v0.7.0** です。
 
-Release: [v0.5.1](https://github.com/git-ksk/mcp-interop/releases/tag/v0.5.1)
+Release: [v0.7.0](https://github.com/git-ksk/mcp-interop/releases/tag/v0.7.0)
 
-v0.5.1で利用できる実クライアント向けアダプターは次のとおりです。
+v0.7.0で利用できる実クライアント向けアダプターは次のとおりです。
 
 - **Codex CLI** — 実クライアントのMCP一覧確認と、明示的に指定した場合だけ実行するOAuth認証
 - **Cursor CLI（beta）** — MCP管理コマンドを使った認証不要の実ツール確認と、実CursorのMCPログイン経路を使うOAuth認証
 - **Antigravity CLI（beta / macOS）** — 隔離したPTYとツールキャッシュを使う認証不要の確認と、実`/mcp`マネージャーを使うOAuth認証
 
-v0.5.1では、Codex/CursorがOAuth登録処理まで実際に到達したことを証明できる `DCR_UNSUPPORTED` / `DCR_FAILED` について、`reach=pass`を記録できるようになりました。一般的なOAuth失敗は、証拠が足りなければ引き続き`unknown`のままです。
+v0.7.0では、v0.6.0で導入したprotocol-aware coreとschema v2 protected-path deployment identityを土台に、repeatable regression workflowのmilestoneを完了しました。secret-safe suite manifest、複数clientの`suite run`、retryの最初の失敗を消さないevidence-derived `suite compare`、main-only / manualのself-hosted real-client CI trust boundaryを追加しています。実クライアントだけをlive PASSの根拠にする境界は変えていません。
 
-v0.5.0では、実行結果を保存するportable artifact schema v1、`test --output`、結果比較、`--fail-on-regression`を追加しました。
-
-現在は新しいクライアントを増やすことより、次の品質を優先しています。
+v0.7.0以降は、client追加を急ぐ前にbaseline lifecycleと実測点だけで表すcompatibility envelopeを固めます。現在の保証は次のとおりです。
 
 - 実クライアントの4段階すべてを確認できた場合だけlive PASSにする
 - 診断用メタデータとRuntime Evidenceを、実クライアントのPASS証拠から分離する
@@ -54,7 +52,7 @@ Go 1.24以降が必要です。
 現在の安定版を固定してインストールする場合:
 
 ```console
-go install github.com/git-ksk/mcp-interop/cmd/mcp-interop@v0.5.1
+go install github.com/git-ksk/mcp-interop/cmd/mcp-interop@v0.7.0
 ```
 
 最新公開版を使う場合:
@@ -71,7 +69,7 @@ mcp-interop version
 mcp-interop --version
 ```
 
-[v0.5.1 GitHub Release](https://github.com/git-ksk/mcp-interop/releases/tag/v0.5.1)には、macOS / Linux / Windows向けのamd64 / arm64アーカイブと`checksums.txt`があります。
+[v0.7.0 GitHub Release](https://github.com/git-ksk/mcp-interop/releases/tag/v0.7.0)には、macOS / Linux / Windows向けのamd64 / arm64アーカイブと`checksums.txt`があります。
 
 ## 何を検証するのか
 
@@ -79,7 +77,7 @@ mcp-interop --version
 
 1. `reach` — 実クライアントが対象Remote MCPへ到達し、実通信が発生したことを確認できた
 2. `auth` — 必要な認証が完了した、またはツール発見によって認証不要と確認できた
-3. `init` — MCPセッションの初期化が成立した
+3. `init` — 実クライアントがMCP protocol readinessを確立した。legacyのliteral `initialize` handshakeだけに固定した意味ではない
 4. `tools` — クライアントがサーバーのツールを発見した
 
 **4段階すべてが`pass`の場合だけexit code `0`**です。

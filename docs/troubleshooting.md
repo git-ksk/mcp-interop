@@ -4,7 +4,7 @@
 
 This guide covers common failure modes when running `mcp-interop` against real MCP clients and profile-based preflight diagnostics.
 
-The current stable release is v0.5.1. Cursor and Antigravity OAuth support described below was introduced in v0.4.0.
+The current stable release is v0.7.0. Cursor and Antigravity OAuth support described below was introduced in v0.4.0.
 
 ## Start with client detection
 
