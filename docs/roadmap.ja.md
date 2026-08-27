@@ -15,11 +15,25 @@
 - [Project direction](project-direction.ja.md) — ミッション、証拠の優先順位、プロジェクト境界
 - このRoadmap — 作業順序と各milestoneの完了条件
 - [Architecture](architecture.ja.md) — 現在の実装・信頼境界
-- [Live result artifact schema v1](live-result-schema-v1.ja.md) — 現在提供済みのportable result形式
+- [Live result artifact schema v1](live-result-schema-v1.ja.md) / [schema v2](live-result-schema-v2.ja.md) — 現在提供済みのportable result形式
 - [Conformanceとの違い](conformance-vs-interop.ja.md) — 公式MCP Conformanceとの役割分担
 - [CONTRIBUTING](../CONTRIBUTING.ja.md) — 変更提案・レビュー方法
 
 ロードマップ上の将来像を、現在提供済みの挙動として扱わないでください。現在の仕様はコード、release documentation、versioned schemaを正とします。
+
+## GitHubでの実行管理
+
+Roadmapは計画と完了条件の正本です。GitHub Milestoneとroadmap tracking Issueは**進捗**の正本として扱います。実装・調査を始める前にmatching Milestone付きのfocused Issueを作り、tracking Issueからリンクします。完了済みIssueは作り直さずmilestone historyとして残します。
+
+| Roadmap milestone | Tracking Issue | 現在のfocused Issue |
+| --- | --- | --- |
+| v0.6.x | [#102](https://github.com/git-ksk/mcp-interop/issues/102) | [#99](https://github.com/git-ksk/mcp-interop/issues/99), [#100](https://github.com/git-ksk/mcp-interop/issues/100), [#101](https://github.com/git-ksk/mcp-interop/issues/101); [#87](https://github.com/git-ksk/mcp-interop/issues/87) 完了 |
+| v0.7.x | [#103](https://github.com/git-ksk/mcp-interop/issues/103) | 実装開始時にfocused Issueへ分割 |
+| v0.8.x | [#104](https://github.com/git-ksk/mcp-interop/issues/104) | 実装開始時にfocused Issueへ分割 |
+| v0.9.x | [#105](https://github.com/git-ksk/mcp-interop/issues/105) | 調査候補: [#6](https://github.com/git-ksk/mcp-interop/issues/6), [#20](https://github.com/git-ksk/mcp-interop/issues/20), [#48](https://github.com/git-ksk/mcp-interop/issues/48), [#68](https://github.com/git-ksk/mcp-interop/issues/68) |
+| v0.10.x | [#106](https://github.com/git-ksk/mcp-interop/issues/106) | contract review開始時にfocused audit/fix Issueへ分割 |
+
+この対応は双方向です。roadmap作業は実装開始前にGitHub Issueを持ち、Issueがroadmapのscopeや完了条件を変える場合は同じPRで英語・日本語Roadmapも更新します。
 
 ## 全milestoneで守る原則
 
@@ -77,6 +91,8 @@ fixtureで分かったprotocol versionを、別の本番runへ転記して「実
 
 ## v0.6.x — protocol-aware coreとdeployment privacy
 
+**GitHub tracking:** [#102](https://github.com/git-ksk/mcp-interop/issues/102)。focused workは[#99](https://github.com/git-ksk/mcp-interop/issues/99)、[#100](https://github.com/git-ksk/mcp-interop/issues/100)、[#101](https://github.com/git-ksk/mcp-interop/issues/101)。protected-path deployment identityの[#87](https://github.com/git-ksk/mcp-interop/issues/87)は完了済みです。
+
 ### 目的
 
 現在のlive PASSの意味を弱めず、古いMCPと新しいMCPのprotocol世代差を正しく扱えるようにします。
@@ -90,7 +106,7 @@ fixtureで分かったprotocol versionを、別の本番runへ転記して「実
 - fixtureでlegacy / modern protocol behaviorを確認する
 - 隔離、timeout、cleanup、secret redactionを維持する
 - portable artifactを日常的にbaseline共有する前にdeployment identity privacy境界を維持する。schema v2は明示的な非secret deployment IDでcredential-bearing pathを除去するが、private originの共有は別問題として残す
-- schema v1で表現できない具体的問題を確認するまでは、安易にnew schemaへ上げない
+- schema v1の既存semanticsを維持する。schema v2は#87でprotected-path limitationを実証したため導入済みであり、今後のschema revisionも具体的必要性と明示的なcompatibility/migration rationaleを必須にする
 
 ### deployment identityのプライバシー
 
@@ -120,6 +136,8 @@ schema v2では`production-a`のようなユーザー定義opaque identityをpro
 - production tool callを必須にしない
 
 ## v0.7.x — 繰り返し可能な退行テスト
+
+**GitHub tracking:** [#103](https://github.com/git-ksk/mcp-interop/issues/103)。このmilestoneを開始するときにfocused child Issueへ分割します。
 
 ### 目的
 
@@ -151,6 +169,8 @@ self-hosted real-client runnerを、信頼できないPull Requestから任意�
 
 ## v0.8.x — baselineと互換性の観測範囲
 
+**GitHub tracking:** [#104](https://github.com/git-ksk/mcp-interop/issues/104)。このmilestoneを開始するときにfocused child Issueへ分割します。
+
 ### 目的
 
 client auto-updateや複数version/platformをまたぐ継続的な退行検出を運用できるようにします。
@@ -177,6 +197,8 @@ Tested:
 
 ## v0.9.x — coverage、capability profile、安全な昇格
 
+**GitHub tracking:** [#105](https://github.com/git-ksk/mcp-interop/issues/105)。既存research候補[#6](https://github.com/git-ksk/mcp-interop/issues/6)、[#20](https://github.com/git-ksk/mcp-interop/issues/20)、[#48](https://github.com/git-ksk/mcp-interop/issues/48)、[#68](https://github.com/git-ksk/mcp-interop/issues/68)は将来のgraduation判断先としてここへ紐付けます。調査自体はそれ以前でも継続できます。
+
 ### 目的
 
 既存アダプターの信頼性を深め、十分な証拠境界を持つ製品・capabilityだけを対応済みにします。
@@ -192,6 +214,8 @@ Tested:
 新クライアントが0件でも、証拠品質や既存アダプターの成熟度が大きく改善すれば成功です。
 
 ## v0.10.x — 公開契約候補
+
+**GitHub tracking:** [#106](https://github.com/git-ksk/mcp-interop/issues/106)。contract review開始時にfocused audit/fix Issueへ分割します。
 
 将来`v1.x`で維持する可能性がある公開契約を整理します。
 

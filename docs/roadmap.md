@@ -11,11 +11,25 @@ It is a planning contract, not a date commitment. Minor-version numbers describe
 - [Project direction](project-direction.md) defines the mission, evidence hierarchy, competitive boundary, and priority order.
 - This roadmap defines the planned maturity sequence and the evidence required to declare a milestone complete.
 - [Architecture](architecture.md) describes the implementation and trust boundaries that exist today.
-- [Live result artifact schema v1](live-result-schema-v1.md) defines the currently shipped portable result format; this roadmap does not silently revise that schema.
+- [Live result artifact schema v1](live-result-schema-v1.md) and [schema v2](live-result-schema-v2.md) define the shipped portable result formats; this roadmap does not silently revise either schema.
 - [Conformance vs. mcp-interop](conformance-vs-interop.md) defines the boundary with official MCP Conformance.
 - [CONTRIBUTING](../CONTRIBUTING.md) defines how roadmap/contract changes are proposed and reviewed.
 
 When these documents differ in purpose, do not treat a roadmap aspiration as already-shipped behavior. Current code, released schemas, and the release documentation remain the source of truth for what a published version actually does.
+
+## GitHub execution tracking
+
+The roadmap is the canonical planning/exit-criteria document. GitHub Milestones and roadmap tracking Issues are the operational source of truth for **progress**. Focused implementation/research Issues should carry the matching GitHub Milestone and be linked from the tracker; completed Issues remain attached as milestone history rather than being recreated.
+
+| Roadmap milestone | Tracking Issue | Current focused Issues |
+| --- | --- | --- |
+| v0.6.x | [#102](https://github.com/git-ksk/mcp-interop/issues/102) | [#99](https://github.com/git-ksk/mcp-interop/issues/99), [#100](https://github.com/git-ksk/mcp-interop/issues/100), [#101](https://github.com/git-ksk/mcp-interop/issues/101); [#87](https://github.com/git-ksk/mcp-interop/issues/87) completed |
+| v0.7.x | [#103](https://github.com/git-ksk/mcp-interop/issues/103) | Split into focused Issues when implementation starts |
+| v0.8.x | [#104](https://github.com/git-ksk/mcp-interop/issues/104) | Split into focused Issues when implementation starts |
+| v0.9.x | [#105](https://github.com/git-ksk/mcp-interop/issues/105) | Research candidates: [#6](https://github.com/git-ksk/mcp-interop/issues/6), [#20](https://github.com/git-ksk/mcp-interop/issues/20), [#48](https://github.com/git-ksk/mcp-interop/issues/48), [#68](https://github.com/git-ksk/mcp-interop/issues/68) |
+| v0.10.x | [#106](https://github.com/git-ksk/mcp-interop/issues/106) | Split into focused audit/fix Issues when contract review starts |
+
+This mapping is intentionally bidirectional: roadmap work should have a GitHub Issue before implementation begins, and an Issue that changes roadmap scope/exit criteria should update the English/Japanese roadmap pair in the same PR.
 
 ## Roadmap invariants
 
@@ -77,6 +91,8 @@ The core project remains focused on **Remote MCP deployments**.
 
 ## v0.6.x — Protocol-aware core and deployment privacy
 
+**GitHub tracking:** [#102](https://github.com/git-ksk/mcp-interop/issues/102), with focused work in [#99](https://github.com/git-ksk/mcp-interop/issues/99), [#100](https://github.com/git-ksk/mcp-interop/issues/100), and [#101](https://github.com/git-ksk/mcp-interop/issues/101). Protected-path deployment identity work [#87](https://github.com/git-ksk/mcp-interop/issues/87) is complete.
+
 ### Goal
 
 Make the core evidence model correct across legacy and modern MCP protocol eras without weakening the existing live-PASS invariant.
@@ -90,7 +106,7 @@ Make the core evidence model correct across legacy and modern MCP protocol eras 
 - Test legacy and modern protocol behavior against controlled fixtures, including fallback/unsupported-era behavior where practical.
 - Re-run existing isolation, timeout, cancellation, process-cleanup, state-cleanup, and secret-redaction gates while protocol-aware changes are made.
 - Maintain the documented deployment-identity privacy boundary before portable artifacts become routine baseline/CI inputs; schema v2 now removes credential-bearing paths through an explicit non-secret deployment ID, while private-origin sharing remains a separate concern.
-- Keep portable artifact schema v1 unless a concrete protocol-aware requirement cannot be represented safely. Introduce a new schema version only after demonstrating that limitation.
+- Preserve artifact schema v1 semantics for existing users. Schema v2 was introduced only after #87 demonstrated the protected-path limitation; any further schema revision still requires a concrete need plus explicit compatibility/migration rationale.
 
 ### Deployment identity privacy
 
@@ -121,6 +137,8 @@ Schema v2 now provides an opaque user-defined target identity such as `productio
 
 ## v0.7.x — Repeatable regression workflow
 
+**GitHub tracking:** [#103](https://github.com/git-ksk/mcp-interop/issues/103). Focused child Issues are created when this milestone becomes active so the tracker remains the stable roadmap anchor.
+
 ### Goal
 
 Turn the shipped artifact/compare primitives into an operational workflow that can execute multiple real clients, produce comparable evidence, and make a deterministic CI decision without repository-specific glue for every user.
@@ -150,6 +168,8 @@ Default policy:
 `v0.7.x` is complete when a declared test suite can produce real-client artifacts, comparisons, evidence-derived compatibility reporting, and a deterministic CI exit decision while preserving the CI trust boundary.
 
 ## v0.8.x — Baselines and compatibility envelopes
+
+**GitHub tracking:** [#104](https://github.com/git-ksk/mcp-interop/issues/104). Focused child Issues are created when this milestone becomes active.
 
 ### Goal
 
@@ -182,6 +202,8 @@ Does not imply:
 
 ## v0.9.x — Coverage, capability profiles, and safe graduation
 
+**GitHub tracking:** [#105](https://github.com/git-ksk/mcp-interop/issues/105). Existing research candidates [#6](https://github.com/git-ksk/mcp-interop/issues/6), [#20](https://github.com/git-ksk/mcp-interop/issues/20), [#48](https://github.com/git-ksk/mcp-interop/issues/48), and [#68](https://github.com/git-ksk/mcp-interop/issues/68) are assigned here for eventual graduation decisions; research may continue earlier without implying shipped support.
+
 ### Goal
 
 Deepen confidence in existing adapters and graduate additional product/capability support only where the evidence boundary is strong enough.
@@ -203,6 +225,8 @@ A `v0.9.x` release with **zero new clients** is a successful release if evidence
 Existing adapters have documented tested envelopes and maturity status. Any newly shipped client or capability meets the same evidence/isolation/cleanup standard instead of relying on a weaker special case.
 
 ## v0.10.x — Public contract candidate
+
+**GitHub tracking:** [#106](https://github.com/git-ksk/mcp-interop/issues/106). Focused audit/fix Issues are created when contract review starts.
 
 ### Goal
 
