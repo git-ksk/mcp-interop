@@ -23,8 +23,8 @@ The roadmap is the canonical planning/exit-criteria document. GitHub Milestones 
 
 | Roadmap milestone | Tracking Issue | Current focused Issues |
 | --- | --- | --- |
-| v0.6.x | [#102](https://github.com/git-ksk/mcp-interop/issues/102) | [#99](https://github.com/git-ksk/mcp-interop/issues/99), [#100](https://github.com/git-ksk/mcp-interop/issues/100), [#101](https://github.com/git-ksk/mcp-interop/issues/101); [#87](https://github.com/git-ksk/mcp-interop/issues/87) completed |
-| v0.7.x | [#103](https://github.com/git-ksk/mcp-interop/issues/103) | Split into focused Issues when implementation starts |
+| v0.6.x | [#102](https://github.com/git-ksk/mcp-interop/issues/102) | **Completed:** [#87](https://github.com/git-ksk/mcp-interop/issues/87), [#99](https://github.com/git-ksk/mcp-interop/issues/99), [#100](https://github.com/git-ksk/mcp-interop/issues/100), [#101](https://github.com/git-ksk/mcp-interop/issues/101) |
+| v0.7.x | [#103](https://github.com/git-ksk/mcp-interop/issues/103) | **Next:** split into focused Issues when implementation starts |
 | v0.8.x | [#104](https://github.com/git-ksk/mcp-interop/issues/104) | Split into focused Issues when implementation starts |
 | v0.9.x | [#105](https://github.com/git-ksk/mcp-interop/issues/105) | Research candidates: [#6](https://github.com/git-ksk/mcp-interop/issues/6), [#20](https://github.com/git-ksk/mcp-interop/issues/20), [#48](https://github.com/git-ksk/mcp-interop/issues/48), [#68](https://github.com/git-ksk/mcp-interop/issues/68) |
 | v0.10.x | [#106](https://github.com/git-ksk/mcp-interop/issues/106) | Split into focused audit/fix Issues when contract review starts |
@@ -92,6 +92,8 @@ The core project remains focused on **Remote MCP deployments**.
 ## v0.6.x — Protocol-aware core and deployment privacy
 
 **GitHub tracking:** [#102](https://github.com/git-ksk/mcp-interop/issues/102), with focused work in [#99](https://github.com/git-ksk/mcp-interop/issues/99), [#100](https://github.com/git-ksk/mcp-interop/issues/100), and [#101](https://github.com/git-ksk/mcp-interop/issues/101). Protected-path deployment identity work [#87](https://github.com/git-ksk/mcp-interop/issues/87) is complete.
+
+**Status:** completed. #87, #99, #100, and #101 satisfy the v0.6.x exit criteria; the next active roadmap milestone is v0.7.x / #103.
 
 ### Goal
 

@@ -27,8 +27,8 @@ Roadmapは計画と完了条件の正本です。GitHub Milestoneとroadmap trac
 
 | Roadmap milestone | Tracking Issue | 現在のfocused Issue |
 | --- | --- | --- |
-| v0.6.x | [#102](https://github.com/git-ksk/mcp-interop/issues/102) | [#99](https://github.com/git-ksk/mcp-interop/issues/99), [#100](https://github.com/git-ksk/mcp-interop/issues/100), [#101](https://github.com/git-ksk/mcp-interop/issues/101); [#87](https://github.com/git-ksk/mcp-interop/issues/87) 完了 |
-| v0.7.x | [#103](https://github.com/git-ksk/mcp-interop/issues/103) | 実装開始時にfocused Issueへ分割 |
+| v0.6.x | [#102](https://github.com/git-ksk/mcp-interop/issues/102) | **完了:** [#87](https://github.com/git-ksk/mcp-interop/issues/87), [#99](https://github.com/git-ksk/mcp-interop/issues/99), [#100](https://github.com/git-ksk/mcp-interop/issues/100), [#101](https://github.com/git-ksk/mcp-interop/issues/101) |
+| v0.7.x | [#103](https://github.com/git-ksk/mcp-interop/issues/103) | **次:** 実装開始時にfocused Issueへ分割 |
 | v0.8.x | [#104](https://github.com/git-ksk/mcp-interop/issues/104) | 実装開始時にfocused Issueへ分割 |
 | v0.9.x | [#105](https://github.com/git-ksk/mcp-interop/issues/105) | 調査候補: [#6](https://github.com/git-ksk/mcp-interop/issues/6), [#20](https://github.com/git-ksk/mcp-interop/issues/20), [#48](https://github.com/git-ksk/mcp-interop/issues/48), [#68](https://github.com/git-ksk/mcp-interop/issues/68) |
 | v0.10.x | [#106](https://github.com/git-ksk/mcp-interop/issues/106) | contract review開始時にfocused audit/fix Issueへ分割 |
@@ -92,6 +92,8 @@ fixtureで分かったprotocol versionを、別の本番runへ転記して「実
 ## v0.6.x — protocol-aware coreとdeployment privacy
 
 **GitHub tracking:** [#102](https://github.com/git-ksk/mcp-interop/issues/102)。focused workは[#99](https://github.com/git-ksk/mcp-interop/issues/99)、[#100](https://github.com/git-ksk/mcp-interop/issues/100)、[#101](https://github.com/git-ksk/mcp-interop/issues/101)。protected-path deployment identityの[#87](https://github.com/git-ksk/mcp-interop/issues/87)は完了済みです。
+
+**Status:** 完了。#87 / #99 / #100 / #101でv0.6.xの完了条件を満たし、次に進むRoadmap milestoneはv0.7.x / #103です。
 
 ### 目的
 
