@@ -172,6 +172,17 @@ mcp-interop compare old.json new.json --fail-on-regression
 
 詳しい仕様は[Live interoperability result artifact schema v1](docs/live-result-schema-v1.ja.md)と[artifact schema v2 protected-path identity](docs/live-result-schema-v2.ja.md)を参照してください。
 
+## Suite manifest validation
+
+v0.7 workflowの最初の基盤として、strictかつsecret-safeなsuite宣言をvalidationできます。client起動やendpoint値の解決はまだ行いません。
+
+```console
+mcp-interop suite validate suite.json
+mcp-interop suite validate suite.json --json
+```
+
+Manifest v1にはRemote MCP endpoint URL自体を保存しません。hosted fixture suiteは任意network targetやOAuthを指定できず、trusted real-client suiteはtarget固有の`MCP_INTEROP_SUITE_ENDPOINT_*`変数参照と非secret `deployment_id`を使います。詳細は[Suite manifest v1](docs/suite-manifest-v1.ja.md)を参照してください。
+
 ## OAuth認証
 
 OAuthは**必ず明示的に指定した場合だけ**開始します。
@@ -359,6 +370,7 @@ MCP_INTEROP_CLIENTS=codex,cursor bash scripts/e2e-real-clients.sh
 - [MCP Conformanceとの違い](docs/conformance-vs-interop.ja.md)
 - [Live result artifact schema v1](docs/live-result-schema-v1.ja.md)
 - [Live result artifact schema v2](docs/live-result-schema-v2.ja.md)
+- [Suite manifest v1](docs/suite-manifest-v1.ja.md)
 - [現行real-clientのprotocol-era観測](docs/protocol-era-observations.ja.md)
 - [トラブルシューティング](docs/troubleshooting.ja.md)
 - [Reason code](docs/reason-codes.ja.md)
