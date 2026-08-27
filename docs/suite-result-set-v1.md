@@ -35,6 +35,7 @@ The index uses:
   "runs": [
     {
       "target_id": "production-a",
+      "deployment_id": "production-a",
       "client_id": "codex",
       "auth_mode": "none",
       "outcome": "pass",
@@ -45,9 +46,9 @@ The index uses:
 }
 ```
 
-The manifest fingerprint is derived from the validated manifest declaration only. Resolved endpoint values are not fingerprint inputs.
+The manifest fingerprint is derived from the validated manifest declaration only. Resolved endpoint values are not fingerprint inputs. `deployment_id` is the same stable non-secret operator label used by the referenced schema-v2 artifact; readers verify that the index and artifact identities match.
 
-Run entries are ordered by `target_id`, then `client_id`, then `auth_mode`, independent of declaration-array order.
+Run entries are ordered by `target_id`, `deployment_id`, `client_id`, then `auth_mode`, independent of declaration-array order.
 
 ## Outcome semantics
 
@@ -59,7 +60,7 @@ The suite command exits `1` if any entry is `non_pass` or `error`. Invalid manif
 
 ## Secret/privacy boundary
 
-`index.json` never contains:
+`index.json` persists the non-secret `deployment_id`, but never contains:
 
 - Remote MCP endpoint URLs;
 - endpoint environment-variable names or values;
@@ -69,6 +70,10 @@ The suite command exits `1` if any entry is `non_pass` or `error`. Invalid manif
 
 Trusted endpoints are resolved in memory before execution. Per-run artifacts use schema-v2 protected-path identity, so the protected path is neither persisted nor hashed. The canonical origin is still present in each schema-v2 artifact; `credential-safe != deployment-public` continues to apply.
 
+## Reader safety
+
+Result-set readers require a regular `index.json`, clean relative artifact references below `artifacts/`, regular artifact files, and resolved artifact paths that remain inside the result-set directory. Symlink-based escapes are rejected before artifact content is trusted.
+
 ## Current scope
 
-`hosted_fixture` suite execution is not enabled by this schema. #115 owns repository CI orchestration and the trusted/untrusted boundary. Retry/flake aggregation and baseline regression reports remain #114 work.
+`hosted_fixture` suite execution is not enabled by this schema. #115 owns repository CI orchestration and the trusted/untrusted boundary. Suite regression/retry aggregation is defined by [Suite regression report v1](suite-regression-report-v1.md).

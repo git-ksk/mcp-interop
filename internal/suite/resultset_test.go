@@ -18,12 +18,13 @@ func TestResultIndexContainsNoEndpointFields(t *testing.T) {
 		}},
 	}
 	index, err := NewResultIndex(manifest, []ResultEntry{{
-		TargetID: "production-a",
-		ClientID: "codex",
-		AuthMode: AuthNone,
-		Outcome:  OutcomePass,
-		ExitCode: 0,
-		Artifact: "artifacts/production-a--codex--none.json",
+		TargetID:     "production-a",
+		DeploymentID: "production-a",
+		ClientID:     "codex",
+		AuthMode:     AuthNone,
+		Outcome:      OutcomePass,
+		ExitCode:     0,
+		Artifact:     "artifacts/production-a--codex--none.json",
 	}})
 	if err != nil {
 		t.Fatal(err)
@@ -48,8 +49,8 @@ func TestResultIndexRejectsOutOfOrderEntries(t *testing.T) {
 		ExecutionContext:      ExecutionTrusted,
 		ArtifactSchemaVersion: 2,
 		Runs: []ResultEntry{
-			{TargetID: "zeta", ClientID: "codex", AuthMode: AuthNone, Outcome: OutcomePass, ExitCode: 0, Artifact: "artifacts/zeta--codex--none.json"},
-			{TargetID: "alpha", ClientID: "codex", AuthMode: AuthNone, Outcome: OutcomePass, ExitCode: 0, Artifact: "artifacts/alpha--codex--none.json"},
+			{TargetID: "zeta", DeploymentID: "zeta", ClientID: "codex", AuthMode: AuthNone, Outcome: OutcomePass, ExitCode: 0, Artifact: "artifacts/zeta--codex--none.json"},
+			{TargetID: "alpha", DeploymentID: "alpha", ClientID: "codex", AuthMode: AuthNone, Outcome: OutcomePass, ExitCode: 0, Artifact: "artifacts/alpha--codex--none.json"},
 		},
 	}
 	if err := ValidateResultIndex(index); err == nil || !strings.Contains(err.Error(), "deterministic order") {
@@ -66,11 +67,12 @@ func TestResultIndexRepresentsExecutionErrorWithoutArtifact(t *testing.T) {
 		ExecutionContext:      ExecutionTrusted,
 		ArtifactSchemaVersion: 2,
 		Runs: []ResultEntry{{
-			TargetID: "production-a",
-			ClientID: "cursor",
-			AuthMode: AuthNone,
-			Outcome:  OutcomeError,
-			ExitCode: 1,
+			TargetID:     "production-a",
+			DeploymentID: "production-a",
+			ClientID:     "cursor",
+			AuthMode:     AuthNone,
+			Outcome:      OutcomeError,
+			ExitCode:     1,
 		}},
 	}
 	if err := ValidateResultIndex(index); err != nil {

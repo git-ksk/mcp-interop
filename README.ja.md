@@ -193,6 +193,16 @@ suiteは最初のclientを起動する前に全endpointを解決・検証し、�
 
 Manifest v1にはRemote MCP endpoint URL自体を保存しません。hosted fixture suiteは任意network targetやOAuthを指定できず、実際のCI fixture executionは#115までgateします。trusted real-client suiteはtarget固有の`MCP_INTEROP_SUITE_ENDPOINT_*`変数参照と非secret `deployment_id`を使います。詳細は[Suite manifest v1](docs/suite-manifest-v1.ja.md)と[Suite result set v1](docs/suite-result-set-v1.ja.md)を参照してください。
 
+baseline result setと保持したattempt群を比較できます。
+
+```console
+mcp-interop suite compare baseline-results attempt-1 attempt-2
+mcp-interop suite compare baseline-results attempt-1 attempt-2 --json
+mcp-interop suite compare baseline-results attempt-1 attempt-2 --fail-on-regression
+```
+
+reportには全attemptを残します。最初のattemptがFAIL/UNKNOWNでretry後にPASSしてもclean PASSへ上書きせず、`regression_and_unstable`になります。gate指定時はregressionまたはunstable evidenceでexit `1`、cleanで`0`、invalid/unreadable inputで`2`です。詳細は[Suite regression report v1](docs/suite-regression-report-v1.ja.md)を参照してください。
+
 ## OAuth認証
 
 OAuthは**必ず明示的に指定した場合だけ**開始します。

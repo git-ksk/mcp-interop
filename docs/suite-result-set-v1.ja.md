@@ -33,6 +33,7 @@ private staging directoryでset全体を組み立て、index完成後にrename�
   "runs": [
     {
       "target_id": "production-a",
+      "deployment_id": "production-a",
       "client_id": "codex",
       "auth_mode": "none",
       "outcome": "pass",
@@ -43,9 +44,9 @@ private staging directoryでset全体を組み立て、index完成後にrename�
 }
 ```
 
-manifest fingerprintはvalidation済みmanifest宣言だけから生成し、解決したendpoint値は入力にしません。
+manifest fingerprintはvalidation済みmanifest宣言だけから生成し、解決したendpoint値は入力にしません。`deployment_id`は参照先schema-v2 artifactと同じ安定した非secret operator labelで、readerはindexとartifactのidentity一致を検証します。
 
-run entryはmanifest配列順に依存せず、`target_id`、`client_id`、`auth_mode`の順で固定します。
+run entryはmanifest配列順に依存せず、`target_id`、`deployment_id`、`client_id`、`auth_mode`の順で固定します。
 
 ## Outcome semantics
 
@@ -57,7 +58,7 @@ run entryはmanifest配列順に依存せず、`target_id`、`client_id`、`auth
 
 ## Secret / privacy境界
 
-`index.json`には次を保存しません。
+`index.json`には非secret `deployment_id`を保存しますが、次は保存しません。
 
 - Remote MCP endpoint URL
 - endpoint環境変数名や値
@@ -67,6 +68,10 @@ run entryはmanifest配列順に依存せず、`target_id`、`client_id`、`auth
 
 trusted endpointはexecution前にmemory上で解決します。各run artifactはschema-v2 protected-path identityを使うためprotected pathを保存もhashもしません。ただしcanonical originはschema-v2 artifactに残るので、`credential-safe != deployment-public`の境界は引き続き有効です。
 
+## Reader safety
+
+result-set readerはregular fileの`index.json`、`artifacts/`配下のclean relative reference、regular artifact file、解決後もresult-set directory内に留まるartifact pathを要求します。symlink経由で外部pathへ逃げる参照はartifact内容を信頼する前にrejectします。
+
 ## 現在のscope
 
-このschemaでは`hosted_fixture` suite executionを有効化しません。repository CI orchestrationとtrusted/untrusted境界は#115、retry/flake aggregationとbaseline regression reportは#114で扱います。
+このschemaでは`hosted_fixture` suite executionを有効化しません。repository CI orchestrationとtrusted/untrusted境界は#115で扱います。suite regression / retry aggregationは[Suite regression report v1](suite-regression-report-v1.ja.md)で定義します。

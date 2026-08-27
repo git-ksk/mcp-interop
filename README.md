@@ -171,6 +171,16 @@ The suite resolves every endpoint before launching the first client, executes ea
 
 Manifest v1 never stores a Remote MCP endpoint URL. Hosted fixture suites cannot select network targets or OAuth; their actual CI fixture execution remains gated by #115. Trusted real-client suites reference a target-specific `MCP_INTEROP_SUITE_ENDPOINT_*` variable and require a non-secret `deployment_id`. See [Suite manifest v1](docs/suite-manifest-v1.md) ([日本語](docs/suite-manifest-v1.ja.md)) and [Suite result set v1](docs/suite-result-set-v1.md) ([日本語](docs/suite-result-set-v1.ja.md)).
 
+Compare a baseline result set with one or more retained attempts:
+
+```console
+mcp-interop suite compare baseline-results attempt-1 attempt-2
+mcp-interop suite compare baseline-results attempt-1 attempt-2 --json
+mcp-interop suite compare baseline-results attempt-1 attempt-2 --fail-on-regression
+```
+
+Every attempt remains in the report. A failed/unknown first attempt followed by a passing retry is `regression_and_unstable`, not a clean PASS. The gated form exits `1` for regression or unstable evidence, `0` for a clean report, and `2` for invalid/unreadable input. See [Suite regression report v1](docs/suite-regression-report-v1.md) ([日本語](docs/suite-regression-report-v1.ja.md)).
+
 OAuth flows are always explicit opt-in:
 
 ```console

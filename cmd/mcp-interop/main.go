@@ -30,6 +30,7 @@ Usage:
   mcp-interop compare <old.json> <new.json> [--json] [--fail-on-regression]
   mcp-interop suite validate <manifest.json> [--json]
   mcp-interop suite run <manifest.json> --output-dir <dir> [--json]
+  mcp-interop suite compare <baseline-index> <attempt-index> [<attempt-index>...] [--json] [--fail-on-regression]
   mcp-interop diagnose <url> [--profile chatgpt] [--client-id <url>] [--redirect-uri <url>] [--runtime-evidence <file|->] [--json]
   mcp-interop evidence <validate|summary|merge> ...
   mcp-interop version
@@ -39,7 +40,7 @@ Commands:
   clients    Detect supported MCP clients installed on this machine.
   test       Run a Remote MCP interoperability test through real clients.
   compare    Compare portable live-result artifacts across client versions/runs.
-  suite      Validate and execute repeatable suite manifests.
+  suite      Validate, execute, and compare repeatable suite result sets.
   diagnose   Run profile-based server/OAuth preflight diagnostics without claiming real-client PASS.
   evidence   Validate, summarize, or merge secret-free Runtime Evidence documents.
   version    Print mcp-interop build version information.
@@ -104,7 +105,7 @@ type suiteValidationSummary struct {
 
 func runSuite(ctx context.Context, args []string) int {
 	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, "suite requires a subcommand: validate or run")
+		fmt.Fprintln(os.Stderr, "suite requires a subcommand: validate, run, or compare")
 		return 2
 	}
 	switch args[0] {
@@ -112,6 +113,8 @@ func runSuite(ctx context.Context, args []string) int {
 		return runSuiteValidate(args[1:], os.Stdout, os.Stderr)
 	case "run":
 		return runSuiteRunWith(ctx, args[1:], os.Stdout, os.Stderr, os.LookupEnv, runTestWithIO)
+	case "compare":
+		return runSuiteCompare(args[1:], os.Stdout, os.Stderr)
 	default:
 		fmt.Fprintf(os.Stderr, "unknown suite subcommand %q\n", args[0])
 		return 2
@@ -248,11 +251,12 @@ func runSuiteRunWith(ctx context.Context, args []string, stdout, stderr io.Write
 		}
 		rc := runOne(ctx, testArgs, io.Discard, stderr)
 		entry := suite.ResultEntry{
-			TargetID: plannedRun.TargetID,
-			ClientID: plannedRun.Client.ID,
-			AuthMode: plannedRun.Client.Auth,
-			ExitCode: 1,
-			Outcome:  suite.OutcomeError,
+			TargetID:     plannedRun.TargetID,
+			DeploymentID: plannedRun.DeploymentID,
+			ClientID:     plannedRun.Client.ID,
+			AuthMode:     plannedRun.Client.Auth,
+			ExitCode:     1,
+			Outcome:      suite.OutcomeError,
 		}
 		if rc == 0 || rc == 1 {
 			if err := validateSuiteRunArtifact(artifactPath, plannedRun); err != nil {
@@ -381,7 +385,11 @@ func writeSuiteRunSummary(output io.Writer, outputDir string, index suite.Result
 		if artifactRef == "" {
 			artifactRef = "-"
 		}
-		fmt.Fprintf(writer, "%s\t%s\t%s\t%s\t%s\n", entry.TargetID, entry.ClientID, entry.AuthMode, entry.Outcome, artifactRef)
+		if entry.DeploymentID != entry.TargetID {
+			fmt.Fprintf(writer, "%s (%s)\t%s\t%s\t%s\t%s\n", entry.TargetID, entry.DeploymentID, entry.ClientID, entry.AuthMode, entry.Outcome, artifactRef)
+		} else {
+			fmt.Fprintf(writer, "%s\t%s\t%s\t%s\t%s\n", entry.TargetID, entry.ClientID, entry.AuthMode, entry.Outcome, artifactRef)
+		}
 	}
 	return writer.Flush()
 }
