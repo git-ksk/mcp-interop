@@ -24,7 +24,7 @@ The roadmap is the canonical planning/exit-criteria document. GitHub Milestones 
 | Roadmap milestone | Tracking Issue | Current focused Issues |
 | --- | --- | --- |
 | v0.6.x | [#102](https://github.com/git-ksk/mcp-interop/issues/102) | **Completed:** [#87](https://github.com/git-ksk/mcp-interop/issues/87), [#99](https://github.com/git-ksk/mcp-interop/issues/99), [#100](https://github.com/git-ksk/mcp-interop/issues/100), [#101](https://github.com/git-ksk/mcp-interop/issues/101) |
-| v0.7.x | [#103](https://github.com/git-ksk/mcp-interop/issues/103) | **Next:** split into focused Issues when implementation starts |
+| v0.7.x | [#103](https://github.com/git-ksk/mcp-interop/issues/103) | **Active:** [#112](https://github.com/git-ksk/mcp-interop/issues/112), [#113](https://github.com/git-ksk/mcp-interop/issues/113), [#114](https://github.com/git-ksk/mcp-interop/issues/114), [#115](https://github.com/git-ksk/mcp-interop/issues/115) |
 | v0.8.x | [#104](https://github.com/git-ksk/mcp-interop/issues/104) | Split into focused Issues when implementation starts |
 | v0.9.x | [#105](https://github.com/git-ksk/mcp-interop/issues/105) | Research candidates: [#6](https://github.com/git-ksk/mcp-interop/issues/6), [#20](https://github.com/git-ksk/mcp-interop/issues/20), [#48](https://github.com/git-ksk/mcp-interop/issues/48), [#68](https://github.com/git-ksk/mcp-interop/issues/68) |
 | v0.10.x | [#106](https://github.com/git-ksk/mcp-interop/issues/106) | Split into focused audit/fix Issues when contract review starts |
@@ -139,7 +139,7 @@ Schema v2 now provides an opaque user-defined target identity such as `productio
 
 ## v0.7.x — Repeatable regression workflow
 
-**GitHub tracking:** [#103](https://github.com/git-ksk/mcp-interop/issues/103). Focused child Issues are created when this milestone becomes active so the tracker remains the stable roadmap anchor.
+**GitHub tracking:** [#103](https://github.com/git-ksk/mcp-interop/issues/103), with focused work in [#112](https://github.com/git-ksk/mcp-interop/issues/112), [#113](https://github.com/git-ksk/mcp-interop/issues/113), [#114](https://github.com/git-ksk/mcp-interop/issues/114), and [#115](https://github.com/git-ksk/mcp-interop/issues/115). The milestone is active; #112 is the first implementation dependency, while #115 defines the trust boundary that must hold before privileged suite execution ships.
 
 ### Goal
 
