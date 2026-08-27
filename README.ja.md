@@ -296,7 +296,11 @@ Codexアダプターは次の流れで動きます。
 
 ### Antigravity CLI（beta / macOS）
 
-一時`HOME`とworkspaceを作り、実`agy`をPTYで起動します。認証不要の経路ではクライアント自身が生成したツールキャッシュを観測し、OAuthでは実`/mcp`マネージャーを利用します。
+一時`HOME`とworkspaceを作り、実`agy`をPTYで起動します。起動前に一時settingsへ`modelProvider: "gemini"`を書き、ambientなGemini credential / endpoint overrideを除去し、固定の非秘密`GEMINI_API_KEY` sentinelを注入します。これによりAntigravityのdocumented no-account modeを使い、通常ユーザーのKeychain account sessionへ依存しません。model promptは送りません。
+
+認証不要の経路ではクライアント自身が生成したツールキャッシュを観測し、OAuthでは実`/mcp`マネージャーを利用します。Remote MCP OAuth tokenは一時HOMEへ閉じ込め、通常ユーザーaccount認証とは分離します。
+
+Keychainのbefore/after比較は非変更gateであり、それ単独では非利用の証明にはしません。通常ユーザーcredential非再利用はdocumented no-account modeと実クライアントE2Eで担保し、core pathは`agy 1.1.22`で再検証しています。
 
 証拠が足りない場合は、認証成功だけを根拠に`init/tools=pass`へ昇格せず`unknown`を維持します。
 

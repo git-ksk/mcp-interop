@@ -4,7 +4,7 @@
 
 This guide covers common failure modes when running `mcp-interop` against real MCP clients and profile-based preflight diagnostics.
 
-The current stable release is v0.4.0. Cursor and Antigravity OAuth support described below is included in v0.4.0.
+The current stable release is v0.5.1. Cursor and Antigravity OAuth support described below was introduced in v0.4.0.
 
 ## Start with client detection
 
@@ -78,7 +78,7 @@ In v0.4.0 and later, Antigravity OAuth is explicit opt-in on macOS:
 mcp-interop test https://example.com/mcp --client antigravity --oauth
 ```
 
-The adapter enters the real Antigravity `/mcp` manager inside an isolated PTY. OAuth state is persisted only under the isolated temporary HOME; `mcp-interop` observes token-file metadata but never reads or persists token contents.
+The adapter enters the real Antigravity `/mcp` manager inside an isolated PTY. Before `agy` starts, the isolated profile selects `modelProvider: "gemini"`, ambient Gemini model credentials/endpoint overrides are removed, and a fixed non-secret `GEMINI_API_KEY` sentinel selects Antigravity's documented no-account mode. Remote-MCP OAuth state is then persisted only under the isolated temporary HOME; `mcp-interop` observes token-file metadata but never reads or persists token contents. A Keychain before/after hash is a non-mutation check, not the credential non-use proof by itself.
 
 For the tested `agy 1.1.11` path, authentication can complete even when the OAuth path does not create the same client-side tool cache used by no-auth discovery. In that case the generic result intentionally remains `reach=pass`, `auth=pass`, `init=unknown`, `tools=unknown`. The controlled localhost OAuth E2E separately requires authenticated `initialize`, `notifications/initialized`, and `tools/list` server-side evidence. See [Antigravity OAuth live-test boundary](antigravity-oauth.md).
 

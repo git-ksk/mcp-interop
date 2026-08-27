@@ -6,7 +6,7 @@
 
 このページでは、`mcp-interop`を実クライアントで動かしたときによく起きる問題と、`diagnose`による事前診断の読み方をまとめます。
 
-英語正本に記載されているstable releaseはv0.4.0です。以下のCursor / Antigravity OAuth対応はv0.4.0に含まれます。
+英語正本に記載されているstable releaseはv0.5.1です。以下のCursor / Antigravity OAuth対応はv0.4.0で導入されました。
 
 ## まずクライアントが検出されているか確認する
 
@@ -100,7 +100,9 @@ mcp-interop test https://example.com/mcp --client antigravity --oauth
 
 一時`HOME`内のPTYで実Antigravity `/mcp`マネージャーを使います。
 
-OAuth token stateは一時HOMEだけに保存され、`mcp-interop`はtokenファイルの内容を読みません。ファイルの存在などのメタデータだけを確認します。
+`agy`起動前に、一時profileで`modelProvider: "gemini"`を選択し、ambientなGemini model credential / endpoint overrideを除去して、固定の非秘密`GEMINI_API_KEY` sentinelを注入します。これはAntigravity公式ドキュメント上のno-account modeを選択するためのもので、通常ユーザーのAntigravity account / Keychain sessionへ依存しません。
+
+Remote MCPのOAuth token stateは一時HOMEだけに保存され、`mcp-interop`はtokenファイルの内容を読みません。ファイルの存在などのメタデータだけを確認します。Keychainのbefore/after hashは非変更gateであり、それ単独を「Keychainを読んでいない」証拠にはしません。
 
 検証済み`agy 1.1.11`では、認証完了後でも認証不要時と同じtool cacheが生成されない場合があります。
 

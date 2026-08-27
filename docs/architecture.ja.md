@@ -105,7 +105,7 @@ reportへBearer token、authorization code、client secret、cookie、credential
 
 ## 提供中のアダプター
 
-英語正本で記載している現在のstable releaseはv0.4.0です。以下のCursor / Antigravity OAuth経路はv0.4.0に含まれます。
+英語正本で記載している現在のstable releaseはv0.5.1です。Cursor / Antigravity OAuth経路はv0.4.0で導入されました。
 
 ### Codex CLI
 
@@ -130,9 +130,13 @@ callback addressはバージョン依存であり、固定portを仕様として
 
 一時`HOME`とPTYを使う実クライアント経路です。
 
+`agy`起動前に、一時`~/.gemini/antigravity-cli/settings.json`へ`modelProvider: "gemini"`を書き、ambientなGemini API key / base URL overrideを除去し、固定の非秘密`GEMINI_API_KEY` sentinelを注入します。これにより、Antigravity公式ドキュメント上のGemini API-key modeを選択し、Antigravity account sessionを成立させません。通常ユーザーのmacOS Keychain sessionへ依存せずにMCP discoveryを実行します。
+
+login Keychainのbefore/after比較は「変更していない」ことのgateであり、それ単独では「読んでいない」ことの証明にはしません。credential非再利用の根拠は、上記のdocumented no-account modeと実クライアントrelease gateの組み合わせです。`agy 1.1.22`で、model prompt / `tools/call`なしの`initialize`、`notifications/initialized`、`tools/list`、通常ユーザーconfig / Keychain metadata不変、process / session leakなしを再検証しています。
+
 認証不要の場合はクライアントが生成したmachine-readableなtool cacheを観測します。
 
-OAuthでは実`/mcp`マネージャーを使い、tokenは一時`~/.gemini/antigravity/mcp_oauth_tokens.json`へ閉じ込めます。`mcp-interop`はtoken内容を読みません。
+OAuthでは実`/mcp`マネージャーを使います。Remote MCP OAuthとAntigravity account認証は別の境界で、クライアント自体は上記のno-account modeで起動したまま、tokenだけを一時`~/.gemini/antigravity/mcp_oauth_tokens.json`へ閉じ込めます。`mcp-interop`はtoken内容を読みません。
 
 認証成功だけでは`init/tools`を推測しません。必要なtool cacheが観測できなければ`unknown`を維持します。
 

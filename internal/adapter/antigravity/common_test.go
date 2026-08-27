@@ -36,6 +36,64 @@ func TestWriteConfigUsesIsolatedGlobalConfig(t *testing.T) {
 			t.Fatalf("config permissions = %o, want 600", got)
 		}
 	}
+
+	settingsPath := filepath.Join(home, ".gemini", "antigravity-cli", "settings.json")
+	settings, err := os.ReadFile(settingsPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(settings), `"modelProvider": "gemini"`) {
+		t.Fatalf("isolated account-bypass setting missing: %s", settings)
+	}
+	if runtime.GOOS != "windows" {
+		info, err := os.Stat(settingsPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := info.Mode().Perm(); got != 0o600 {
+			t.Fatalf("settings permissions = %o, want 600", got)
+		}
+	}
+}
+
+func TestReplaceEnvForHomeForcesNoAccountSessionMode(t *testing.T) {
+	env := []string{
+		"PATH=/usr/bin",
+		"HOME=/Users/example",
+		"GEMINI_API_KEY=normal-user-secret",
+		"GOOGLE_GEMINI_BASE_URL=https://private.example.invalid",
+		"GOOGLE_API_KEY=legacy-secret",
+		"GOOGLE_GENERATIVE_AI_API_KEY=legacy-generative-secret",
+		"OTHER=value",
+	}
+	got := replaceEnv(env, "HOME", "/tmp/isolated-home")
+
+	values := map[string][]string{}
+	for _, item := range got {
+		key, value, ok := strings.Cut(item, "=")
+		if !ok {
+			continue
+		}
+		values[strings.ToUpper(key)] = append(values[strings.ToUpper(key)], value)
+	}
+	if home := values["HOME"]; len(home) != 1 || home[0] != "/tmp/isolated-home" {
+		t.Fatalf("HOME values = %#v", home)
+	}
+	if keys := values["GEMINI_API_KEY"]; len(keys) != 1 || keys[0] != isolatedGeminiAPIKey {
+		t.Fatalf("GEMINI_API_KEY values = %#v", keys)
+	}
+	for _, key := range []string{"GOOGLE_GEMINI_BASE_URL", "GOOGLE_API_KEY", "GOOGLE_GENERATIVE_AI_API_KEY"} {
+		if values[key] != nil {
+			t.Fatalf("ambient %s unexpectedly reached isolated environment: %#v", key, values[key])
+		}
+	}
+	for _, item := range got {
+		for _, forbidden := range []string{"normal-user-secret", "private.example.invalid", "legacy-secret", "legacy-generative-secret"} {
+			if strings.Contains(item, forbidden) {
+				t.Fatalf("ambient Antigravity model state leaked into isolated environment: %q", item)
+			}
+		}
+	}
 }
 
 func TestCountValidToolCacheFiles(t *testing.T) {

@@ -12,7 +12,9 @@ For the tested `agy 1.1.11` baseline, Antigravity persists MCP OAuth state under
 ~/.gemini/antigravity/mcp_oauth_tokens.json
 ```
 
-Because `HOME` is replaced with the temporary session home, this path remains isolated from the user's normal Antigravity state. `mcp-interop` observes only file metadata (existence, regular-file type, and non-zero size); it never opens or parses the token file and never persists authorization URLs, authorization codes, access tokens, refresh tokens, cookies, or credential-file contents.
+Because `HOME` is replaced with the temporary session home, this path remains isolated from the user's normal Antigravity state. Antigravity account authentication is a separate boundary from Remote-MCP OAuth: before launching `agy`, the adapter writes `modelProvider: "gemini"` to the isolated CLI settings, strips ambient Gemini model credentials/endpoint overrides, and injects a fixed non-secret `GEMINI_API_KEY` sentinel. [Antigravity documents](https://antigravity.google/docs/cli/install/) this Gemini API-key mode as not establishing an account session, so the isolated MCP test does not rely on a normal-user macOS Keychain session. No model prompt is sent, so the sentinel is never used to authorize a model request.
+
+`mcp-interop` observes only file metadata (existence, regular-file type, and non-zero size); it never opens or parses the token file and never persists authorization URLs, authorization codes, access tokens, refresh tokens, cookies, or credential-file contents. The login Keychain before/after comparison remains a non-mutation gate; credential non-reuse is established by the documented no-account mode plus real-client E2E, not by an unchanged Keychain file alone.
 
 ## Result semantics
 
