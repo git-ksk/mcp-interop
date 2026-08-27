@@ -359,6 +359,7 @@ MCP_INTEROP_CLIENTS=codex,cursor bash scripts/e2e-real-clients.sh
 - [MCP Conformanceとの違い](docs/conformance-vs-interop.ja.md)
 - [Live result artifact schema v1](docs/live-result-schema-v1.ja.md)
 - [Live result artifact schema v2](docs/live-result-schema-v2.ja.md)
+- [現行real-clientのprotocol-era観測](docs/protocol-era-observations.ja.md)
 - [トラブルシューティング](docs/troubleshooting.ja.md)
 - [Reason code](docs/reason-codes.ja.md)
 - [ChatGPT接続診断](docs/chatgpt-diagnostics.ja.md)

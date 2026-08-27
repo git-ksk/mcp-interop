@@ -168,6 +168,23 @@ method_seen() {
   grep -Fq "\"path\":\"$path\",\"method\":\"$method\"" "$fixture_log"
 }
 
+print_protocol_observations() {
+  local path="$1"
+  local client="$2"
+  local observed=0
+  while IFS= read -r line; do
+    [[ -n "$line" ]] || continue
+    observed=1
+    printf '%s\t%s\n' "$client" "$line"
+  done < <(
+    grep -F "\"path\":\"$path\"" "$fixture_log" \
+      | sed -n 's/.*"method":"\([^"]*\)".*"protocol_version":"\([^"]*\)".*"protocol_source":"\([^"]*\)".*/method=\1 protocol=\2 source=\3/p'
+  )
+  if [[ "$observed" -eq 0 ]]; then
+    printf '%s\t%s\n' "$client" 'no explicit protocol version observed'
+  fi
+}
+
 before_state="$work_root/user-state.before"
 after_state="$work_root/user-state.after"
 before_pids="$work_root/client-pids.before"
@@ -271,6 +288,9 @@ for client in "${clients[@]}"; do
     echo "$client: unexpected tools/call observed; core E2E must not invoke tools" >&2
     protocol_ok=0
   fi
+
+  echo "Protocol observations (controlled fixture only):"
+  print_protocol_observations "$path" "$client"
 
   if [[ "$rc" -eq 0 && "$protocol_ok" -eq 1 ]]; then
     printf '%s\tPASS\tlive initialize + initialized + tools/list\n' "$client" >> "$status_file"

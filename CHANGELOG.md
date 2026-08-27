@@ -6,6 +6,10 @@ All notable project changes will be summarized here. GitHub Releases remain the 
 
 ### Added
 
+- Added structured controlled-fixture protocol-version observations and bilingual current-client evidence notes for the v0.6 protocol-aware core work, while keeping fixture wire evidence separate from deployment-specific adapter evidence.
+
+### Added
+
 - Added portable artifact schema v2 protected-path identity via `--deployment-id`, keeping credential-bearing URL paths out of artifacts and ordinary captured result output while preserving schema v1 as the default. v1/v2 cross-schema comparison is rejected explicitly instead of guessing an identity mapping.
 
 ### Changed

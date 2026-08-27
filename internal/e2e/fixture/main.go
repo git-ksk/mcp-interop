@@ -46,8 +46,10 @@ type rpcResponse struct {
 }
 
 type requestLog struct {
-	Path   string `json:"path"`
-	Method string `json:"method"`
+	Path            string `json:"path"`
+	Method          string `json:"method"`
+	ProtocolVersion string `json:"protocol_version,omitempty"`
+	ProtocolSource  string `json:"protocol_source,omitempty"`
 }
 
 type fixtureHandler struct {
@@ -185,8 +187,9 @@ func (h *fixtureHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	protocolHeader := strings.TrimSpace(r.Header.Get("MCP-Protocol-Version"))
 	if body[0] == '[' {
-		h.serveBatch(w, r.URL.Path, body)
+		h.serveBatch(w, r.URL.Path, protocolHeader, body)
 		return
 	}
 
@@ -196,7 +199,7 @@ func (h *fixtureHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response, hasResponse := h.handle(r.URL.Path, request)
+	response, hasResponse := h.handle(r.URL.Path, protocolHeader, request)
 	if !hasResponse {
 		w.WriteHeader(http.StatusAccepted)
 		return
@@ -204,7 +207,7 @@ func (h *fixtureHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, response)
 }
 
-func (h *fixtureHandler) serveBatch(w http.ResponseWriter, path string, body []byte) {
+func (h *fixtureHandler) serveBatch(w http.ResponseWriter, path, protocolHeader string, body []byte) {
 	var requests []rpcRequest
 	if err := json.Unmarshal(body, &requests); err != nil || len(requests) == 0 {
 		http.Error(w, "invalid JSON-RPC batch", http.StatusBadRequest)
@@ -213,7 +216,7 @@ func (h *fixtureHandler) serveBatch(w http.ResponseWriter, path string, body []b
 
 	responses := make([]rpcResponse, 0, len(requests))
 	for _, request := range requests {
-		if response, ok := h.handle(path, request); ok {
+		if response, ok := h.handle(path, protocolHeader, request); ok {
 			responses = append(responses, response)
 		}
 	}
@@ -224,8 +227,9 @@ func (h *fixtureHandler) serveBatch(w http.ResponseWriter, path string, body []b
 	writeJSON(w, responses)
 }
 
-func (h *fixtureHandler) handle(path string, request rpcRequest) (rpcResponse, bool) {
-	h.record(path, request.Method)
+func (h *fixtureHandler) handle(path, protocolHeader string, request rpcRequest) (rpcResponse, bool) {
+	protocolVersion, protocolSource := observedProtocolVersion(protocolHeader, request)
+	h.record(path, request.Method, protocolVersion, protocolSource)
 
 	if len(request.ID) == 0 || string(request.ID) == "null" {
 		return rpcResponse{}, false
@@ -266,8 +270,44 @@ func (h *fixtureHandler) handle(path string, request rpcRequest) (rpcResponse, b
 	return response, true
 }
 
-func (h *fixtureHandler) record(path, method string) {
-	entry, err := json.Marshal(requestLog{Path: path, Method: method})
+func observedProtocolVersion(protocolHeader string, request rpcRequest) (string, string) {
+	if protocolHeader != "" {
+		return protocolHeader, "http_header"
+	}
+
+	if request.Method == "initialize" {
+		var params struct {
+			ProtocolVersion string `json:"protocolVersion"`
+		}
+		if json.Unmarshal(request.Params, &params) == nil && params.ProtocolVersion != "" {
+			return params.ProtocolVersion, "initialize_params"
+		}
+	}
+
+	var params struct {
+		Meta map[string]json.RawMessage `json:"_meta"`
+	}
+	if json.Unmarshal(request.Params, &params) != nil {
+		return "", ""
+	}
+	raw, ok := params.Meta["io.modelcontextprotocol/protocolVersion"]
+	if !ok {
+		return "", ""
+	}
+	var version string
+	if json.Unmarshal(raw, &version) != nil || version == "" {
+		return "", ""
+	}
+	return version, "request_meta"
+}
+
+func (h *fixtureHandler) record(path, method, protocolVersion, protocolSource string) {
+	entry, err := json.Marshal(requestLog{
+		Path:            path,
+		Method:          method,
+		ProtocolVersion: protocolVersion,
+		ProtocolSource:  protocolSource,
+	})
 	if err != nil {
 		return
 	}
