@@ -102,7 +102,7 @@ fixtureで分かったprotocol versionを、別の本番runへ転記して「実
 - Codex / Cursor / Antigravityで実際に観測できるprotocol情報を再確認する
 - Remote Tool Interoperability向けのprotocol-awareな解釈を定義する
 - production clientからprotocol revisionを証明できない場合は`unknown`を維持する
-- 公開`init` stageを互換表示として維持できるか検討する
+- 公開`init` stageはprotocol readinessの互換projectionとして維持し、stable semanticをliteral legacy `initialize` handshakeへ固定しない
 - fixtureでlegacy / modern protocol behaviorを確認する
 - 隔離、timeout、cleanup、secret redactionを維持する
 - portable artifactを日常的にbaseline共有する前にdeployment identity privacy境界を維持する。schema v2は明示的な非secret deployment IDでcredential-bearing pathを除去するが、private originの共有は別問題として残す

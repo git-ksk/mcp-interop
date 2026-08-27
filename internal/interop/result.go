@@ -13,6 +13,46 @@ const (
 // OrderedStages is the stable display/serialization order used by reports.
 var OrderedStages = []Stage{StageReach, StageAuth, StageInit, StageTools}
 
+// ProtocolEra identifies the protocol behavior family when the real-client
+// surface exposes it directly. Unknown must remain unknown rather than being
+// inferred from fixture-only evidence.
+type ProtocolEra string
+
+const (
+	ProtocolEraUnknown ProtocolEra = "unknown"
+	ProtocolEraLegacy  ProtocolEra = "legacy"
+	ProtocolEraModern  ProtocolEra = "modern"
+)
+
+// ProtocolEvidenceSource identifies where protocol-readiness evidence came
+// from. Deployment-specific PASS may only be projected from the real client.
+type ProtocolEvidenceSource string
+
+const (
+	ProtocolEvidenceUnknown           ProtocolEvidenceSource = "unknown"
+	ProtocolEvidenceRealClientSurface ProtocolEvidenceSource = "real_client_surface"
+	ProtocolEvidenceControlledFixture ProtocolEvidenceSource = "controlled_fixture"
+)
+
+// ProtocolReadinessEvidence describes the strongest direct evidence used to
+// project protocol readiness onto the stable public init stage.
+type ProtocolReadinessEvidence string
+
+const (
+	ProtocolReadinessUnobserved    ProtocolReadinessEvidence = "unobserved"
+	ProtocolReadinessLifecycle     ProtocolReadinessEvidence = "lifecycle"
+	ProtocolReadinessToolInventory ProtocolReadinessEvidence = "tool_inventory"
+)
+
+// ProtocolObservation is internal evidence context. It is intentionally not
+// serialized in the current public Result JSON or portable artifact schemas.
+type ProtocolObservation struct {
+	Era       ProtocolEra
+	Revision  string
+	Source    ProtocolEvidenceSource
+	Readiness ProtocolReadinessEvidence
+}
+
 // Status is the outcome of one interoperability stage.
 type Status string
 
@@ -61,6 +101,8 @@ type Result struct {
 	Endpoint      string        `json:"endpoint"`
 	Stages        []StageResult `json:"stages"`
 	Diagnostics   []Diagnostic  `json:"diagnostics,omitempty"`
+
+	protocolObservation ProtocolObservation
 }
 
 // NewResult creates a report with every stage explicitly unknown. Adapters must
@@ -103,6 +145,53 @@ func (r *Result) SetWithReason(stage Stage, status Status, reasonCode ReasonCode
 // AddDiagnostic appends supporting evidence without mutating any stage result.
 func (r *Result) AddDiagnostic(diagnostic Diagnostic) {
 	r.Diagnostics = append(r.Diagnostics, diagnostic)
+}
+
+// SetProtocolReadiness projects internal protocol-readiness evidence onto the
+// stable public init stage. A PASS requires direct real-client evidence;
+// fixture-only or unobserved evidence cannot create deployment-specific PASS.
+func (r *Result) SetProtocolReadiness(status Status, observation ProtocolObservation, message string) bool {
+	if !validProtocolObservation(observation) {
+		return false
+	}
+	if observation.Source == ProtocolEvidenceControlledFixture {
+		return false
+	}
+	if status == StatusPass {
+		if observation.Source != ProtocolEvidenceRealClientSurface || observation.Readiness == ProtocolReadinessUnobserved {
+			return false
+		}
+	}
+	r.protocolObservation = observation
+	return r.Set(StageInit, status, message)
+}
+
+// ProtocolObservation returns internal protocol evidence without changing the
+// public JSON contract.
+func (r Result) ProtocolObservation() ProtocolObservation {
+	return r.protocolObservation
+}
+
+func validProtocolObservation(observation ProtocolObservation) bool {
+	switch observation.Era {
+	case ProtocolEraUnknown, ProtocolEraLegacy, ProtocolEraModern:
+	default:
+		return false
+	}
+	if observation.Era == ProtocolEraUnknown && observation.Revision != "" {
+		return false
+	}
+	switch observation.Source {
+	case ProtocolEvidenceUnknown, ProtocolEvidenceRealClientSurface, ProtocolEvidenceControlledFixture:
+	default:
+		return false
+	}
+	switch observation.Readiness {
+	case ProtocolReadinessUnobserved, ProtocolReadinessLifecycle, ProtocolReadinessToolInventory:
+	default:
+		return false
+	}
+	return true
 }
 
 // Get returns one stage result.

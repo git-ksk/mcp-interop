@@ -50,12 +50,20 @@ MCP Conformanceは、実装が仕様上の期待動作を満たすかを確認�
 
 1. `reach` — 実クライアントが対象Remote MCPへ到達し、実通信を確認できた
 2. `auth` — 必要な認証が完了した、またはツール発見により認証不要と確認できた
-3. `init` — MCPセッションを成立させた
+3. `init` — **MCP protocol readiness**の互換projection。実クライアントが利用可能なprotocol pathを証明したことを表し、modern MCPでliteralな`initialize` requestを必須にはしない
 4. `tools` — クライアントがサーバーのツールを発見した
 
 完全な相互運用PASSには4段階すべての`pass`が必要です。
 
 証拠不足を成功扱いしないため、`skip`や`unknown`もnon-zero exitです。
+
+### protocol-awareな`init`互換semantics
+
+公開`init` fieldはJSON/CLI互換性のため維持しますが、stableな意味はwire-level initialization handshakeではなく**protocol readiness**です。内部では、real-client surfaceから直接観測できた場合だけera/revisionとreadiness evidenceを非serializeの`ProtocolObservation`として保持できます。
+
+`init=pass`にはdirect real-client readiness evidenceが必要です。現在のCodex / Cursor / Antigravityは、実client自身のtool inventory / tool materialization成功を、usable MCP protocol pathが成立したことのより強い証拠として使います。fixture-only lifecycle、config存在、metadata compatibility、未観測protocol revisionだけではdeployment-specificな`init=pass`を作れません。
+
+deployment-specific surfaceがnegotiated protocol revisionを返さない場合、protocol readinessとtool discoveryがPASSでもera/revisionは`unknown`のままです。legacy `initialize`/`initialized`、modern `server/discover`やself-describing request、将来のprotocol-era mechanismはいずれもreal clientから直接観測できた場合にreadiness evidenceになり得ますが、公開projectionは`init`を維持します。
 
 ## 品質改善で守る原則
 
@@ -164,15 +172,7 @@ model prompt、DOM/UI automation、private endpoint、通常ユーザーのブ�
 
 リポジトリにはlocalhost限定のMCP fixtureと、macOSで実Codex / Cursor / Antigravityを確認する`scripts/e2e-real-clients.sh`があります。
 
-ハーネスは少なくとも次を確認します。
-
-```text
-initialize
-notifications/initialized
-tools/list
-```
-
-`tools/call`が発生した場合はFAILです。
+現在のrelease-gate harnessは、#101でlegacy/modern fixture matrixを完成させるまではshipping 3clientについて観測済みlegacy `initialize` / `notifications/initialized` / `tools/list` pathを引き続き要求します。同時にfixture-onlyのprotocol revision/sourceも記録します。`tools/call`が発生した場合はFAILで、fixture protocol evidenceをdeployment-specific resultの昇格には使いません。
 
 さらに、実行前後でユーザー設定のメタデータ、login Keychain DB、残存クライアントプロセス、一時セッションディレクトリを比較します。
 

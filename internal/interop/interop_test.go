@@ -184,3 +184,43 @@ func TestTargetValidation(t *testing.T) {
 		t.Fatalf("expected valid endpoint: %v", err)
 	}
 }
+
+func TestSetProtocolReadinessRequiresRealClientEvidenceForPass(t *testing.T) {
+	result := NewResult("codex", "Codex CLI", "1.0", "https://example.com/mcp")
+	fixture := ProtocolObservation{Era: ProtocolEraLegacy, Revision: "2025-11-25", Source: ProtocolEvidenceControlledFixture, Readiness: ProtocolReadinessLifecycle}
+	if result.SetProtocolReadiness(StatusPass, fixture, "fixture says ready") {
+		t.Fatal("fixture-only evidence must not create deployment-specific init PASS")
+	}
+	stage, _ := result.Get(StageInit)
+	if stage.Status != StatusUnknown {
+		t.Fatalf("init status = %s, want unknown", stage.Status)
+	}
+
+	unobserved := ProtocolObservation{Era: ProtocolEraUnknown, Source: ProtocolEvidenceRealClientSurface, Readiness: ProtocolReadinessUnobserved}
+	if result.SetProtocolReadiness(StatusPass, unobserved, "no evidence") {
+		t.Fatal("unobserved readiness must not create init PASS")
+	}
+}
+
+func TestSetProtocolReadinessProjectsRealClientToolInventoryToInit(t *testing.T) {
+	result := NewResult("cursor", "Cursor CLI", "1.0", "https://example.com/mcp")
+	observation := ProtocolObservation{Era: ProtocolEraUnknown, Source: ProtocolEvidenceRealClientSurface, Readiness: ProtocolReadinessToolInventory}
+	if !result.SetProtocolReadiness(StatusPass, observation, "tool inventory proves readiness") {
+		t.Fatal("expected real-client readiness evidence to project to init")
+	}
+	stage, _ := result.Get(StageInit)
+	if stage.Status != StatusPass {
+		t.Fatalf("init status = %s, want pass", stage.Status)
+	}
+	if got := result.ProtocolObservation(); got != observation {
+		t.Fatalf("protocol observation = %#v, want %#v", got, observation)
+	}
+}
+
+func TestSetProtocolReadinessRejectsRevisionWhenEraUnknown(t *testing.T) {
+	result := NewResult("cursor", "Cursor CLI", "1.0", "https://example.com/mcp")
+	observation := ProtocolObservation{Era: ProtocolEraUnknown, Revision: "2026-07-28", Source: ProtocolEvidenceRealClientSurface, Readiness: ProtocolReadinessLifecycle}
+	if result.SetProtocolReadiness(StatusPass, observation, "bad inference") {
+		t.Fatal("revision must not be attached while era is unknown")
+	}
+}

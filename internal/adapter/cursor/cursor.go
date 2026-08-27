@@ -308,7 +308,7 @@ func setSuccessfulToolDiscovery(result *interop.Result, output string, authentic
 	} else {
 		result.Set(interop.StageAuth, interop.StatusPass, "tool discovery completed without an unresolved authentication gate")
 	}
-	result.Set(interop.StageInit, interop.StatusPass, "Cursor list-tools completed through the real MCP client")
+	result.SetProtocolReadiness(interop.StatusPass, interop.ProtocolObservation{Era: interop.ProtocolEraUnknown, Source: interop.ProtocolEvidenceRealClientSurface, Readiness: interop.ProtocolReadinessToolInventory}, "Cursor list-tools proves MCP protocol readiness through the real client")
 	count := countTools(output)
 	if count > 0 {
 		result.Set(interop.StageTools, interop.StatusPass, fmt.Sprintf("Cursor listed %d MCP tool(s)", count))

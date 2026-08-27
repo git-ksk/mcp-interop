@@ -93,7 +93,7 @@ func TestLegacyTestJSONContractRemainsResultArray(t *testing.T) {
 			t.Fatalf("legacy JSON missing %q: %s", key, data)
 		}
 	}
-	for _, forbidden := range []string{"schema_version", "artifact_type", "executed_at", "auth_mode", "evidence_provenance"} {
+	for _, forbidden := range []string{"schema_version", "artifact_type", "executed_at", "auth_mode", "evidence_provenance", "protocol_observation", "protocol_era"} {
 		if _, ok := decoded[0][forbidden]; ok {
 			t.Fatalf("portable-artifact field %q leaked into legacy JSON: %s", forbidden, data)
 		}

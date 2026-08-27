@@ -102,7 +102,7 @@ Make the core evidence model correct across legacy and modern MCP protocol eras 
 - Re-observe current Codex, Cursor, and Antigravity real-client paths and record what protocol-era/version evidence is actually available from their supported or accepted automation surfaces.
 - Define protocol-era-aware interpretation for the core Remote Tool Interoperability profile.
 - Preserve `unknown` when the production real-client path cannot prove the negotiated protocol revision.
-- Decide whether the existing public `init` stage can remain a compatibility projection over a more precise internal semantic model.
+- Keep the existing public `init` stage as the compatibility projection for protocol readiness; a literal legacy `initialize` handshake is not required by the stable semantic meaning.
 - Test legacy and modern protocol behavior against controlled fixtures, including fallback/unsupported-era behavior where practical.
 - Re-run existing isolation, timeout, cancellation, process-cleanup, state-cleanup, and secret-redaction gates while protocol-aware changes are made.
 - Maintain the documented deployment-identity privacy boundary before portable artifacts become routine baseline/CI inputs; schema v2 now removes credential-bearing paths through an explicit non-secret deployment ID, while private-origin sharing remains a separate concern.
