@@ -31,8 +31,58 @@ func TestFixtureInitializeEchoesProtocolVersion(t *testing.T) {
 	if decoded.Result.ProtocolVersion != "2025-03-26" {
 		t.Fatalf("protocolVersion = %q", decoded.Result.ProtocolVersion)
 	}
-	if !strings.Contains(log.String(), `{"path":"/mcp/codex","method":"initialize"}`) {
-		t.Fatalf("missing initialize log: %s", log.String())
+	for _, want := range []string{
+		`"path":"/mcp/codex"`,
+		`"method":"initialize"`,
+		`"protocol_version":"2025-03-26"`,
+		`"protocol_source":"initialize_params"`,
+	} {
+		if !strings.Contains(log.String(), want) {
+			t.Fatalf("initialize log missing %s: %s", want, log.String())
+		}
+	}
+}
+
+func TestFixtureRecordsModernProtocolHeader(t *testing.T) {
+	var log bytes.Buffer
+	handler := &fixtureHandler{log: &log}
+	request := httptest.NewRequest(http.MethodPost, "/mcp/cursor", strings.NewReader(`{"jsonrpc":"2.0","id":7,"method":"server/discover","params":{}}`))
+	request.Header.Set("MCP-Protocol-Version", "2026-07-28")
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", response.Code, http.StatusOK)
+	}
+	for _, want := range []string{
+		`"method":"server/discover"`,
+		`"protocol_version":"2026-07-28"`,
+		`"protocol_source":"http_header"`,
+	} {
+		if !strings.Contains(log.String(), want) {
+			t.Fatalf("modern header log missing %s: %s", want, log.String())
+		}
+	}
+}
+
+func TestFixtureRecordsModernProtocolRequestMeta(t *testing.T) {
+	var log bytes.Buffer
+	handler := &fixtureHandler{log: &log}
+	request := httptest.NewRequest(http.MethodPost, "/mcp/antigravity", strings.NewReader(`{"jsonrpc":"2.0","id":9,"method":"tools/list","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28"}}}`))
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", response.Code, http.StatusOK)
+	}
+	for _, want := range []string{
+		`"method":"tools/list"`,
+		`"protocol_version":"2026-07-28"`,
+		`"protocol_source":"request_meta"`,
+	} {
+		if !strings.Contains(log.String(), want) {
+			t.Fatalf("modern meta log missing %s: %s", want, log.String())
+		}
 	}
 }
 
