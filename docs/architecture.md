@@ -77,7 +77,7 @@ Process ownership follows the same rule: an adapter may reap only processes it c
 
 ## Shipped adapters
 
-The current stable release is v0.4.0. The Cursor and Antigravity OAuth paths below are included in v0.4.0.
+The current stable release is v0.5.1. The Cursor and Antigravity OAuth paths were introduced in v0.4.0.
 
 ### Codex CLI
 
@@ -91,9 +91,11 @@ In v0.4.0, explicit `--oauth` invokes the real Cursor MCP login path inside the 
 
 ### Antigravity CLI (beta, macOS)
 
-The Antigravity adapter uses an isolated temporary `HOME`, the current `~/.gemini/config/mcp_config.json` format, and a PTY-based real-client path. The no-auth mode observes machine-readable tool-cache state produced by the real client and reaps only descendants of the test PTY wrapper before session cleanup.
+The Antigravity adapter uses an isolated temporary `HOME`, the current `~/.gemini/config/mcp_config.json` format, and a PTY-based real-client path. Before launching `agy`, it also writes `modelProvider: "gemini"` into the isolated `~/.gemini/antigravity-cli/settings.json`, removes ambient Gemini API-key/base-URL overrides, and injects a fixed non-secret `GEMINI_API_KEY` sentinel. This selects Antigravity's documented Gemini API-key mode, which does not establish an Antigravity account session, so the adapter does not depend on a normal-user macOS Keychain session. The no-auth mode then observes machine-readable tool-cache state produced by the real client and reaps only descendants of the test PTY wrapper before session cleanup.
 
-In v0.4.0, explicit `--oauth` enters the real Antigravity `/mcp` manager inside the isolated PTY. OAuth token persistence is confined to the isolated `~/.gemini/antigravity/mcp_oauth_tokens.json`; `mcp-interop` observes only file metadata and never opens or persists token contents. The generic result remains conservative: authentication can be proven while `init/tools` stay `unknown` if the OAuth path does not materialize the same client-side tool cache. The controlled localhost E2E separately requires authenticated `initialize`, `notifications/initialized`, and `tools/list` server-side evidence. See [Antigravity OAuth live-test boundary](antigravity-oauth.md).
+The login Keychain before/after comparison remains a non-mutation gate; by itself it does not prove that a client never read the Keychain. Credential non-reuse instead rests on the documented no-account startup mode above plus the real-client release gate. That gate was revalidated with `agy 1.1.22`, requiring `initialize`, `notifications/initialized`, and `tools/list` with no model prompt or `tools/call`, unchanged normal-user config/Keychain metadata, and no leaked client process/session.
+
+In v0.4.0, explicit `--oauth` entered the real Antigravity `/mcp` manager inside the isolated PTY. Remote-MCP OAuth is separate from Antigravity account authentication: the client still starts in the no-account mode above, while MCP OAuth token persistence is confined to the isolated `~/.gemini/antigravity/mcp_oauth_tokens.json`. `mcp-interop` observes only file metadata and never opens or persists token contents. The generic result remains conservative: authentication can be proven while `init/tools` stay `unknown` if the OAuth path does not materialize the same client-side tool cache. The controlled localhost E2E separately requires authenticated `initialize`, `notifications/initialized`, and `tools/list` server-side evidence. See [Antigravity OAuth live-test boundary](antigravity-oauth.md).
 
 ### VS Code (research)
 

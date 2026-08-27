@@ -20,6 +20,8 @@
 
 テスト時は`HOME`そのものを一時directoryへ差し替えるため、このパスも通常ユーザーのAntigravity状態から隔離されます。
 
+Antigravity account認証とRemote MCP OAuthは別の境界です。`agy`起動前に、一時CLI settingsへ`modelProvider: "gemini"`を書き、ambientなGemini model credential / endpoint overrideを除去して、固定の非秘密`GEMINI_API_KEY` sentinelを注入します。[Antigravity公式ドキュメント](https://antigravity.google/docs/cli/install/)では、このGemini API-key modeはaccount sessionを成立させないため、通常ユーザーのmacOS Keychain sessionへ依存しません。model promptは送らないため、このsentinelでmodel requestを認証することもありません。
+
 `mcp-interop`が確認するのはファイルのメタデータだけです。
 
 - ファイルが存在するか
@@ -36,6 +38,8 @@
 - refresh token
 - cookie
 - credential fileの内容
+
+login Keychainのbefore/after比較は非変更gateです。それ単独ではcredential非利用の証明にせず、documented no-account modeと実クライアントE2Eを組み合わせて通常ユーザーcredentialを再利用しない境界を成立させます。
 
 ## 結果をどう判定するか
 
