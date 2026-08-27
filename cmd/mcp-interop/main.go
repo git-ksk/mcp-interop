@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"text/tabwriter"
 	"time"
@@ -28,6 +29,7 @@ Usage:
   mcp-interop test <url> [--client codex,cursor,antigravity] [--oauth] [--json] [--output result.json] [--deployment-id <id>]
   mcp-interop compare <old.json> <new.json> [--json] [--fail-on-regression]
   mcp-interop suite validate <manifest.json> [--json]
+  mcp-interop suite run <manifest.json> --output-dir <dir> [--json]
   mcp-interop diagnose <url> [--profile chatgpt] [--client-id <url>] [--redirect-uri <url>] [--runtime-evidence <file|->] [--json]
   mcp-interop evidence <validate|summary|merge> ...
   mcp-interop version
@@ -37,7 +39,7 @@ Commands:
   clients    Detect supported MCP clients installed on this machine.
   test       Run a Remote MCP interoperability test through real clients.
   compare    Compare portable live-result artifacts across client versions/runs.
-  suite      Validate and, in later v0.7 work, execute repeatable suite manifests.
+  suite      Validate and execute repeatable suite manifests.
   diagnose   Run profile-based server/OAuth preflight diagnostics without claiming real-client PASS.
   evidence   Validate, summarize, or merge secret-free Runtime Evidence documents.
   version    Print mcp-interop build version information.
@@ -75,7 +77,7 @@ func run(ctx context.Context, args []string) int {
 	case "compare":
 		return runCompare(args[1:])
 	case "suite":
-		return runSuite(args[1:])
+		return runSuite(ctx, args[1:])
 	case "diagnose":
 		return runDiagnose(ctx, args[1:])
 	case "evidence":
@@ -100,14 +102,16 @@ type suiteValidationSummary struct {
 	Runs             int                    `json:"runs"`
 }
 
-func runSuite(args []string) int {
+func runSuite(ctx context.Context, args []string) int {
 	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, "suite requires a subcommand: validate")
+		fmt.Fprintln(os.Stderr, "suite requires a subcommand: validate or run")
 		return 2
 	}
 	switch args[0] {
 	case "validate":
 		return runSuiteValidate(args[1:], os.Stdout, os.Stderr)
+	case "run":
+		return runSuiteRunWith(ctx, args[1:], os.Stdout, os.Stderr, os.LookupEnv, runTestWithIO)
 	default:
 		fmt.Fprintf(os.Stderr, "unknown suite subcommand %q\n", args[0])
 		return 2
@@ -164,6 +168,222 @@ func parseSuiteValidateOptions(args []string) (string, bool, error) {
 		return "", false, errors.New("suite validate requires exactly one manifest path")
 	}
 	return path, jsonOutput, nil
+}
+
+type suiteRunOptions struct {
+	manifestPath string
+	outputDir    string
+	json         bool
+}
+
+type suiteRunFunc func(context.Context, []string, io.Writer, io.Writer) int
+
+func runSuiteRunWith(ctx context.Context, args []string, stdout, stderr io.Writer, lookup suite.EndpointLookup, runOne suiteRunFunc) int {
+	options, err := parseSuiteRunOptions(args)
+	if err != nil {
+		fmt.Fprintf(stderr, "invalid suite run: %v\n", err)
+		return 2
+	}
+	manifest, err := suite.ReadFile(options.manifestPath)
+	if err != nil {
+		fmt.Fprintf(stderr, "invalid suite manifest: %v\n", err)
+		return 2
+	}
+	planned, err := suite.ResolveTrusted(manifest, lookup)
+	if err != nil {
+		fmt.Fprintf(stderr, "suite cannot start: %v\n", err)
+		return 2
+	}
+	if runOne == nil {
+		fmt.Fprintln(stderr, "suite execution runner is unavailable")
+		return 1
+	}
+
+	if _, err := os.Lstat(options.outputDir); err == nil {
+		fmt.Fprintln(stderr, "suite output directory already exists")
+		return 2
+	} else if !errors.Is(err, os.ErrNotExist) {
+		fmt.Fprintf(stderr, "inspect suite output directory: %v\n", err)
+		return 2
+	}
+	parent := filepath.Dir(options.outputDir)
+	if err := os.MkdirAll(parent, 0o700); err != nil {
+		fmt.Fprintf(stderr, "create suite output parent: %v\n", err)
+		return 2
+	}
+	staging, err := os.MkdirTemp(parent, ".mcp-interop-suite-*")
+	if err != nil {
+		fmt.Fprintf(stderr, "create suite staging directory: %v\n", err)
+		return 1
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_ = os.RemoveAll(staging)
+		}
+	}()
+	if err := os.Chmod(staging, 0o700); err != nil {
+		fmt.Fprintf(stderr, "secure suite staging directory: %v\n", err)
+		return 1
+	}
+	artifactsDir := filepath.Join(staging, "artifacts")
+	if err := os.Mkdir(artifactsDir, 0o700); err != nil {
+		fmt.Fprintf(stderr, "create suite artifact directory: %v\n", err)
+		return 1
+	}
+
+	entries := make([]suite.ResultEntry, 0, len(planned))
+	hadFailure := false
+	for _, plannedRun := range planned {
+		reference := suiteArtifactReference(plannedRun)
+		artifactPath := filepath.Join(staging, filepath.FromSlash(reference))
+		testArgs := []string{
+			plannedRun.Endpoint,
+			"--client", plannedRun.Client.ID,
+			"--output", artifactPath,
+			"--deployment-id", plannedRun.DeploymentID,
+		}
+		if plannedRun.Client.Auth == suite.AuthOAuth {
+			testArgs = append(testArgs, "--oauth")
+		}
+		rc := runOne(ctx, testArgs, io.Discard, stderr)
+		entry := suite.ResultEntry{
+			TargetID: plannedRun.TargetID,
+			ClientID: plannedRun.Client.ID,
+			AuthMode: plannedRun.Client.Auth,
+			ExitCode: 1,
+			Outcome:  suite.OutcomeError,
+		}
+		if rc == 0 || rc == 1 {
+			if err := validateSuiteRunArtifact(artifactPath, plannedRun); err != nil {
+				fmt.Fprintf(stderr, "suite run %s/%s did not produce a valid artifact: %v\n", plannedRun.TargetID, plannedRun.Client.ID, err)
+				hadFailure = true
+			} else {
+				entry.Artifact = reference
+				entry.ExitCode = rc
+				if rc == 0 {
+					entry.Outcome = suite.OutcomePass
+				} else {
+					entry.Outcome = suite.OutcomeNonPass
+					hadFailure = true
+				}
+			}
+		} else {
+			fmt.Fprintf(stderr, "suite run %s/%s returned unexpected exit code %d\n", plannedRun.TargetID, plannedRun.Client.ID, rc)
+			hadFailure = true
+		}
+		entries = append(entries, entry)
+	}
+
+	index, err := suite.NewResultIndex(manifest, entries)
+	if err != nil {
+		fmt.Fprintf(stderr, "build suite result index: %v\n", err)
+		return 1
+	}
+	if err := suite.WriteResultIndex(filepath.Join(staging, "index.json"), index); err != nil {
+		fmt.Fprintf(stderr, "write suite result index: %v\n", err)
+		return 1
+	}
+	if err := os.Rename(staging, options.outputDir); err != nil {
+		fmt.Fprintf(stderr, "commit suite output directory: %v\n", err)
+		return 1
+	}
+	committed = true
+
+	if options.json {
+		encoder := json.NewEncoder(stdout)
+		encoder.SetIndent("", "  ")
+		if err := encoder.Encode(index); err != nil {
+			fmt.Fprintf(stderr, "encode suite result index: %v\n", err)
+			return 1
+		}
+	} else if err := writeSuiteRunSummary(stdout, options.outputDir, index); err != nil {
+		fmt.Fprintf(stderr, "write suite summary: %v\n", err)
+		return 1
+	}
+	if hadFailure {
+		return 1
+	}
+	return 0
+}
+
+func parseSuiteRunOptions(args []string) (suiteRunOptions, error) {
+	var options suiteRunOptions
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		switch {
+		case arg == "--json":
+			options.json = true
+		case arg == "--output-dir":
+			if i+1 >= len(args) {
+				return options, errors.New("--output-dir requires a directory path")
+			}
+			i++
+			options.outputDir = args[i]
+		case strings.HasPrefix(arg, "--output-dir="):
+			options.outputDir = strings.TrimPrefix(arg, "--output-dir=")
+		case strings.HasPrefix(arg, "-"):
+			return options, fmt.Errorf("unknown suite run option %q", arg)
+		default:
+			if options.manifestPath != "" {
+				return options, errors.New("suite run requires exactly one manifest path")
+			}
+			options.manifestPath = arg
+		}
+	}
+	if strings.TrimSpace(options.manifestPath) == "" {
+		return options, errors.New("suite run requires exactly one manifest path")
+	}
+	if options.outputDir == "" || options.outputDir == "-" {
+		return options, errors.New("suite run requires --output-dir with a directory path")
+	}
+	if strings.TrimSpace(options.outputDir) != options.outputDir {
+		return options, errors.New("--output-dir must not have surrounding whitespace")
+	}
+	return options, nil
+}
+
+func suiteArtifactReference(planned suite.PlannedRun) string {
+	return fmt.Sprintf("artifacts/%s--%s--%s.json", planned.TargetID, planned.Client.ID, planned.Client.Auth)
+}
+
+func validateSuiteRunArtifact(filePath string, planned suite.PlannedRun) error {
+	value, err := artifact.ReadFile(filePath)
+	if err != nil {
+		return err
+	}
+	if value.SchemaVersion != artifact.SchemaVersionV2 || len(value.Runs) != 1 {
+		return errors.New("suite run artifact must contain exactly one schema-v2 run")
+	}
+	run := value.Runs[0]
+	if run.Client.ID != planned.Client.ID {
+		return errors.New("artifact client does not match planned client")
+	}
+	expectedAuth := "default"
+	if planned.Client.Auth == suite.AuthOAuth {
+		expectedAuth = "oauth"
+	}
+	if run.AuthMode != expectedAuth {
+		return errors.New("artifact auth mode does not match planned auth mode")
+	}
+	if run.Endpoint.IdentityKind != artifact.EndpointIdentityDeploymentID || run.Endpoint.Identity != planned.DeploymentID {
+		return errors.New("artifact deployment identity does not match planned target")
+	}
+	return nil
+}
+
+func writeSuiteRunSummary(output io.Writer, outputDir string, index suite.ResultIndex) error {
+	writer := tabwriter.NewWriter(output, 0, 4, 2, ' ', 0)
+	fmt.Fprintf(writer, "SUITE\t%s\n", outputDir)
+	fmt.Fprintln(writer, "TARGET\tCLIENT\tAUTH\tOUTCOME\tARTIFACT")
+	for _, entry := range index.Runs {
+		artifactRef := entry.Artifact
+		if artifactRef == "" {
+			artifactRef = "-"
+		}
+		fmt.Fprintf(writer, "%s\t%s\t%s\t%s\t%s\n", entry.TargetID, entry.ClientID, entry.AuthMode, entry.Outcome, artifactRef)
+	}
+	return writer.Flush()
 }
 
 func runClients(ctx context.Context, args []string) int {
@@ -238,13 +458,17 @@ type testOptions struct {
 }
 
 func runTest(ctx context.Context, args []string) int {
+	return runTestWithIO(ctx, args, os.Stdout, os.Stderr)
+}
+
+func runTestWithIO(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	options, err := parseTestOptions(args)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n\n%s", err, usageText)
+		fmt.Fprintf(stderr, "%v\n\n%s", err, usageText)
 		return 2
 	}
 	if options.showHelp {
-		fmt.Print(usageText)
+		fmt.Fprint(stdout, usageText)
 		return 0
 	}
 
@@ -252,7 +476,7 @@ func runTest(ctx context.Context, args []string) int {
 	if options.deploymentID != "" {
 		protectedEndpoint, err = artifact.NewProtectedEndpointIdentity(options.endpoint, options.deploymentID)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "protected-path artifact identity: %v\n", err)
+			fmt.Fprintf(stderr, "protected-path artifact identity: %v\n", err)
 			return 2
 		}
 	}
@@ -286,7 +510,7 @@ func runTest(ctx context.Context, args []string) int {
 			result, runErr := interop.NewRunner().Run(ctx, adapter, interop.Target{Endpoint: options.endpoint})
 			appendResult(result, artifact.EvidenceProvenance{Kind: artifact.ProvenanceRealClientAdapter, AdapterID: "codex"})
 			if runErr != nil {
-				fmt.Fprintf(os.Stderr, "Codex test error: %v\n", runErr)
+				writeLiveTestError(stderr, "Codex", runErr, options.deploymentID != "")
 				hadFailure = true
 			}
 			if !result.Passed() {
@@ -309,7 +533,7 @@ func runTest(ctx context.Context, args []string) int {
 			result, runErr := interop.NewRunner().Run(ctx, adapter, interop.Target{Endpoint: options.endpoint})
 			appendResult(result, artifact.EvidenceProvenance{Kind: artifact.ProvenanceRealClientAdapter, AdapterID: "cursor"})
 			if runErr != nil {
-				fmt.Fprintf(os.Stderr, "Cursor test error: %v\n", runErr)
+				writeLiveTestError(stderr, "Cursor", runErr, options.deploymentID != "")
 				hadFailure = true
 			}
 			if !result.Passed() {
@@ -332,7 +556,7 @@ func runTest(ctx context.Context, args []string) int {
 			result, runErr := interop.NewRunner().Run(ctx, adapter, interop.Target{Endpoint: options.endpoint})
 			appendResult(result, artifact.EvidenceProvenance{Kind: artifact.ProvenanceRealClientAdapter, AdapterID: "antigravity"})
 			if runErr != nil {
-				fmt.Fprintf(os.Stderr, "Antigravity test error: %v\n", runErr)
+				writeLiveTestError(stderr, "Antigravity", runErr, options.deploymentID != "")
 				hadFailure = true
 			}
 			if !result.Passed() {
@@ -340,7 +564,7 @@ func runTest(ctx context.Context, args []string) int {
 			}
 
 		default:
-			fmt.Fprintf(os.Stderr, "live adapter %q is not implemented yet\n", clientID)
+			fmt.Fprintf(stderr, "live adapter %q is not implemented yet\n", clientID)
 			return 2
 		}
 	}
@@ -357,14 +581,14 @@ func runTest(ctx context.Context, args []string) int {
 	}
 
 	if options.json {
-		encoder := json.NewEncoder(os.Stdout)
+		encoder := json.NewEncoder(stdout)
 		encoder.SetIndent("", "  ")
 		if err := encoder.Encode(outputResults); err != nil {
-			fmt.Fprintf(os.Stderr, "encode result: %v\n", err)
+			fmt.Fprintf(stderr, "encode result: %v\n", err)
 			return 1
 		}
-	} else if err := printTestResults(outputResults); err != nil {
-		fmt.Fprintf(os.Stderr, "write result: %v\n", err)
+	} else if err := writeTestResults(stdout, outputResults); err != nil {
+		fmt.Fprintf(stderr, "write result: %v\n", err)
 		return 1
 	}
 
@@ -384,7 +608,7 @@ func runTest(ctx context.Context, args []string) int {
 				run, err = artifact.NewRun(result, executedAt[i], authMode, provenance[i], versionInfo.Version, versionInfo.Commit)
 			}
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "build portable artifact: %v\n", err)
+				fmt.Fprintf(stderr, "build portable artifact: %v\n", err)
 				return 1
 			}
 			runs = append(runs, run)
@@ -394,7 +618,7 @@ func runTest(ctx context.Context, args []string) int {
 			value = artifact.NewArtifactV2(runs)
 		}
 		if err := artifact.WriteFile(options.output, value); err != nil {
-			fmt.Fprintf(os.Stderr, "write portable artifact: %v\n", err)
+			fmt.Fprintf(stderr, "write portable artifact: %v\n", err)
 			return 1
 		}
 	}
@@ -403,6 +627,14 @@ func runTest(ctx context.Context, args []string) int {
 		return 1
 	}
 	return 0
+}
+
+func writeLiveTestError(output io.Writer, clientName string, runErr error, protectedPath bool) {
+	if protectedPath {
+		fmt.Fprintf(output, "%s test error: protected-path execution failed; inspect the stage result and local client logs\n", clientName)
+		return
+	}
+	fmt.Fprintf(output, "%s test error: %v\n", clientName, runErr)
 }
 
 func missingClientResult(id, name, endpoint string) interop.Result {

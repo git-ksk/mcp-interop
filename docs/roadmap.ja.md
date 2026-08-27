@@ -139,7 +139,7 @@ schema v2では`production-a`のようなユーザー定義opaque identityをpro
 
 ## v0.7.x — 繰り返し可能な退行テスト
 
-**GitHub tracking:** [#103](https://github.com/git-ksk/mcp-interop/issues/103)。focused workは[#112](https://github.com/git-ksk/mcp-interop/issues/112)、[#113](https://github.com/git-ksk/mcp-interop/issues/113)、[#114](https://github.com/git-ksk/mcp-interop/issues/114)、[#115](https://github.com/git-ksk/mcp-interop/issues/115)です。このmilestoneは進行中で、最初の実装依存は#112、privileged suite executionを出す前に満たすtrust boundaryは#115で定義します。
+**GitHub tracking:** [#103](https://github.com/git-ksk/mcp-interop/issues/103)。focused workは[#112](https://github.com/git-ksk/mcp-interop/issues/112)、[#113](https://github.com/git-ksk/mcp-interop/issues/113)、[#114](https://github.com/git-ksk/mcp-interop/issues/114)、[#115](https://github.com/git-ksk/mcp-interop/issues/115)です。このmilestoneは進行中です。#112は完了済みで、#113ではlocal trusted-suite executionを追加します。repositoryのself-hosted / privileged CI orchestrationは、untrusted contentがその実行経路へ到達する前に#115でgateします。
 
 ### 目的
 

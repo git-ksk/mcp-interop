@@ -6,6 +6,7 @@ All notable project changes will be summarized here. GitHub Releases remain the 
 
 ### Added
 
+- Added trusted suite execution with deterministic target/client expansion, all-endpoint preflight, atomic result-set directories, schema-v2 per-run artifacts, and a secret-safe suite index that preserves non-PASS/missing-client evidence.
 - Added strict suite manifest v1 validation for the v0.7 regression-workflow foundation: manifests contain no endpoint URL values, hosted fixture declarations cannot request OAuth/network targets, and trusted real-client declarations use target-derived environment references plus non-secret deployment IDs.
 - Added explicit `legacy`, `modern`, and modern-probe-to-legacy `fallback` controlled fixture modes plus a protocol-era-aware real-client release gate that accepts modern readiness only when `tools/list` carries explicit `2026-07-28` evidence.
 - Added structured controlled-fixture protocol-version observations and bilingual current-client evidence notes for the v0.6 protocol-aware core work, while keeping fixture wire evidence separate from deployment-specific adapter evidence.
