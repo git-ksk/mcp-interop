@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -17,6 +18,7 @@ import (
 	"github.com/git-ksk/mcp-interop/internal/artifact"
 	"github.com/git-ksk/mcp-interop/internal/client"
 	"github.com/git-ksk/mcp-interop/internal/interop"
+	"github.com/git-ksk/mcp-interop/internal/suite"
 )
 
 const usageText = `mcp-interop - live interoperability testing for Remote MCP servers
@@ -25,6 +27,7 @@ Usage:
   mcp-interop clients [--json]
   mcp-interop test <url> [--client codex,cursor,antigravity] [--oauth] [--json] [--output result.json] [--deployment-id <id>]
   mcp-interop compare <old.json> <new.json> [--json] [--fail-on-regression]
+  mcp-interop suite validate <manifest.json> [--json]
   mcp-interop diagnose <url> [--profile chatgpt] [--client-id <url>] [--redirect-uri <url>] [--runtime-evidence <file|->] [--json]
   mcp-interop evidence <validate|summary|merge> ...
   mcp-interop version
@@ -34,6 +37,7 @@ Commands:
   clients    Detect supported MCP clients installed on this machine.
   test       Run a Remote MCP interoperability test through real clients.
   compare    Compare portable live-result artifacts across client versions/runs.
+  suite      Validate and, in later v0.7 work, execute repeatable suite manifests.
   diagnose   Run profile-based server/OAuth preflight diagnostics without claiming real-client PASS.
   evidence   Validate, summarize, or merge secret-free Runtime Evidence documents.
   version    Print mcp-interop build version information.
@@ -70,6 +74,8 @@ func run(ctx context.Context, args []string) int {
 		return runTest(ctx, args[1:])
 	case "compare":
 		return runCompare(args[1:])
+	case "suite":
+		return runSuite(args[1:])
 	case "diagnose":
 		return runDiagnose(ctx, args[1:])
 	case "evidence":
@@ -84,6 +90,80 @@ func run(ctx context.Context, args []string) int {
 		fmt.Fprintf(os.Stderr, "unknown command %q\n\n%s", args[0], usageText)
 		return 2
 	}
+}
+
+type suiteValidationSummary struct {
+	Valid            bool                   `json:"valid"`
+	SchemaVersion    int                    `json:"schema_version"`
+	ExecutionContext suite.ExecutionContext `json:"execution_context"`
+	Targets          int                    `json:"targets"`
+	Runs             int                    `json:"runs"`
+}
+
+func runSuite(args []string) int {
+	if len(args) == 0 {
+		fmt.Fprintln(os.Stderr, "suite requires a subcommand: validate")
+		return 2
+	}
+	switch args[0] {
+	case "validate":
+		return runSuiteValidate(args[1:], os.Stdout, os.Stderr)
+	default:
+		fmt.Fprintf(os.Stderr, "unknown suite subcommand %q\n", args[0])
+		return 2
+	}
+}
+
+func runSuiteValidate(args []string, stdout, stderr io.Writer) int {
+	path, jsonOutput, err := parseSuiteValidateOptions(args)
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return 2
+	}
+	manifest, err := suite.ReadFile(path)
+	if err != nil {
+		fmt.Fprintf(stderr, "invalid suite manifest: %v\n", err)
+		return 2
+	}
+	summary := suiteValidationSummary{
+		Valid:            true,
+		SchemaVersion:    manifest.SchemaVersion,
+		ExecutionContext: manifest.ExecutionContext,
+		Targets:          len(manifest.Targets),
+		Runs:             suite.RunCount(manifest),
+	}
+	if jsonOutput {
+		encoder := json.NewEncoder(stdout)
+		encoder.SetIndent("", "  ")
+		if err := encoder.Encode(summary); err != nil {
+			fmt.Fprintf(stderr, "encode suite validation: %v\n", err)
+			return 1
+		}
+		return 0
+	}
+	fmt.Fprintf(stdout, "VALID suite schema=%d context=%s targets=%d runs=%d\n", summary.SchemaVersion, summary.ExecutionContext, summary.Targets, summary.Runs)
+	return 0
+}
+
+func parseSuiteValidateOptions(args []string) (string, bool, error) {
+	path := ""
+	jsonOutput := false
+	for _, arg := range args {
+		switch {
+		case arg == "--json":
+			jsonOutput = true
+		case strings.HasPrefix(arg, "-"):
+			return "", false, fmt.Errorf("unknown suite validate option %q", arg)
+		case path == "":
+			path = arg
+		default:
+			return "", false, errors.New("suite validate requires exactly one manifest path")
+		}
+	}
+	if path == "" {
+		return "", false, errors.New("suite validate requires exactly one manifest path")
+	}
+	return path, jsonOutput, nil
 }
 
 func runClients(ctx context.Context, args []string) int {

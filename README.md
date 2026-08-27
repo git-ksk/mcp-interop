@@ -150,6 +150,17 @@ The comparison explicitly reports `PASS_TO_FAIL`, `PASS_TO_UNKNOWN`, `PASS_TO_SK
 
 See [Live interoperability result artifact schema v1](docs/live-result-schema-v1.md) ([日本語](docs/live-result-schema-v1.ja.md)) and [schema v2 protected-path identity](docs/live-result-schema-v2.md) ([日本語](docs/live-result-schema-v2.ja.md)) for the exact compatibility, secret-safety, pairing, and migration contracts.
 
+### Suite manifest validation
+
+The v0.7 workflow starts with a strict, secret-safe suite declaration. Validate it without launching clients or resolving endpoint values:
+
+```console
+mcp-interop suite validate suite.json
+mcp-interop suite validate suite.json --json
+```
+
+Manifest v1 never stores a Remote MCP endpoint URL. Hosted fixture suites cannot select network targets or OAuth; trusted real-client suites reference a target-specific `MCP_INTEROP_SUITE_ENDPOINT_*` variable and require a non-secret `deployment_id`. See [Suite manifest v1](docs/suite-manifest-v1.md) ([日本語](docs/suite-manifest-v1.ja.md)).
+
 OAuth flows are always explicit opt-in:
 
 ```console
@@ -377,6 +388,7 @@ The runner is expected to have the real Codex, Cursor, and Antigravity CLIs inst
 - [Conformance vs. interoperability](docs/conformance-vs-interop.md) ([日本語](docs/conformance-vs-interop.ja.md))
 - [Live result artifact schema v1](docs/live-result-schema-v1.md) ([日本語](docs/live-result-schema-v1.ja.md))
 - [Live result artifact schema v2](docs/live-result-schema-v2.md) ([日本語](docs/live-result-schema-v2.ja.md))
+- [Suite manifest v1](docs/suite-manifest-v1.md) ([日本語](docs/suite-manifest-v1.ja.md))
 - [Current real-client protocol-era observations](docs/protocol-era-observations.md) ([日本語](docs/protocol-era-observations.ja.md))
 - [Troubleshooting](docs/troubleshooting.md) ([日本語](docs/troubleshooting.ja.md))
 - [Reason codes](docs/reason-codes.md) ([日本語](docs/reason-codes.ja.md))
