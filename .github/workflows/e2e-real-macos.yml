@@ -4,10 +4,18 @@ on:
   workflow_dispatch:
     inputs:
       clients:
-        description: Comma-separated real clients to test
+        description: Real clients to test
         required: true
         default: codex,cursor,antigravity
-        type: string
+        type: choice
+        options:
+          - codex,cursor,antigravity
+          - codex,cursor
+          - codex,antigravity
+          - cursor,antigravity
+          - codex
+          - cursor
+          - antigravity
 
 permissions:
   contents: read
@@ -22,11 +30,29 @@ env:
 jobs:
   real-client-e2e:
     name: real clients (self-hosted macOS arm64)
+    if: >-
+      ${{
+        github.event_name == 'workflow_dispatch' &&
+        github.repository == 'git-ksk/mcp-interop' &&
+        github.ref == 'refs/heads/main' &&
+        github.workflow_ref == 'git-ksk/mcp-interop/.github/workflows/e2e-real-macos.yml@refs/heads/main' &&
+        github.workflow_sha == github.sha
+      }}
+    environment: real-client-e2e
     runs-on: [self-hosted, macOS, ARM64, mcp-interop-e2e]
     timeout-minutes: 20
     steps:
-      - name: Check out repository
+      - name: Check out exact trusted commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Enforce trusted dispatch boundary
+        shell: bash
+        env:
+          MCP_INTEROP_CLIENTS: ${{ inputs.clients }}
+        run: bash scripts/guard-real-client-e2e.sh
 
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
@@ -34,19 +60,26 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - name: Preflight real clients
+      - name: Record trusted run provenance
         shell: bash
+        env:
+          MCP_INTEROP_CLIENTS: ${{ inputs.clients }}
         run: |
-          set -eu
-          command -v codex
-          command -v cursor-agent || command -v agent
-          command -v agy
-          codex --version
-          (cursor-agent --version || agent --version)
-          agy --version
+          bash scripts/guard-real-client-e2e.sh \
+            --provenance "$RUNNER_TEMP/mcp-interop-real-client-e2e-provenance.json"
+          cat "$RUNNER_TEMP/mcp-interop-real-client-e2e-provenance.json" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Run isolated real-client E2E
         shell: bash
         env:
           MCP_INTEROP_CLIENTS: ${{ inputs.clients }}
         run: bash scripts/e2e-real-clients.sh
+
+      - name: Upload audit provenance
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: real-client-e2e-provenance-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/mcp-interop-real-client-e2e-provenance.json
+          if-no-files-found: warn
+          retention-days: 30

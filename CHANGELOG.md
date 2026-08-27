@@ -18,6 +18,7 @@ All notable project changes will be summarized here. GitHub Releases remain the 
 
 ### Changed
 
+- Hardened the public-repository self-hosted real-client workflow behind manual main-only repository/workflow/SHA guards, a main-only GitHub Environment policy, exact non-credentialed checkout, fixed client choices, and auditable run provenance; remote trusted-suite endpoints remain deliberately disconnected from Actions.
 - Defined public `init` as a backward-compatible projection of MCP protocol readiness rather than a permanent legacy handshake, with non-serialized internal protocol observations that reject fixture-only or unobserved evidence as a source of deployment-specific PASS.
 - Hardened OSS supply-chain defaults with CodeQL default setup, full-SHA GitHub Actions pins maintained by Dependabot, and build-provenance attestations for tagged release artifacts.
 - Added a bilingual milestone/exit-criteria roadmap through the stable-contract gate, including protocol-era handling, deployment-identity privacy, CI trust boundaries, baseline/compatibility-envelope semantics, and an explicit pre-1.0 stabilization buffer; the README now links to the canonical roadmap instead of duplicating a stale release checklist.
