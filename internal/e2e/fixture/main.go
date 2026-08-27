@@ -53,24 +53,30 @@ type requestLog struct {
 }
 
 type fixtureHandler struct {
-	logMu sync.Mutex
-	log   io.Writer
-	oauth oauthFixtureConfig
+	logMu        sync.Mutex
+	log          io.Writer
+	oauth        oauthFixtureConfig
+	protocolMode protocolFixtureMode
 }
 
 func main() {
 	listenAddr := flag.String("listen", "127.0.0.1:0", "loopback address to listen on")
 	readyFile := flag.String("ready-file", "", "write the fixture MCP URL here after listening")
 	logFile := flag.String("log-file", "", "append JSONL request-method records here")
+	protocolMode := flag.String("protocol-mode", string(protocolModeFallback), "fixture protocol mode: fallback, legacy, or modern")
 	flag.Parse()
 
-	if err := run(*listenAddr, *readyFile, *logFile); err != nil {
+	if err := run(*listenAddr, *readyFile, *logFile, *protocolMode); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
 
-func run(listenAddr, readyFile, logFile string) error {
+func run(listenAddr, readyFile, logFile, protocolModeValue string) error {
+	protocolMode, err := parseProtocolFixtureMode(protocolModeValue)
+	if err != nil {
+		return err
+	}
 	if err := requireLoopbackListenAddress(listenAddr); err != nil {
 		return err
 	}
@@ -111,8 +117,10 @@ func run(listenAddr, readyFile, logFile string) error {
 	}
 
 	metadataURL := fmt.Sprintf("http://127.0.0.1:%d%s", addr.Port, protectedResourceMetadataPath)
+	handler := newFixtureHandler(logWriter, endpoint, metadataURL, fixtureReadScope)
+	handler.protocolMode = protocolMode
 	server := &http.Server{
-		Handler:           newFixtureHandler(logWriter, endpoint, metadataURL, fixtureReadScope),
+		Handler:           handler,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
@@ -238,8 +246,25 @@ func (h *fixtureHandler) handle(path, protocolHeader string, request rpcRequest)
 	response := rpcResponse{JSONRPC: "2.0", ID: request.ID}
 	switch request.Method {
 	case "server/discover":
-		response.Result = map[string]any{}
+		switch h.protocolMode {
+		case protocolModeLegacy:
+			response.Error = &rpcError{Code: -32601, Message: "server/discover is unavailable in legacy mode"}
+		case protocolModeModern:
+			if err := validateModernProtocolRequest(protocolVersion); err != nil {
+				response.Error = &rpcError{Code: -32600, Message: err.Error()}
+			} else {
+				response.Result = modernDiscoveryResult()
+			}
+		default:
+			// An intentionally non-definitive discovery response exercises clients
+			// that probe modern MCP and then safely fall back to legacy initialize.
+			response.Result = map[string]any{}
+		}
 	case "initialize":
+		if h.protocolMode == protocolModeModern {
+			response.Error = &rpcError{Code: -32601, Message: "initialize is unavailable in modern mode"}
+			break
+		}
 		var params struct {
 			ProtocolVersion string `json:"protocolVersion"`
 		}
@@ -259,6 +284,18 @@ func (h *fixtureHandler) handle(path, protocolHeader string, request rpcRequest)
 			},
 		}
 	case "tools/list":
+		if h.protocolMode == protocolModeModern {
+			if err := validateModernProtocolRequest(protocolVersion); err != nil {
+				response.Error = &rpcError{Code: -32600, Message: err.Error()}
+				break
+			}
+			response.Result = map[string]any{
+				"tools":      fixtureTools(),
+				"ttlMs":      0,
+				"cacheScope": "private",
+			}
+			break
+		}
 		response.Result = map[string]any{"tools": fixtureTools()}
 	case "tools/call":
 		response.Result, response.Error = h.handleToolCall(request.Params)

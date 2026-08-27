@@ -81,6 +81,27 @@ future real-client surfaceが直接revisionを返すまではproduction-run revi
 4. fixture-only protocol evidenceにはfixture evidenceであることを明示し、本番runをupgradeしてはいけない
 5. Antigravityで観測した`2026-07-28` probe -> legacy fallbackを、modern-era semantics完成前に#101 fixture matrixで明示的にcoverする
 
+## controlled protocol-era fixture matrix
+
+Issue #101では、fixtureをdeployment-specific evidenceへ昇格させずにprotocol-aware behaviorを検証するため、3つのmodeを明示します。
+
+| Mode | controlled behavior | 目的 |
+| --- | --- | --- |
+| `legacy` | `server/discover`をrejectし、handshake revisionは`initialize`、`notifications/initialized`、`tools/list`を利用できる | legacy readiness projectionを維持できることを証明する |
+| `modern` | legacy `initialize`をrejectし、`server/discover`と`tools/list`には明示的な`2026-07-28` request version evidenceを要求する。discovery/list responseには保守的なcache hintを付ける | handshakeを捏造せずstateless modern readinessを証明する |
+| `fallback` | `server/discover`へ意図的にnon-definitiveなresponseを返し、その後legacy initializeを利用できる | 現在のAntigravityで観測したmodern probe -> legacy fallbackのような安全なfallbackを再現する |
+
+core interoperability proofで`tools/call`は不要です。modern protocol versionが無い、またはunsupportedな場合はmodern successへ暗黙変換せずrejectします。
+
+real-client release gateもprotocol-era-awareにします。controlled fixture readinessがPASSになるのは次のどちらかだけです。
+
+- completeなlegacy `initialize -> notifications/initialized -> tools/list`を観測した場合
+- `tools/list`自体に明示的な`2026-07-28` protocol evidenceがある場合
+
+modern `server/discover` probeだけでは不足です。adapter自身はdeployment-specificなreal-client surfaceから独立してPASSする必要があり、fixture evidenceはrelease gate / self-test evidenceのままです。
+
+現在の製品に関係しないhistorical remote HTTP/SSE variantをcoverage数のためだけに追加しません。matrixは現在のRemote MCP scopeと、shipping clientで観測済みまたは想定されるprotocol eraへ集中します。
+
 ## 主張しないこと
 
 この再観測では次を主張しません。

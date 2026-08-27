@@ -168,6 +168,33 @@ method_seen() {
   grep -Fq "\"path\":\"$path\",\"method\":\"$method\"" "$fixture_log"
 }
 
+method_protocol_seen() {
+  local path="$1"
+  local method="$2"
+  local version="$3"
+  grep -F "\"path\":\"$path\",\"method\":\"$method\"" "$fixture_log" \
+    | grep -Fq "\"protocol_version\":\"$version\""
+}
+
+fixture_protocol_readiness() {
+  local path="$1"
+
+  if method_protocol_seen "$path" 'tools/list' '2026-07-28'; then
+    printf '%s\n' modern
+    return 0
+  fi
+
+  if method_seen "$path" initialize \
+    && method_seen "$path" notifications/initialized \
+    && method_seen "$path" tools/list; then
+    printf '%s\n' legacy
+    return 0
+  fi
+
+  printf '%s\n' unknown
+  return 1
+}
+
 print_protocol_observations() {
   local path="$1"
   local client="$2"
@@ -278,12 +305,10 @@ for client in "${clients[@]}"; do
 
   path="/mcp/$client"
   protocol_ok=1
-  for method in initialize notifications/initialized tools/list; do
-    if ! method_seen "$path" "$method"; then
-      echo "$client: fixture did not observe $method" >&2
-      protocol_ok=0
-    fi
-  done
+  protocol_era="$(fixture_protocol_readiness "$path")" || protocol_ok=0
+  if [[ "$protocol_ok" -ne 1 ]]; then
+    echo "$client: fixture did not observe a complete legacy or modern protocol-readiness path" >&2
+  fi
   if method_seen "$path" 'tools/call'; then
     echo "$client: unexpected tools/call observed; core E2E must not invoke tools" >&2
     protocol_ok=0
@@ -293,9 +318,9 @@ for client in "${clients[@]}"; do
   print_protocol_observations "$path" "$client"
 
   if [[ "$rc" -eq 0 && "$protocol_ok" -eq 1 ]]; then
-    printf '%s\tPASS\tlive initialize + initialized + tools/list\n' "$client" >> "$status_file"
+    printf '%s\tPASS\tfixture %s protocol readiness + real-client adapter PASS\n' "$client" "$protocol_era" >> "$status_file"
   else
-    printf '%s\tFAIL\trc=%s protocol_ok=%s\n' "$client" "$rc" "$protocol_ok" >> "$status_file"
+    printf '%s\tFAIL\trc=%s protocol_ok=%s protocol_era=%s\n' "$client" "$rc" "$protocol_ok" "$protocol_era" >> "$status_file"
     overall_fail=1
   fi
 done

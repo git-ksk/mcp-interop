@@ -79,6 +79,27 @@ These observations constrain the protocol-aware core design:
 4. fixture-only protocol evidence must stay tagged as fixture evidence and must never upgrade a production run;
 5. Antigravity's observed `2026-07-28` probe followed by legacy fallback must be covered explicitly by the #101 fixture matrix before modern-era semantics are considered complete.
 
+## Controlled protocol-era fixture matrix
+
+Issue #101 adds three explicit fixture modes so protocol-aware behavior is tested without turning the fixture into deployment-specific evidence:
+
+| Mode | Controlled behavior | Purpose |
+| --- | --- | --- |
+| `legacy` | `server/discover` is rejected; handshake revisions can use `initialize`, `notifications/initialized`, and `tools/list`. | Prove the legacy readiness projection remains supported. |
+| `modern` | legacy `initialize` is rejected; `server/discover` and `tools/list` require explicit `2026-07-28` request version evidence. Discovery and list responses include conservative cache hints. | Prove stateless modern readiness without inventing a handshake. |
+| `fallback` | `server/discover` returns a deliberately non-definitive response, then legacy initialization remains available. | Reproduce a safe modern-probe-to-legacy fallback such as the current Antigravity observation. |
+
+The matrix never needs `tools/call` for the core interoperability proof. Unsupported/missing modern protocol versions are rejected instead of being silently normalized to modern success.
+
+The real-client release gate is also protocol-era-aware. Controlled fixture readiness passes only when either:
+
+- a complete legacy `initialize -> notifications/initialized -> tools/list` path is observed; or
+- `tools/list` itself carries explicit `2026-07-28` protocol evidence.
+
+A modern `server/discover` probe by itself is not enough. The adapter must independently PASS from its deployment-specific real-client surface, and fixture evidence remains release-gate/self-test evidence only.
+
+Historical remote HTTP/SSE variants that have no current product relevance are not added merely for coverage count; the matrix targets the current Remote MCP scope and the protocol eras observed or expected for shipping clients.
+
 ## Non-claims
 
 This re-observation does not:
