@@ -4,21 +4,28 @@ All notable project changes will be summarized here. GitHub Releases remain the 
 
 ## Unreleased
 
+## v0.7.0 — 2026-08-28
+
 ### Added
 
 - Added suite-level evidence-derived regression reports that retain every retry attempt, preserve stage/reason/client-version changes, mark mixed attempts unstable instead of letting a later PASS erase earlier failure evidence, and provide deterministic CI gating.
 - Added trusted suite execution with deterministic target/client expansion, all-endpoint preflight, atomic result-set directories, schema-v2 per-run artifacts, and a secret-safe suite index that preserves non-PASS/missing-client evidence.
-- Added strict suite manifest v1 validation for the v0.7 regression-workflow foundation: manifests contain no endpoint URL values, hosted fixture declarations cannot request OAuth/network targets, and trusted real-client declarations use target-derived environment references plus non-secret deployment IDs.
-- Added explicit `legacy`, `modern`, and modern-probe-to-legacy `fallback` controlled fixture modes plus a protocol-era-aware real-client release gate that accepts modern readiness only when `tools/list` carries explicit `2026-07-28` evidence.
-- Added structured controlled-fixture protocol-version observations and bilingual current-client evidence notes for the v0.6 protocol-aware core work, while keeping fixture wire evidence separate from deployment-specific adapter evidence.
-
-### Added
-
-- Added portable artifact schema v2 protected-path identity via `--deployment-id`, keeping credential-bearing URL paths out of artifacts and ordinary captured result output while preserving schema v1 as the default. v1/v2 cross-schema comparison is rejected explicitly instead of guessing an identity mapping.
+- Added strict suite manifest v1 validation for the repeatable regression workflow: manifests contain no endpoint URL values, hosted fixture declarations cannot request OAuth/network targets, and trusted real-client declarations use target-derived environment references plus non-secret deployment IDs.
 
 ### Changed
 
 - Hardened the public-repository self-hosted real-client workflow behind manual main-only repository/workflow/SHA guards, a main-only GitHub Environment policy, exact non-credentialed checkout, fixed client choices, and auditable run provenance; remote trusted-suite endpoints remain deliberately disconnected from Actions.
+
+## v0.6.0 — 2026-08-28
+
+### Added
+
+- Added explicit `legacy`, `modern`, and modern-probe-to-legacy `fallback` controlled fixture modes plus a protocol-era-aware real-client release gate that accepts modern readiness only when `tools/list` carries explicit `2026-07-28` evidence.
+- Added structured controlled-fixture protocol-version observations and bilingual current-client evidence notes for the protocol-aware core work, while keeping fixture wire evidence separate from deployment-specific adapter evidence.
+- Added portable artifact schema v2 protected-path identity via `--deployment-id`, keeping credential-bearing URL paths out of artifacts and ordinary captured result output while preserving schema v1 as the default. v1/v2 cross-schema comparison is rejected explicitly instead of guessing an identity mapping.
+
+### Changed
+
 - Defined public `init` as a backward-compatible projection of MCP protocol readiness rather than a permanent legacy handshake, with non-serialized internal protocol observations that reject fixture-only or unobserved evidence as a source of deployment-specific PASS.
 - Hardened OSS supply-chain defaults with CodeQL default setup, full-SHA GitHub Actions pins maintained by Dependabot, and build-provenance attestations for tagged release artifacts.
 - Added a bilingual milestone/exit-criteria roadmap through the stable-contract gate, including protocol-era handling, deployment-identity privacy, CI trust boundaries, baseline/compatibility-envelope semantics, and an explicit pre-1.0 stabilization buffer; the README now links to the canonical roadmap instead of duplicating a stale release checklist.
