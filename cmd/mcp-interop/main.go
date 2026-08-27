@@ -23,7 +23,7 @@ const usageText = `mcp-interop - live interoperability testing for Remote MCP se
 
 Usage:
   mcp-interop clients [--json]
-  mcp-interop test <url> [--client codex,cursor,antigravity] [--oauth] [--json] [--output result.json]
+  mcp-interop test <url> [--client codex,cursor,antigravity] [--oauth] [--json] [--output result.json] [--deployment-id <id>]
   mcp-interop compare <old.json> <new.json> [--json] [--fail-on-regression]
   mcp-interop diagnose <url> [--profile chatgpt] [--client-id <url>] [--redirect-uri <url>] [--runtime-evidence <file|->] [--json]
   mcp-interop evidence <validate|summary|merge> ...
@@ -40,7 +40,8 @@ Commands:
 
 Test options:
   --oauth          Opt in to interactive OAuth where the live adapter supports it (Codex, Cursor, and Antigravity on macOS).
-  --output <file>  Write a separate secret-safe portable live-result artifact without changing stdout JSON/text.
+  --output <file>       Write a separate secret-safe portable live-result artifact without changing stdout JSON/text.
+  --deployment-id <id>  Use schema v2 protected-path identity. The ID is persisted verbatim and must be non-secret; requires --output.
 
 Compare options:
   --json                Print a machine-readable comparison report.
@@ -147,12 +148,13 @@ func runClients(ctx context.Context, args []string) int {
 }
 
 type testOptions struct {
-	endpoint string
-	clients  []string
-	json     bool
-	oauth    bool
-	output   string
-	showHelp bool
+	endpoint     string
+	clients      []string
+	json         bool
+	oauth        bool
+	output       string
+	deploymentID string
+	showHelp     bool
 }
 
 func runTest(ctx context.Context, args []string) int {
@@ -164,6 +166,15 @@ func runTest(ctx context.Context, args []string) int {
 	if options.showHelp {
 		fmt.Print(usageText)
 		return 0
+	}
+
+	var protectedEndpoint artifact.EndpointIdentity
+	if options.deploymentID != "" {
+		protectedEndpoint, err = artifact.NewProtectedEndpointIdentity(options.endpoint, options.deploymentID)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "protected-path artifact identity: %v\n", err)
+			return 2
+		}
 	}
 
 	results := make([]interop.Result, 0, len(options.clients))
@@ -254,14 +265,25 @@ func runTest(ctx context.Context, args []string) int {
 		}
 	}
 
+	outputResults := results
+	if options.deploymentID != "" {
+		outputResults = make([]interop.Result, len(results))
+		copy(outputResults, results)
+		for i := range outputResults {
+			// Protected-path mode must not echo a credential-bearing path into
+			// ordinary text/JSON output that is commonly captured by CI logs.
+			outputResults[i].Endpoint = protectedEndpoint.Origin
+		}
+	}
+
 	if options.json {
 		encoder := json.NewEncoder(os.Stdout)
 		encoder.SetIndent("", "  ")
-		if err := encoder.Encode(results); err != nil {
+		if err := encoder.Encode(outputResults); err != nil {
 			fmt.Fprintf(os.Stderr, "encode result: %v\n", err)
 			return 1
 		}
-	} else if err := printTestResults(results); err != nil {
+	} else if err := printTestResults(outputResults); err != nil {
 		fmt.Fprintf(os.Stderr, "write result: %v\n", err)
 		return 1
 	}
@@ -274,14 +296,24 @@ func runTest(ctx context.Context, args []string) int {
 		versionInfo := currentVersionInfo()
 		runs := make([]artifact.Run, 0, len(results))
 		for i, result := range results {
-			run, err := artifact.NewRun(result, executedAt[i], authMode, provenance[i], versionInfo.Version, versionInfo.Commit)
+			var run artifact.Run
+			var err error
+			if options.deploymentID != "" {
+				run, err = artifact.NewRunV2ProtectedPath(result, options.endpoint, options.deploymentID, executedAt[i], authMode, provenance[i], versionInfo.Version, versionInfo.Commit)
+			} else {
+				run, err = artifact.NewRun(result, executedAt[i], authMode, provenance[i], versionInfo.Version, versionInfo.Commit)
+			}
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "build portable artifact: %v\n", err)
 				return 1
 			}
 			runs = append(runs, run)
 		}
-		if err := artifact.WriteFile(options.output, artifact.NewArtifact(runs)); err != nil {
+		value := artifact.NewArtifact(runs)
+		if options.deploymentID != "" {
+			value = artifact.NewArtifactV2(runs)
+		}
+		if err := artifact.WriteFile(options.output, value); err != nil {
 			fmt.Fprintf(os.Stderr, "write portable artifact: %v\n", err)
 			return 1
 		}
@@ -326,6 +358,14 @@ func parseTestOptions(args []string) (testOptions, error) {
 			if options.output == "" {
 				return options, fmt.Errorf("--output requires a non-empty file path")
 			}
+		case arg == "--deployment-id":
+			if i+1 >= len(args) {
+				return options, fmt.Errorf("--deployment-id requires a value")
+			}
+			i++
+			options.deploymentID = args[i]
+		case strings.HasPrefix(arg, "--deployment-id="):
+			options.deploymentID = strings.TrimPrefix(arg, "--deployment-id=")
 		case arg == "--client":
 			if i+1 >= len(args) {
 				return options, fmt.Errorf("--client requires a value")
@@ -365,6 +405,14 @@ func parseTestOptions(args []string) (testOptions, error) {
 	}
 	if strings.TrimSpace(options.output) != options.output {
 		return options, fmt.Errorf("--output path must not have surrounding whitespace")
+	}
+	if options.deploymentID != "" {
+		if options.output == "" {
+			return options, fmt.Errorf("--deployment-id requires --output")
+		}
+		if err := artifact.ValidateDeploymentID(options.deploymentID); err != nil {
+			return options, fmt.Errorf("invalid --deployment-id: %w", err)
+		}
 	}
 	return options, nil
 }

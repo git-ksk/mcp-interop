@@ -20,7 +20,10 @@ import (
 )
 
 const (
-	SchemaVersion = 1
+	SchemaVersionV1 = 1
+	SchemaVersionV2 = 2
+	// SchemaVersion remains the v1 default for backward-compatible callers.
+	SchemaVersion = SchemaVersionV1
 	ArtifactType  = "mcp-interop/live-results"
 
 	maxArtifactFileBytes = 4 << 20
@@ -51,8 +54,10 @@ type Run struct {
 }
 
 type EndpointIdentity struct {
-	Identity    string `json:"identity"`
-	Fingerprint string `json:"fingerprint"`
+	Identity     string `json:"identity"`
+	Fingerprint  string `json:"fingerprint"`
+	IdentityKind string `json:"identity_kind,omitempty"`
+	Origin       string `json:"origin,omitempty"`
 }
 
 type ClientIdentity struct {
@@ -100,7 +105,10 @@ func NewRun(result interop.Result, executedAt time.Time, authMode string, proven
 	if err != nil {
 		return Run{}, err
 	}
+	return newRunWithEndpoint(result, endpoint, executedAt, authMode, provenance, runnerVersion, runnerCommit, SchemaVersionV1)
+}
 
+func newRunWithEndpoint(result interop.Result, endpoint EndpointIdentity, executedAt time.Time, authMode string, provenance EvidenceProvenance, runnerVersion, runnerCommit string, schemaVersion int) (Run, error) {
 	stages := make([]StageResult, 0, len(result.Stages))
 	for _, stage := range result.Stages {
 		stages = append(stages, StageResult{
@@ -128,7 +136,16 @@ func NewRun(result interop.Result, executedAt time.Time, authMode string, proven
 		EvidenceProvenance: provenance,
 		Stages:             stages,
 	}
-	if err := ValidateRun(run); err != nil {
+	var err error
+	switch schemaVersion {
+	case SchemaVersionV1:
+		err = ValidateRun(run)
+	case SchemaVersionV2:
+		err = ValidateRunV2ProtectedPath(run)
+	default:
+		err = fmt.Errorf("unsupported schema_version %d", schemaVersion)
+	}
+	if err != nil {
 		return Run{}, err
 	}
 	return run, nil
@@ -173,21 +190,29 @@ func NewEndpointIdentity(raw string) (EndpointIdentity, error) {
 }
 
 func ValidateArtifact(value Artifact) error {
-	if value.SchemaVersion != SchemaVersion {
-		return fmt.Errorf("unsupported schema_version %d", value.SchemaVersion)
-	}
 	if value.ArtifactType != ArtifactType {
 		return fmt.Errorf("unsupported artifact_type %q", value.ArtifactType)
 	}
+	switch value.SchemaVersion {
+	case SchemaVersionV1:
+		return validateArtifactRuns(value, ValidateRun)
+	case SchemaVersionV2:
+		return validateArtifactRuns(value, ValidateRunV2ProtectedPath)
+	default:
+		return fmt.Errorf("unsupported schema_version %d", value.SchemaVersion)
+	}
+}
+
+func validateArtifactRuns(value Artifact, validateRun func(Run) error) error {
 	if len(value.Runs) == 0 {
 		return errors.New("artifact must contain at least one run")
 	}
 	seen := make(map[string]struct{}, len(value.Runs))
 	for i, run := range value.Runs {
-		if err := ValidateRun(run); err != nil {
+		if err := validateRun(run); err != nil {
 			return fmt.Errorf("runs[%d]: %w", i, err)
 		}
-		key := ComparisonKey(run)
+		key := ComparisonKeyForSchema(run, value.SchemaVersion)
 		if _, ok := seen[key]; ok {
 			return fmt.Errorf("runs[%d]: duplicate comparison identity", i)
 		}
@@ -197,6 +222,26 @@ func ValidateArtifact(value Artifact) error {
 }
 
 func ValidateRun(run Run) error {
+	if err := validateRunCommon(run); err != nil {
+		return err
+	}
+	if run.Endpoint.IdentityKind != "" || run.Endpoint.Origin != "" {
+		return errors.New("v1 endpoint must not contain v2 identity fields")
+	}
+	expectedEndpoint, err := NewEndpointIdentity(run.Endpoint.Identity)
+	if err != nil {
+		return fmt.Errorf("endpoint identity: %w", err)
+	}
+	if expectedEndpoint.Identity != run.Endpoint.Identity {
+		return errors.New("endpoint identity is not canonical secret-safe form")
+	}
+	if expectedEndpoint.Fingerprint != run.Endpoint.Fingerprint {
+		return errors.New("endpoint fingerprint does not match identity")
+	}
+	return nil
+}
+
+func validateRunCommon(run Run) error {
 	if run.ExecutedAt.IsZero() {
 		return errors.New("executed_at is required")
 	}
@@ -215,17 +260,6 @@ func ValidateRun(run Run) error {
 	}
 	if run.AuthMode == "" {
 		return errors.New("auth_mode is required")
-	}
-
-	expectedEndpoint, err := NewEndpointIdentity(run.Endpoint.Identity)
-	if err != nil {
-		return fmt.Errorf("endpoint identity: %w", err)
-	}
-	if expectedEndpoint.Identity != run.Endpoint.Identity {
-		return errors.New("endpoint identity is not canonical secret-safe form")
-	}
-	if expectedEndpoint.Fingerprint != run.Endpoint.Fingerprint {
-		return errors.New("endpoint fingerprint does not match identity")
 	}
 
 	switch run.EvidenceProvenance.Kind {
@@ -264,9 +298,15 @@ func ValidateRun(run Run) error {
 	return nil
 }
 
-// ComparisonKey pairs runs while deliberately excluding client version and
+// ComparisonKey pairs v1 runs while deliberately excluding client version and
 // runner/runtime version so version-only changes do not become regressions.
 func ComparisonKey(run Run) string {
+	return ComparisonKeyForSchema(run, SchemaVersionV1)
+}
+
+// ComparisonKeyForSchema uses only the identity semantics defined by the
+// artifact's schema version. Callers must validate the artifact first.
+func ComparisonKeyForSchema(run Run, schemaVersion int) string {
 	parts := []string{
 		run.Endpoint.Fingerprint,
 		run.Client.ID,

@@ -133,15 +133,24 @@ Antigravity CLI  PASS   PASS  PASS  PASS   1.1.11
 
 ## 実行結果を保存・比較する
 
-同じlive runを、標準出力を変えずに、バージョン付き・秘密情報を含まないローカルartifactへ保存できます。
+同じlive runを、既存の結果shapeを変えずに、バージョン付き・秘密情報を含まないローカルartifactへ保存できます。
 
 ```console
 mcp-interop test https://example.com/mcp --client codex --output result.json
 ```
 
-artifactには、実際に検出したクライアントバージョン、OS/architecture、`mcp-interop`の実行環境、認証モード、証拠の出所、4段階の結果とreason codeを保存します。
+このdefaultは従来どおりartifact schema v1です。実際に検出したクライアントバージョン、OS/architecture、`mcp-interop`の実行環境、認証モード、証拠の出所、4段階の結果とreason codeを保存します。raw endpoint URLは保存せず、query値を除外した識別情報を使います。
 
-raw endpoint URLは保存しません。query値を除外した安全な識別情報だけを使います。
+endpoint path自体にcredentialが含まれる場合はv1をexportせず、schema v2 protected-path identityを使います。
+
+```console
+mcp-interop test 'https://example.com/mcp/<protected-path>' \
+  --client codex \
+  --output result.json \
+  --deployment-id production-a
+```
+
+deployment IDはそのまま保存されるため、operatorが決めた安定した非secret labelでなければなりません。protected pathから派生させてはいけません。このmodeではcanonical originとdeployment IDだけをartifactへ保存し、path/query/userinfo/fragmentは保存もhashもしません。通常のtext/JSON出力でもprotected pathを再表示しません。v1↔v2比較はidentity mappingを推測せず明示的にrejectします。
 
 結果を比較:
 
@@ -161,7 +170,7 @@ mcp-interop compare old.json new.json --fail-on-regression
 
 クライアントのバージョンが変わっただけでは退行扱いにしません。
 
-詳しい仕様は[Live interoperability result artifact schema v1](docs/live-result-schema-v1.ja.md)を参照してください。
+詳しい仕様は[Live interoperability result artifact schema v1](docs/live-result-schema-v1.ja.md)と[artifact schema v2 protected-path identity](docs/live-result-schema-v2.ja.md)を参照してください。
 
 ## OAuth認証
 
@@ -349,6 +358,7 @@ MCP_INTEROP_CLIENTS=codex,cursor bash scripts/e2e-real-clients.sh
 - [Roadmap / ロードマップ](docs/roadmap.ja.md)
 - [MCP Conformanceとの違い](docs/conformance-vs-interop.ja.md)
 - [Live result artifact schema v1](docs/live-result-schema-v1.ja.md)
+- [Live result artifact schema v2](docs/live-result-schema-v2.ja.md)
 - [トラブルシューティング](docs/troubleshooting.ja.md)
 - [Reason code](docs/reason-codes.ja.md)
 - [ChatGPT接続診断](docs/chatgpt-diagnostics.ja.md)

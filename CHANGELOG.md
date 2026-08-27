@@ -4,11 +4,15 @@ All notable project changes will be summarized here. GitHub Releases remain the 
 
 ## Unreleased
 
+### Added
+
+- Added portable artifact schema v2 protected-path identity via `--deployment-id`, keeping credential-bearing URL paths out of artifacts and ordinary captured result output while preserving schema v1 as the default. v1/v2 cross-schema comparison is rejected explicitly instead of guessing an identity mapping.
+
 ### Changed
 
 - Hardened OSS supply-chain defaults with CodeQL default setup, full-SHA GitHub Actions pins maintained by Dependabot, and build-provenance attestations for tagged release artifacts.
 - Added a bilingual milestone/exit-criteria roadmap through the stable-contract gate, including protocol-era handling, deployment-identity privacy, CI trust boundaries, baseline/compatibility-envelope semantics, and an explicit pre-1.0 stabilization buffer; the README now links to the canonical roadmap instead of duplicating a stale release checklist.
-- Clarified portable artifact schema v1: URL paths remain part of deployment identity and therefore must be non-secret; protected-path deployments require a future explicit non-secret identity/schema design tracked in issue #87. Recovery from a non-PASS stage to PASS remains visible in comparison output but is not a regression solely because its failure reason disappears.
+- Clarified portable artifact schema v1: URL paths remain part of deployment identity and therefore must be non-secret; protected-path deployments can use schema v2 with an explicit non-secret deployment ID. Recovery from a non-PASS stage to PASS remains visible in comparison output but is not a regression solely because its failure reason disappears.
 
 ### Fixed
 

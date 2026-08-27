@@ -81,7 +81,7 @@ http(s)://lowercase-host[:explicit-port]/path
 
 User information, query parameters, query values, and fragments are excluded. Query values are excluded even when their parameter names are not recognized as credential-like by legacy redaction.
 
-**Schema v1 assumes the URL path itself is non-secret.** If a deployment embeds an API key, bearer-like token, signed capability, or other credential in the path (for example `https://example.com/mcp/<opaque-secret>`), do not export a v1 portable artifact for that endpoint. Prefer normal MCP/OAuth authentication rather than path credentials. Artifact v2 will address protected-path deployments with an explicit non-secret deployment identity; see issue #87.
+**Schema v1 assumes the URL path itself is non-secret.** If a deployment embeds an API key, bearer-like token, signed capability, or other credential in the path (for example `https://example.com/mcp/<opaque-secret>`), do not export a v1 portable artifact for that endpoint. Prefer normal MCP/OAuth authentication rather than path credentials. Schema v2 addresses protected-path deployments with an explicit non-secret deployment identity; see [artifact schema v2](live-result-schema-v2.md).
 
 `endpoint.fingerprint` is SHA-256 of the persisted v1 identity, prefixed with `sha256:`. The complete raw URL, including its removed query/userinfo/fragment components, is never hashed. Because the path is part of v1 identity, the same non-secret-path assumption applies to the fingerprint.
 

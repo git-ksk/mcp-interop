@@ -61,7 +61,10 @@ func TestWriteComparisonShowsMachineReasonInHumanOutput(t *testing.T) {
 	newRun := cliTestRun(t, "2.0.0")
 	newRun.Stages[1].Status = interop.StatusFail
 	newRun.Stages[1].ReasonCode = interop.ReasonDCRUnsupported
-	report := interopcompare.Artifacts(artifact.NewArtifact([]artifact.Run{oldRun}), artifact.NewArtifact([]artifact.Run{newRun}))
+	report, err := interopcompare.Artifacts(artifact.NewArtifact([]artifact.Run{oldRun}), artifact.NewArtifact([]artifact.Run{newRun}))
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	var output bytes.Buffer
 	if err := writeComparison(&output, report); err != nil {

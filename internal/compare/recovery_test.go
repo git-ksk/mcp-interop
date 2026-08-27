@@ -15,7 +15,7 @@ func TestArtifactsRecoveryToPassIsNotRegression(t *testing.T) {
 	newRun.Stages[1].Status = interop.StatusPass
 	newRun.Stages[1].ReasonCode = ""
 
-	report := Artifacts(artifact.NewArtifact([]artifact.Run{oldRun}), artifact.NewArtifact([]artifact.Run{newRun}))
+	report := mustArtifacts(t, artifact.NewArtifact([]artifact.Run{oldRun}), artifact.NewArtifact([]artifact.Run{newRun}))
 	if report.HasRegression {
 		t.Fatalf("FAIL-to-PASS recovery must not be a regression: %#v", report)
 	}
@@ -39,7 +39,7 @@ func TestArtifactsReasonChangeOnContinuedFailureStillRegresses(t *testing.T) {
 	oldRun.Stages[1].ReasonCode = interop.ReasonDCRUnsupported
 	newRun.Stages[1].ReasonCode = interop.ReasonDCRFailed
 
-	report := Artifacts(artifact.NewArtifact([]artifact.Run{oldRun}), artifact.NewArtifact([]artifact.Run{newRun}))
+	report := mustArtifacts(t, artifact.NewArtifact([]artifact.Run{oldRun}), artifact.NewArtifact([]artifact.Run{newRun}))
 	if !report.HasRegression || !contains(report.Runs[0].RegressionKinds, RegressionReasonChanged) {
 		t.Fatalf("continued failure reason change must remain a regression: %#v", report)
 	}

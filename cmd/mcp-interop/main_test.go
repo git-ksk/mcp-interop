@@ -173,3 +173,36 @@ func TestWriteTestResultsSingleClientDoesNotPrintSummary(t *testing.T) {
 		t.Fatalf("single-client output unexpectedly contains summary:\n%s", output.String())
 	}
 }
+
+func TestParseTestOptionsAcceptsProtectedPathDeploymentID(t *testing.T) {
+	options, err := parseTestOptions([]string{
+		"https://example.com/mcp/protected-secret",
+		"--output", "result.json",
+		"--deployment-id", "production-a",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if options.deploymentID != "production-a" || options.output != "result.json" {
+		t.Fatalf("unexpected protected-path options: %#v", options)
+	}
+}
+
+func TestParseTestOptionsRejectsDeploymentIDWithoutOutput(t *testing.T) {
+	if _, err := parseTestOptions([]string{
+		"https://example.com/mcp/protected-secret",
+		"--deployment-id", "production-a",
+	}); err == nil || !strings.Contains(err.Error(), "requires --output") {
+		t.Fatalf("expected --deployment-id/--output validation error, got %v", err)
+	}
+}
+
+func TestParseTestOptionsRejectsUnsafeDeploymentIDSyntax(t *testing.T) {
+	if _, err := parseTestOptions([]string{
+		"https://example.com/mcp/protected-secret",
+		"--output", "result.json",
+		"--deployment-id", "production/a",
+	}); err == nil || !strings.Contains(err.Error(), "invalid --deployment-id") {
+		t.Fatalf("expected deployment-id syntax error, got %v", err)
+	}
+}

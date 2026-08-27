@@ -101,7 +101,7 @@ http(s)://lowercase-host[:explicit-port]/path
 
 query parameter名が秘密情報らしく見えなくても、query値は例外なく削除します。
 
-**schema v1はURL path自体が秘密情報ではないことを前提にします。** たとえば`https://example.com/mcp/<opaque-secret>`のようにAPI key、bearer相当token、signed capabilityなどをpathへ埋め込むdeploymentでは、そのendpointのv1 portable artifactをexportしないでください。credentialはpathではなく通常のMCP/OAuth認証で扱うことを推奨します。protected path対応は、明示的な非secret deployment identityを持つartifact v2としてIssue #87で設計します。
+**schema v1はURL path自体が秘密情報ではないことを前提にします。** たとえば`https://example.com/mcp/<opaque-secret>`のようにAPI key、bearer相当token、signed capabilityなどをpathへ埋め込むdeploymentでは、そのendpointのv1 portable artifactをexportしないでください。credentialはpathではなく通常のMCP/OAuth認証で扱うことを推奨します。protected pathには、明示的な非secret deployment identityを持つ[artifact schema v2](live-result-schema-v2.ja.md)を使ってください。
 
 `endpoint.fingerprint`は、artifactへ保存するv1 identityのSHA-256です。完全なraw URLのうち、除外したquery/userinfo/fragmentはhashしません。一方、pathはv1 identityに含まれるため、fingerprintにも同じ「pathは非secret」という前提が適用されます。
 

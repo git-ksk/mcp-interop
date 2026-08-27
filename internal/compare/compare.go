@@ -1,13 +1,18 @@
 package compare
 
 import (
+	"fmt"
 	"sort"
 
 	"github.com/git-ksk/mcp-interop/internal/artifact"
 	"github.com/git-ksk/mcp-interop/internal/interop"
 )
 
-const ReportSchemaVersion = 1
+const (
+	ReportSchemaVersionV1 = 1
+	ReportSchemaVersionV2 = 2
+	ReportSchemaVersion   = ReportSchemaVersionV1
+)
 
 const (
 	RunCompared   = "compared"
@@ -51,17 +56,21 @@ type StageChange struct {
 	RegressionKinds []string           `json:"regression_kinds,omitempty"`
 }
 
-// Artifacts compares two already-validated v1 artifacts. Baseline runs missing
-// from the new artifact are evidence-loss regressions. New-only runs are kept in
-// the report but are not regressions.
-func Artifacts(oldArtifact, newArtifact artifact.Artifact) Report {
+// Artifacts compares two already-validated artifacts of the same schema.
+// Cross-schema comparison is rejected so v1 and v2 pairing semantics are never
+// mixed implicitly. Baseline runs missing from the new artifact are evidence-loss
+// regressions. New-only runs are kept in the report but are not regressions.
+func Artifacts(oldArtifact, newArtifact artifact.Artifact) (Report, error) {
+	if oldArtifact.SchemaVersion != newArtifact.SchemaVersion {
+		return Report{}, fmt.Errorf("artifact schema mismatch: old=%d new=%d; migrate or regenerate before comparison", oldArtifact.SchemaVersion, newArtifact.SchemaVersion)
+	}
 	oldRuns := make(map[string]artifact.Run, len(oldArtifact.Runs))
 	newRuns := make(map[string]artifact.Run, len(newArtifact.Runs))
 	keys := make([]string, 0, len(oldArtifact.Runs)+len(newArtifact.Runs))
 	seen := make(map[string]bool, len(oldArtifact.Runs)+len(newArtifact.Runs))
 
 	for _, run := range oldArtifact.Runs {
-		key := artifact.ComparisonKey(run)
+		key := artifact.ComparisonKeyForSchema(run, oldArtifact.SchemaVersion)
 		oldRuns[key] = run
 		if !seen[key] {
 			keys = append(keys, key)
@@ -69,7 +78,7 @@ func Artifacts(oldArtifact, newArtifact artifact.Artifact) Report {
 		}
 	}
 	for _, run := range newArtifact.Runs {
-		key := artifact.ComparisonKey(run)
+		key := artifact.ComparisonKeyForSchema(run, newArtifact.SchemaVersion)
 		newRuns[key] = run
 		if !seen[key] {
 			keys = append(keys, key)
@@ -81,7 +90,11 @@ func Artifacts(oldArtifact, newArtifact artifact.Artifact) Report {
 	// deterministic even when artifacts were assembled by another v1 producer.
 	sort.Strings(keys)
 
-	report := Report{SchemaVersion: ReportSchemaVersion, Runs: make([]RunComparison, 0, len(keys))}
+	reportSchemaVersion := ReportSchemaVersionV1
+	if oldArtifact.SchemaVersion == artifact.SchemaVersionV2 {
+		reportSchemaVersion = ReportSchemaVersionV2
+	}
+	report := Report{SchemaVersion: reportSchemaVersion, Runs: make([]RunComparison, 0, len(keys))}
 	for _, key := range keys {
 		oldRun, hadOld := oldRuns[key]
 		newRun, hadNew := newRuns[key]
@@ -116,7 +129,7 @@ func Artifacts(oldArtifact, newArtifact artifact.Artifact) Report {
 			})
 		}
 	}
-	return report
+	return report, nil
 }
 
 func compareRun(oldRun, newRun artifact.Run) RunComparison {
