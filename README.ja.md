@@ -172,16 +172,26 @@ mcp-interop compare old.json new.json --fail-on-regression
 
 詳しい仕様は[Live interoperability result artifact schema v1](docs/live-result-schema-v1.ja.md)と[artifact schema v2 protected-path identity](docs/live-result-schema-v2.ja.md)を参照してください。
 
-## Suite manifest validation
+## Repeatable suite workflow
 
-v0.7 workflowの最初の基盤として、strictかつsecret-safeなsuite宣言をvalidationできます。client起動やendpoint値の解決はまだ行いません。
+v0.7 workflowの基盤として、strictかつsecret-safeなsuite宣言をvalidationできます。validationだけではclient起動やendpoint値の解決を行いません。
 
 ```console
 mcp-interop suite validate suite.json
 mcp-interop suite validate suite.json --json
 ```
 
-Manifest v1にはRemote MCP endpoint URL自体を保存しません。hosted fixture suiteは任意network targetやOAuthを指定できず、trusted real-client suiteはtarget固有の`MCP_INTEROP_SUITE_ENDPOINT_*`変数参照と非secret `deployment_id`を使います。詳細は[Suite manifest v1](docs/suite-manifest-v1.ja.md)を参照してください。
+`trusted_real_client` manifestは、その後に宣言済みtarget/client matrixを実行してschema v2 artifact setへまとめられます。
+
+```console
+export MCP_INTEROP_SUITE_ENDPOINT_PRODUCTION_A='https://example.com/mcp/<protected-path>'
+mcp-interop suite run suite.json --output-dir suite-results
+mcp-interop suite run suite.json --output-dir suite-results-json --json
+```
+
+suiteは最初のclientを起動する前に全endpointを解決・検証し、各runを`mcp-interop test`と同じlive-test経路で実行します。出力は`index.json`とrunごとのprotected-path schema v2 artifactです。indexへendpoint URLやendpoint環境変数名は保存しません。non-PASSや未インストールclientもsetから落とさず、commandはexit `1`になります。manifest不正、endpoint未解決、既存output directoryはclient起動前にexit `2`です。
+
+Manifest v1にはRemote MCP endpoint URL自体を保存しません。hosted fixture suiteは任意network targetやOAuthを指定できず、実際のCI fixture executionは#115までgateします。trusted real-client suiteはtarget固有の`MCP_INTEROP_SUITE_ENDPOINT_*`変数参照と非secret `deployment_id`を使います。詳細は[Suite manifest v1](docs/suite-manifest-v1.ja.md)と[Suite result set v1](docs/suite-result-set-v1.ja.md)を参照してください。
 
 ## OAuth認証
 
@@ -371,6 +381,7 @@ MCP_INTEROP_CLIENTS=codex,cursor bash scripts/e2e-real-clients.sh
 - [Live result artifact schema v1](docs/live-result-schema-v1.ja.md)
 - [Live result artifact schema v2](docs/live-result-schema-v2.ja.md)
 - [Suite manifest v1](docs/suite-manifest-v1.ja.md)
+- [Suite result set v1](docs/suite-result-set-v1.ja.md)
 - [現行real-clientのprotocol-era観測](docs/protocol-era-observations.ja.md)
 - [トラブルシューティング](docs/troubleshooting.ja.md)
 - [Reason code](docs/reason-codes.ja.md)

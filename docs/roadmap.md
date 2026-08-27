@@ -139,7 +139,7 @@ Schema v2 now provides an opaque user-defined target identity such as `productio
 
 ## v0.7.x — Repeatable regression workflow
 
-**GitHub tracking:** [#103](https://github.com/git-ksk/mcp-interop/issues/103), with focused work in [#112](https://github.com/git-ksk/mcp-interop/issues/112), [#113](https://github.com/git-ksk/mcp-interop/issues/113), [#114](https://github.com/git-ksk/mcp-interop/issues/114), and [#115](https://github.com/git-ksk/mcp-interop/issues/115). The milestone is active; #112 is the first implementation dependency, while #115 defines the trust boundary that must hold before privileged suite execution ships.
+**GitHub tracking:** [#103](https://github.com/git-ksk/mcp-interop/issues/103), with focused work in [#112](https://github.com/git-ksk/mcp-interop/issues/112), [#113](https://github.com/git-ksk/mcp-interop/issues/113), [#114](https://github.com/git-ksk/mcp-interop/issues/114), and [#115](https://github.com/git-ksk/mcp-interop/issues/115). The milestone is active; #112 is complete and #113 adds local trusted-suite execution. #115 gates repository self-hosted/privileged CI orchestration before untrusted content can reach that execution path.
 
 ### Goal
 

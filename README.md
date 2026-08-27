@@ -150,7 +150,7 @@ The comparison explicitly reports `PASS_TO_FAIL`, `PASS_TO_UNKNOWN`, `PASS_TO_SK
 
 See [Live interoperability result artifact schema v1](docs/live-result-schema-v1.md) ([日本語](docs/live-result-schema-v1.ja.md)) and [schema v2 protected-path identity](docs/live-result-schema-v2.md) ([日本語](docs/live-result-schema-v2.ja.md)) for the exact compatibility, secret-safety, pairing, and migration contracts.
 
-### Suite manifest validation
+### Repeatable suite workflow
 
 The v0.7 workflow starts with a strict, secret-safe suite declaration. Validate it without launching clients or resolving endpoint values:
 
@@ -159,7 +159,17 @@ mcp-interop suite validate suite.json
 mcp-interop suite validate suite.json --json
 ```
 
-Manifest v1 never stores a Remote MCP endpoint URL. Hosted fixture suites cannot select network targets or OAuth; trusted real-client suites reference a target-specific `MCP_INTEROP_SUITE_ENDPOINT_*` variable and require a non-secret `deployment_id`. See [Suite manifest v1](docs/suite-manifest-v1.md) ([日本語](docs/suite-manifest-v1.ja.md)).
+A `trusted_real_client` manifest can then execute its declared target/client matrix and write a coherent schema-v2 artifact set:
+
+```console
+export MCP_INTEROP_SUITE_ENDPOINT_PRODUCTION_A='https://example.com/mcp/<protected-path>'
+mcp-interop suite run suite.json --output-dir suite-results
+mcp-interop suite run suite.json --output-dir suite-results-json --json
+```
+
+The suite resolves every endpoint before launching the first client, executes each run through the same live-test path used by `mcp-interop test`, and writes `index.json` plus one protected-path schema-v2 artifact per run. The index never stores endpoint URLs or endpoint environment-variable names. A non-PASS/missing-client result remains represented in the set and makes the command exit `1`; invalid manifests, unresolved endpoints, or an existing output directory fail before execution with exit `2`.
+
+Manifest v1 never stores a Remote MCP endpoint URL. Hosted fixture suites cannot select network targets or OAuth; their actual CI fixture execution remains gated by #115. Trusted real-client suites reference a target-specific `MCP_INTEROP_SUITE_ENDPOINT_*` variable and require a non-secret `deployment_id`. See [Suite manifest v1](docs/suite-manifest-v1.md) ([日本語](docs/suite-manifest-v1.ja.md)) and [Suite result set v1](docs/suite-result-set-v1.md) ([日本語](docs/suite-result-set-v1.ja.md)).
 
 OAuth flows are always explicit opt-in:
 
@@ -389,6 +399,7 @@ The runner is expected to have the real Codex, Cursor, and Antigravity CLIs inst
 - [Live result artifact schema v1](docs/live-result-schema-v1.md) ([日本語](docs/live-result-schema-v1.ja.md))
 - [Live result artifact schema v2](docs/live-result-schema-v2.md) ([日本語](docs/live-result-schema-v2.ja.md))
 - [Suite manifest v1](docs/suite-manifest-v1.md) ([日本語](docs/suite-manifest-v1.ja.md))
+- [Suite result set v1](docs/suite-result-set-v1.md) ([日本語](docs/suite-result-set-v1.ja.md))
 - [Current real-client protocol-era observations](docs/protocol-era-observations.md) ([日本語](docs/protocol-era-observations.ja.md))
 - [Troubleshooting](docs/troubleshooting.md) ([日本語](docs/troubleshooting.ja.md))
 - [Reason codes](docs/reason-codes.md) ([日本語](docs/reason-codes.ja.md))
