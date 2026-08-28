@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/git-ksk/mcp-interop/internal/artifact"
+	"github.com/git-ksk/mcp-interop/internal/client"
 	"github.com/git-ksk/mcp-interop/internal/interop"
 )
 
@@ -204,5 +206,27 @@ func TestParseTestOptionsRejectsUnsafeDeploymentIDSyntax(t *testing.T) {
 		"--deployment-id", "production/a",
 	}); err == nil || !strings.Contains(err.Error(), "invalid --deployment-id") {
 		t.Fatalf("expected deployment-id syntax error, got %v", err)
+	}
+}
+
+func TestValidatePortableClientArchitectureRejectsKnownMismatch(t *testing.T) {
+	detection := client.Detection{
+		ID: "codex", Installed: true, ExecutableArchitectures: []string{"amd64"},
+	}
+	if err := validatePortableClientArchitecture(detection, artifact.Platform{OS: "darwin", Arch: "arm64"}); err == nil {
+		t.Fatal("expected known executable/runner architecture mismatch to fail")
+	}
+}
+
+func TestValidatePortableClientArchitectureAllowsMatchingOrUnknown(t *testing.T) {
+	platform := artifact.Platform{OS: "darwin", Arch: "arm64"}
+	for _, detection := range []client.Detection{
+		{ID: "codex", Installed: true, ExecutableArchitectures: []string{"arm64"}},
+		{ID: "codex", Installed: true, ExecutableArchitectures: []string{"amd64", "arm64"}},
+		{ID: "cursor", Installed: true},
+	} {
+		if err := validatePortableClientArchitecture(detection, platform); err != nil {
+			t.Fatalf("detection=%#v: %v", detection, err)
+		}
 	}
 }

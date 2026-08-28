@@ -11,12 +11,14 @@ An observed point is identified by:
 - target ID and non-secret deployment ID;
 - deployment fingerprint from the validated schema-v2 live result;
 - client adapter ID and exact client version string;
-- platform OS and architecture;
+- runner/process platform OS and architecture from the validated live result;
 - auth mode.
 
 Every point retains each contributing observation, including `executed_at`, suite result-set digest, `mcp-interop` runtime identity, real-client adapter provenance, stage/reason evidence, and any regression relationship to an accepted baseline. `executed_at` is wall-clock evidence, not a portable total-order proof across independent runners.
 
 The envelope is scoped to one exact suite manifest fingerprint and execution context. A different manifest, execution context, logical run identity, or deployment fingerprint is rejected rather than silently combined.
+
+`platform` here has the same meaning as in live-result schema v2: it is the `mcp-interop` runner/process platform, not proof of the real client binary architecture. New local evidence creation and installed-client compatibility queries inspect directly recognizable Mach-O/ELF/PE executable metadata and fail closed when a known native executable architecture does not include the runner architecture. Script/wrapper architecture remains unknown and is never inferred from the host. Existing v0.8 artifacts remain readable but cannot retrospectively prove client-binary architecture.
 
 ## States
 
@@ -57,7 +59,7 @@ A gap may still carry regression/evidence-loss information. The implementation d
 
 ## Baseline relationship
 
-When an accepted immutable baseline is supplied, current observations are compared against that baseline only where the evidence is safely comparable. Deployment mismatch fails closed. Platform differences remain distinct observed points rather than being coerced into one point.
+When an accepted immutable baseline is supplied, current observations are compared against that baseline only where the evidence is safely comparable. Deployment mismatch fails closed. Runner-platform differences remain distinct observed points rather than being coerced into one point.
 
 `regressed` is derived only from actual baseline comparison evidence such as PASS-to-FAIL/UNKNOWN/SKIP, reason-code regression, or equivalent retained regression semantics. Merely observing a different client version never produces `regressed`.
 

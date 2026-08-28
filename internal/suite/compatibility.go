@@ -67,8 +67,9 @@ type CompatibilityEnvelope struct {
 	EvidenceGaps        []CompatibilityEvidenceGap `json:"evidence_gaps,omitempty"`
 }
 
-// CompatibilityPoint is one exact observed client-version point. Multiple
-// observations of the same exact point are retained rather than collapsed.
+// CompatibilityPoint is one exact observed client-version point. Platform is
+// the runner/process platform carried by the live-result artifact, not proven
+// client-binary architecture. Multiple observations are retained.
 type CompatibilityPoint struct {
 	TargetID                   string                     `json:"target_id"`
 	DeploymentID               string                     `json:"deployment_id"`
@@ -121,8 +122,9 @@ type CompatibilityEvidenceGap struct {
 	RegressionKinds    []string                     `json:"regression_kinds,omitempty"`
 }
 
-// CompatibilityQuery asks for one exact client version on a platform within a
-// known target/deployment/client/auth context. It never accepts a version range.
+// CompatibilityQuery asks for one exact client version on a runner/process
+// platform within a known target/deployment/client/auth context. It never
+// accepts a version range.
 type CompatibilityQuery struct {
 	TargetID      string            `json:"target_id"`
 	DeploymentID  string            `json:"deployment_id"`

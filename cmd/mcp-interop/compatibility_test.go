@@ -112,6 +112,40 @@ func TestCompatibilityQueryJSONIsSecretSafeAndOmitsLocalPaths(t *testing.T) {
 	}
 }
 
+func TestCompatibilityQueryRejectsKnownClientExecutableArchitectureMismatch(t *testing.T) {
+	manifest := cliSuiteCompareManifest()
+	observed := writeCLISuiteCompareSet(t, manifest, "observed", "1.0.0", interop.StatusPass, "")
+	var stdout, stderr bytes.Buffer
+	detector := compatibilityFakeDetector{detection: client.Detection{
+		ID: "codex", DisplayName: "Codex CLI", Tier: client.TierV1, Installed: true,
+		Version: "1.0.0", ExecutableArchitectures: []string{"other-arch"},
+	}}
+	rc := runCompatibilityQueryWith(context.Background(), []string{
+		"--client", "codex", "--target", "production-a", "--deployment-id", "production-a",
+		"--observation", observed,
+	}, &stdout, &stderr, detector, time.Now, artifact.Platform{OS: runtime.GOOS, Arch: runtime.GOARCH})
+	if rc != 2 || !strings.Contains(stderr.String(), "client executable architecture") {
+		t.Fatalf("rc=%d stderr=%q, want fail-closed architecture mismatch", rc, stderr.String())
+	}
+}
+
+func TestCompatibilityQueryAllowsUnknownWrapperArchitecture(t *testing.T) {
+	manifest := cliSuiteCompareManifest()
+	observed := writeCLISuiteCompareSet(t, manifest, "observed", "1.0.0", interop.StatusPass, "")
+	var stdout, stderr bytes.Buffer
+	detector := compatibilityFakeDetector{detection: client.Detection{
+		ID: "codex", DisplayName: "Codex CLI", Tier: client.TierV1, Installed: true,
+		Version: "1.0.0",
+	}}
+	rc := runCompatibilityQueryWith(context.Background(), []string{
+		"--client", "codex", "--target", "production-a", "--deployment-id", "production-a",
+		"--observation", observed,
+	}, &stdout, &stderr, detector, time.Now, artifact.Platform{OS: runtime.GOOS, Arch: runtime.GOARCH})
+	if rc != 0 {
+		t.Fatalf("rc=%d stderr=%q, unknown wrapper architecture must remain conservative/allowed", rc, stderr.String())
+	}
+}
+
 func TestCompatibilityQueryRequiresInstalledExactVersion(t *testing.T) {
 	manifest := cliSuiteCompareManifest()
 	observed := writeCLISuiteCompareSet(t, manifest, "observed", "1.0.0", interop.StatusPass, "")

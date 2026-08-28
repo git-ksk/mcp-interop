@@ -113,6 +113,10 @@ func runCompatibilityQueryWith(
 		fmt.Fprintln(stderr, "compatibility query platform is unavailable")
 		return 1
 	}
+	if err := validatePortableClientArchitecture(detection, platform); err != nil {
+		fmt.Fprintf(stderr, "compatibility query: %v\n", err)
+		return 2
+	}
 
 	var baseline *suite.LoadedBaseline
 	if options.baselinePath != "" {

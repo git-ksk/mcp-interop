@@ -11,12 +11,14 @@ observed pointは次の組で識別します。
 - target IDと非secretなdeployment ID
 - 検証済みschema-v2 live resultのdeployment fingerprint
 - client adapter IDとexact client version文字列
-- platform OS / architecture
+- 検証済みlive resultが持つrunner/process platform OS / architecture
 - auth mode
 
 各pointには、元になった全observationを残します。`executed_at`、suite result-set digest、`mcp-interop` runtime identity、real-client adapter provenance、stage/reason evidence、accept済みbaselineに対するregression evidenceを保持します。`executed_at`はwall-clock evidenceであり、独立runner間のportableな全順序を証明する値ではありません。
 
 envelopeは1つのexact suite manifest fingerprintとexecution contextに限定されます。manifest、execution context、logical run identity、deployment fingerprintが異なる証拠は黙って混ぜずfail-closedにします。
+
+ここでの`platform`はlive-result schema v2と同じく、`mcp-interop` runner/process platformを意味し、real client binary architectureの証明ではありません。新しいlocal evidence生成とinstalled-client compatibility queryでは、直接認識できるMach-O / ELF / PE executable metadataを確認し、native executableの実測architecture集合にrunner architectureが含まれない既知mismatchをfail-closedにします。script/wrapper architectureはunknownのままで、hostから推測しません。既存v0.8 artifactは引き続き読めますが、過去のclient-binary architectureを遡って証明するものにはなりません。
 
 ## state
 
@@ -57,7 +59,7 @@ gapにもregression/evidence-loss情報は残せますが、pointへ載せるた
 
 ## baselineとの関係
 
-accept済みimmutable baselineを渡した場合、current observationは安全に比較できる範囲だけbaselineと比較します。deployment mismatchはfail-closedです。platform差は無理に同じpointへまとめず、別のobserved pointとして扱います。
+accept済みimmutable baselineを渡した場合、current observationは安全に比較できる範囲だけbaselineと比較します。deployment mismatchはfail-closedです。runner-platform差は無理に同じpointへまとめず、別のobserved pointとして扱います。
 
 `regressed`はPASS-to-FAIL/UNKNOWN/SKIP、reason-code regressionなど、実際のbaseline比較証拠からのみ導出します。client version文字列が違うだけでは`regressed`になりません。
 

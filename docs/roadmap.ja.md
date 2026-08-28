@@ -188,14 +188,14 @@ client auto-updateや複数version/platformをまたぐ継続的な退行検出�
 - stale / missing baseline evidenceの検出
 - 連続したversion rangeを推測せず、**実際に検証した点**でcompatibility envelopeを表す
 - `tested` / `untested` / `stale` / `known-broken`を必要に応じて区別
-- client version、platform、auth mode、test時刻・context、証拠の出所を保持
+- client version、runner platform/architecture、auth mode、test時刻・context、証拠の出所を保持
 
 例:
 
 ```text
 Tested:
-  Cursor X on macOS arm64 -> PASS
-  Cursor Y on macOS arm64 -> PASS
+  Cursor X on runner macOS arm64 -> PASS
+  Cursor Y on runner macOS arm64 -> PASS
 
 これは次を意味しない:
   XからYまでの全versionがsupported

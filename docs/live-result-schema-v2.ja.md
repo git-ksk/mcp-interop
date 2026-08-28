@@ -117,7 +117,7 @@ endpoint.origin + endpoint.identity
 + platform.arch
 ```
 
-exact client version、実行時刻、runner/runtime versionはpairing keyに含めません。canonical originはdeployment identityの一部ですが、protected pathの変化は意図的に無視します。同じdeployment IDを別originで再利用しても、異なるdeploymentを暗黙にpairしません。
+exact client version、実行時刻、runner/runtime versionはpairing keyに含めません。v1と同様に`platform.os` / `platform.arch`は`mcp-interop` runner/process platformであり、client-binary architectureの証明ではありません。新しいportable evidenceには同じmetadata-onlyのknown-mismatch guardを適用します。canonical originはdeployment identityの一部ですが、protected pathの変化は意図的に無視します。同じdeployment IDを別originで再利用しても、異なるdeploymentを暗黙にpairしません。
 
 同じartifact内でv2 comparison identityが重複した場合はrejectします。比較対象のartifact set内で一意になるdeployment IDを選んでください。
 

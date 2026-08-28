@@ -140,7 +140,7 @@ Export the same live run into a separate versioned, secret-safe local artifact w
 mcp-interop test https://example.com/mcp --client codex --output result.json
 ```
 
-This default remains artifact schema v1. It records the exact detected client version, OS/architecture, runner/runtime context, invocation auth mode, evidence provenance, and the existing four stage status/reason results. The raw endpoint URL is not persisted; query values are excluded before deriving the endpoint fingerprint. Human stage messages and diagnostic payloads are also excluded.
+This default remains artifact schema v1. It records the exact detected client version, the `mcp-interop` runner/process OS and architecture, runner/runtime context, invocation auth mode, evidence provenance, and the existing four stage status/reason results. `platform.arch` is **not** proof of the real client binary architecture. Before emitting new portable evidence, mcp-interop non-invasively inspects Mach-O/ELF/PE executable metadata where available and fails closed on a known runner/client architecture mismatch; script/wrapper launchers remain explicitly unknown rather than inferred. The raw endpoint URL is not persisted; query values are excluded before deriving the endpoint fingerprint. Human stage messages and diagnostic payloads are also excluded.
 
 If the endpoint path itself contains credential material, use schema v2 protected-path identity instead of exporting v1:
 

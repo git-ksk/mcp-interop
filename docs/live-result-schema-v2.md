@@ -115,7 +115,7 @@ endpoint.origin + endpoint.identity
 + platform.arch
 ```
 
-Exact client version, execution time, and runner/runtime versions are not pairing keys. The canonical origin is part of deployment identity, while changes to the protected path are deliberately ignored. Reusing a deployment ID on a different origin therefore does not silently pair two distinct deployments.
+Exact client version, execution time, and runner/runtime versions are not pairing keys. As in v1, `platform.os` / `platform.arch` are the `mcp-interop` runner/process platform, not proven client-binary architecture; the same metadata-only known-mismatch guard applies before new portable evidence is emitted. The canonical origin is part of deployment identity, while changes to the protected path are deliberately ignored. Reusing a deployment ID on a different origin therefore does not silently pair two distinct deployments.
 
 A duplicate v2 comparison identity inside one artifact is rejected. Operators must choose deployment IDs that are unambiguous within the artifact set they intend to compare.
 

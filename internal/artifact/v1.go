@@ -66,6 +66,8 @@ type ClientIdentity struct {
 	Version string `json:"version,omitempty"`
 }
 
+// Platform is the mcp-interop runner/process platform observed when the run
+// was produced. It is not proof of the real client executable architecture.
 type Platform struct {
 	OS   string `json:"os"`
 	Arch string `json:"arch"`
@@ -253,7 +255,7 @@ func validateRunCommon(run Run) error {
 		return errors.New("client id and product are required")
 	}
 	if run.Platform.OS == "" || run.Platform.Arch == "" {
-		return errors.New("platform os and arch are required")
+		return errors.New("runner platform os and arch are required")
 	}
 	if run.Runtime.MCPInteropVersion == "" || run.Runtime.MCPInteropCommit == "" || run.Runtime.GoVersion == "" {
 		return errors.New("runtime version, commit, and go_version are required")

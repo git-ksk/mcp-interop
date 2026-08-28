@@ -30,6 +30,10 @@ type Detection struct {
 	Path        string `json:"path,omitempty"`
 	Version     string `json:"version,omitempty"`
 	Error       string `json:"error,omitempty"`
+
+	// ExecutableArchitectures is internal evidence from the executable image.
+	// It is intentionally omitted from the stable clients JSON contract.
+	ExecutableArchitectures []string `json:"-"`
 }
 
 // Detector discovers installed clients without reading or modifying client configuration.

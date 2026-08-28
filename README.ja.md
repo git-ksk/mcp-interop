@@ -152,7 +152,7 @@ Antigravity CLI  PASS   PASS  PASS  PASS   1.1.11
 mcp-interop test https://example.com/mcp --client codex --output result.json
 ```
 
-このdefaultは従来どおりartifact schema v1です。実際に検出したクライアントバージョン、OS/architecture、`mcp-interop`の実行環境、認証モード、証拠の出所、4段階の結果とreason codeを保存します。raw endpoint URLは保存せず、query値を除外した識別情報を使います。
+このdefaultは従来どおりartifact schema v1です。実際に検出したクライアントバージョン、`mcp-interop` runner/processのOS / architecture、runner/runtime context、認証モード、証拠の出所、4段階の結果とreason codeを保存します。`platform.arch`はreal client binary architectureの証明ではありません。新しいportable evidenceを出力する前に、取得可能なMach-O / ELF / PE executable metadataだけを非侵襲に確認し、runner/client architectureの既知mismatchはfail-closedにします。script/wrapper launcherはhost architectureから推測せず、明示的にunknownのまま扱います。raw endpoint URLは保存せず、query値を除外した識別情報を使います。
 
 endpoint path自体にcredentialが含まれる場合はv1をexportせず、schema v2 protected-path identityを使います。
 

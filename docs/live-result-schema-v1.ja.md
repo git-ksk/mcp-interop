@@ -114,13 +114,21 @@ query parameter名が秘密情報らしく見えなくても、query値は例外
 - UTCの`executed_at`
 - 上記v1 path-safety前提に基づくendpoint identity / fingerprint
 - 実クライアントrunではclient ID / product / 正確なversion
-- OS / architecture
+- `mcp-interop` runner/processのOS / architecture
 - `mcp-interop` version / commit / Go runtime version
 - 実行時のauth mode（`default`または明示的`oauth`）
 - 証拠の出所
 - 順序固定の`reach` / `auth` / `init` / `tools`
 
 `auth_mode`は「runnerをどう起動したか」を表します。server metadataから認証要否を推測した値ではありません。
+
+### Runner platformとclient executable architecture
+
+`platform.os` / `platform.arch`は`mcp-interop` runner processの`runtime.GOOS` / `runtime.GOARCH`から設定します。これはobservation platformのevidenceであり、real client executable architectureの証明ではありません。既存v0.8 artifactでもこの意味は変わりません。
+
+新しいportable evidenceでは、検出したexecutableが直接認識できるMach-O / ELF / PE imageの場合に限り、local metadataだけを確認します。追加client commandの実行や、client config、credential、browser state、Keychainの読み取りは行いません。native imageのarchitectureが実測でき、その集合にrunner architectureが含まれない場合、schema v1/v2ではmaterially differentなexecution modeを曖昧なく表せないためportable artifact生成をfail-closedにします。
+
+universal binaryは複数architectureを持つ場合がありますが、そのlocal slice listは安全確認専用でschema v1/v2へserializeせず、実際にどのsliceが実行されたかを単独では証明しません。一方、script/wrapper launcherは別interpreter/binaryを起動できるため、client-binary architectureの信頼できる証拠にはなりません。その場合はhost architectureから推測せずunknownのままにします。これはv1/v2の明示的な制約です。特に、古いartifactの`platform.arch=arm64`だけを根拠にreal client binaryもarm64だったとはclaimできません。またwrapper-backed evidenceをarchitecture-specificなgraduation claimへ使う場合は、別途より強いevidenceを保持する必要があります。
 
 ## 証拠の出所とPASS
 
@@ -164,7 +172,7 @@ endpoint fingerprint
 + platform.arch
 ```
 
-client version、実行時刻、runner versionはcontextとして保存しますが、pairing keyには含めません。
+client version、実行時刻、runner versionはcontextとして保存しますが、pairing keyには含めません。`platform.*`はrunner/process platformだけを意味します。新しいartifact生成では、直接実測できたnative executable architectureがrunnerとmismatchする場合はpairing前にrejectします。script/wrapperのexecution architectureは明示unknownという制約が残ります。
 
 これにより、クライアント更新後も前versionと比較できます。
 
