@@ -256,7 +256,6 @@ Existing adapters have documented tested envelopes and maturity status. Any newl
 
 **Status:** completed on current main. #149 through #152 complete the public-contract candidate audit with no fundamental CLI, schema, or evidence-model redesign required. The next step is the v0.10.0 release; v1.0 remains a separate stable-contract exit decision.
 
-
 **GitHub tracking:** [#106](https://github.com/git-ksk/mcp-interop/issues/106). Focused audit/fix Issues are created when contract review starts.
 
 ### Goal
