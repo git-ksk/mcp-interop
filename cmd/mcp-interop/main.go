@@ -31,6 +31,8 @@ Usage:
   mcp-interop suite validate <manifest.json> [--json]
   mcp-interop suite run <manifest.json> --output-dir <dir> [--json]
   mcp-interop suite compare <baseline-index> <attempt-index> [<attempt-index>...] [--json] [--fail-on-regression]
+  mcp-interop baseline create <result-set> --output-dir <dir> [--supersedes <baseline-dir>] [--json]
+  mcp-interop baseline compare <baseline-dir> <attempt-index> [<attempt-index>...] [--json] [--fail-on-regression]
   mcp-interop diagnose <url> [--profile chatgpt] [--client-id <url>] [--redirect-uri <url>] [--runtime-evidence <file|->] [--json]
   mcp-interop evidence <validate|summary|merge> ...
   mcp-interop version
@@ -41,6 +43,7 @@ Commands:
   test       Run a Remote MCP interoperability test through real clients.
   compare    Compare portable live-result artifacts across client versions/runs.
   suite      Validate, execute, and compare repeatable suite result sets.
+  baseline   Accept immutable suite baselines and compare attempts against them.
   diagnose   Run profile-based server/OAuth preflight diagnostics without claiming real-client PASS.
   evidence   Validate, summarize, or merge secret-free Runtime Evidence documents.
   version    Print mcp-interop build version information.
@@ -79,6 +82,8 @@ func run(ctx context.Context, args []string) int {
 		return runCompare(args[1:])
 	case "suite":
 		return runSuite(ctx, args[1:])
+	case "baseline":
+		return runBaseline(args[1:])
 	case "diagnose":
 		return runDiagnose(ctx, args[1:])
 	case "evidence":

@@ -138,6 +138,52 @@ fi
 
 grep -F 'PASS_TO_UNKNOWN' "$workdir/regression-gate.txt" >/dev/null
 
+suite_manifest="$workdir/suite.json"
+cat >"$suite_manifest" <<'SUITE'
+{
+  "schema_version": 1,
+  "execution_context": "trusted_real_client",
+  "targets": [
+    {
+      "id": "production-a",
+      "endpoint": {
+        "source": "environment",
+        "variable": "MCP_INTEROP_SUITE_ENDPOINT_PRODUCTION_A"
+      },
+      "deployment_id": "production-a",
+      "clients": [{"id": "codex", "auth": "none"}]
+    }
+  ]
+}
+SUITE
+export MCP_INTEROP_SUITE_ENDPOINT_PRODUCTION_A="$protected_endpoint"
+suite_baseline_source="$workdir/suite-baseline-source"
+suite_attempt="$workdir/suite-attempt"
+accepted_baseline="$workdir/accepted-baseline"
+
+MCP_INTEROP_FIXTURE_VERSION='codex-fixture 4.0.0' MCP_INTEROP_FIXTURE_MODE=pass \
+  "$binary" suite run "$suite_manifest" --output-dir "$suite_baseline_source" >/dev/null
+"$binary" baseline create "$suite_baseline_source" --output-dir "$accepted_baseline" \
+  --json >"$workdir/baseline-create.json"
+MCP_INTEROP_FIXTURE_VERSION='codex-fixture 5.0.0' MCP_INTEROP_FIXTURE_MODE=pass \
+  "$binary" suite run "$suite_manifest" --output-dir "$suite_attempt" >/dev/null
+"$binary" baseline compare "$accepted_baseline" "$suite_attempt" --fail-on-regression \
+  >"$workdir/baseline-compare.txt"
+grep -F '"artifact_type": "mcp-interop/suite-baseline"' "$workdir/baseline-create.json" >/dev/null
+grep -F 'DECISION' "$workdir/baseline-compare.txt" >/dev/null
+grep -F 'CLEAN' "$workdir/baseline-compare.txt" >/dev/null
+
+set +e
+"$binary" baseline create "$suite_attempt" --output-dir "$accepted_baseline" \
+  >"$workdir/baseline-overwrite.out" 2>"$workdir/baseline-overwrite.err"
+baseline_overwrite_exit=$?
+set -e
+if [[ $baseline_overwrite_exit -ne 2 ]]; then
+  echo "baseline overwrite exit=$baseline_overwrite_exit, want 2" >&2
+  exit 1
+fi
+grep -F 'already exists' "$workdir/baseline-overwrite.err" >/dev/null
+
 printf '%s\n' '{"schema_version":1' >"$malformed"
 set +e
 "$binary" compare "$malformed" "$old" >"$workdir/malformed.out" 2>"$workdir/malformed.err"

@@ -93,7 +93,9 @@ If you are not sure which command to start with:
 | Save one live run for later comparison | `mcp-interop test --output` |
 | Check a suite file without running clients | `mcp-interop suite validate` |
 | Run the same declared targets across multiple clients | `mcp-interop suite run` |
-| Compare a baseline with one or more attempts | `mcp-interop suite compare` |
+| Compare raw result sets with one or more attempts | `mcp-interop suite compare` |
+| Accept an immutable baseline snapshot | `mcp-interop baseline create` |
+| Compare an accepted baseline with retained attempts | `mcp-interop baseline compare` |
 | Run metadata-only preflight diagnostics | `mcp-interop diagnose` |
 
 Detect known clients on the local machine:
@@ -192,6 +194,16 @@ mcp-interop suite compare baseline-results attempt-1 attempt-2 --fail-on-regress
 ```
 
 Every attempt remains in the report. A failed/unknown first attempt followed by a passing retry is `regression_and_unstable`, not a clean PASS. The gated form exits `1` for regression or unstable evidence, `0` for a clean report, and `2` for invalid/unreadable input. See [Suite regression report v1](docs/suite-regression-report-v1.md) ([日本語](docs/suite-regression-report-v1.ja.md)).
+
+Accept a result set as an immutable baseline when every declared run contains complete real-client evidence and an exact client version:
+
+```console
+mcp-interop baseline create suite-results --output-dir baselines/current
+mcp-interop baseline create suite-results-new --output-dir baselines/next --supersedes baselines/current
+mcp-interop baseline compare baselines/current attempt-1 attempt-2 --fail-on-regression
+```
+
+Baseline creation never overwrites an existing directory. The result set is copied into the bundle, bound by a deterministic digest, and selected explicitly by path; retries and client auto-updates cannot silently replace the accepted anchor. A superseding baseline keeps the prior baseline unchanged and records its fingerprint. Baseline comparison fails closed on manifest, execution-context, deployment-fingerprint, or platform mismatch while preserving suite regression report v1 output. See [Suite baseline v1](docs/suite-baseline-v1.md) ([日本語](docs/suite-baseline-v1.ja.md)).
 
 Self-hosted real-client GitHub Actions are a separate privileged path: the manual macOS workflow is main-only, uses a main-only Environment policy, records exact run provenance, and never accepts remote suite endpoints or OAuth credentials. See [Self-hosted real-client CI security boundary](docs/self-hosted-ci-security.md) ([日本語](docs/self-hosted-ci-security.ja.md)).
 
