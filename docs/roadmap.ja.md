@@ -243,6 +243,8 @@ Capability profile v1は独立したadditive evidence contractです。capabilit
 
 ## v0.10.x — 公開契約候補
 
+**Status:** current mainで完了。#149〜#152のpublic-contract candidate監査を完了し、根本的なCLI / schema / evidence-model再設計は不要と判断しました。次はv0.10.0 releaseで、v1.0は別途stable-contract exit判断を行います。
+
 **GitHub tracking:** [#106](https://github.com/git-ksk/mcp-interop/issues/106)。contract review開始時にfocused audit/fix Issueへ分割します。
 
 将来`v1.x`で維持する可能性がある公開契約を整理します。
