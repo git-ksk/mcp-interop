@@ -66,6 +66,8 @@ A reason-code or diagnostic change cannot silently broaden core PASS.
 
 Interoperability identity, maturity, core PASS, capability, and protocol-era meanings are defined in [Interoperability semantics v1 candidate](semantic-contract-v1-candidate.md).
 
+Security, privacy, credential isolation, cleanup, privileged CI, and tagged-release guarantees are defined in [Security, privacy, cleanup, and release contract candidate](security-contract-v1-candidate.md).
+
 ## Compatibility review rule
 
 Before changing a public command, JSON field, exit-code meaning, or existing reason code, classify the change as one of:

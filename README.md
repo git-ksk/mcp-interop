@@ -460,6 +460,7 @@ The runner is expected to have the real Codex, Cursor, and Antigravity CLIs inst
 - [Public contract candidate](docs/public-contract-v1-candidate.md) ([日本語](docs/public-contract-v1-candidate.ja.md)) — v0.10 review of CLI/JSON/exit/reason compatibility
 - [Schema evolution v1 candidate](docs/schema-evolution-v1-candidate.md) ([日本語](docs/schema-evolution-v1-candidate.ja.md)) — portable evidence/versioning/deprecation policy
 - [Interoperability semantics v1 candidate](docs/semantic-contract-v1-candidate.md) ([日本語](docs/semantic-contract-v1-candidate.ja.md)) — adapter/core/capability/protocol semantics
+- [Security, privacy, cleanup, and release contract candidate](docs/security-contract-v1-candidate.md) ([日本語](docs/security-contract-v1-candidate.ja.md)) — secret/CI/release guarantees
 - [Conformance vs. interoperability](docs/conformance-vs-interop.md) ([日本語](docs/conformance-vs-interop.ja.md))
 - [Live result artifact schema v1](docs/live-result-schema-v1.md) ([日本語](docs/live-result-schema-v1.ja.md))
 - [Live result artifact schema v2](docs/live-result-schema-v2.md) ([日本語](docs/live-result-schema-v2.ja.md))
