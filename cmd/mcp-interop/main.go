@@ -33,6 +33,7 @@ Usage:
   mcp-interop suite compare <baseline-index> <attempt-index> [<attempt-index>...] [--json] [--fail-on-regression]
   mcp-interop baseline create <result-set> --output-dir <dir> [--supersedes <baseline-dir>] [--json]
   mcp-interop baseline compare <baseline-dir> <attempt-index> [<attempt-index>...] [--json] [--fail-on-regression]
+  mcp-interop compatibility query --client <id> --target <id> --deployment-id <id> [--auth none|oauth] [--baseline <dir>] [--observation <result-set>]... [--max-age-seconds <n>] [--stale-on-client-version-change] [--json]
   mcp-interop diagnose <url> [--profile chatgpt] [--client-id <url>] [--redirect-uri <url>] [--runtime-evidence <file|->] [--json]
   mcp-interop evidence <validate|summary|merge> ...
   mcp-interop version
@@ -44,6 +45,7 @@ Commands:
   compare    Compare portable live-result artifacts across client versions/runs.
   suite      Validate, execute, and compare repeatable suite result sets.
   baseline   Accept immutable suite baselines and compare attempts against them.
+  compatibility  Classify the installed exact client version from explicit observed evidence.
   diagnose   Run profile-based server/OAuth preflight diagnostics without claiming real-client PASS.
   evidence   Validate, summarize, or merge secret-free Runtime Evidence documents.
   version    Print mcp-interop build version information.
@@ -84,6 +86,8 @@ func run(ctx context.Context, args []string) int {
 		return runSuite(ctx, args[1:])
 	case "baseline":
 		return runBaseline(args[1:])
+	case "compatibility":
+		return runCompatibility(ctx, args[1:])
 	case "diagnose":
 		return runDiagnose(ctx, args[1:])
 	case "evidence":

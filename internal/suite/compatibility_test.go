@@ -192,6 +192,15 @@ func TestCompatibilityRejectsDeploymentMismatch(t *testing.T) {
 	}
 }
 
+func TestCompatibilityRejectsOverflowingStaleDuration(t *testing.T) {
+	manifest := regressionTestManifest()
+	set := compatibilityTestSet(t, manifest, "duration", "1.0.0", time.Date(2026, 8, 27, 0, 0, 0, 0, time.UTC), interop.StatusPass)
+	_, err := BuildCompatibilityEnvelope(nil, []LoadedResultSet{set}, CompatibilityStalePolicy{MaxAgeSeconds: maxCompatibilityAgeSeconds + 1}, time.Date(2026, 8, 28, 0, 0, 0, 0, time.UTC))
+	if err == nil || !strings.Contains(err.Error(), "exceeds supported duration") {
+		t.Fatalf("expected duration bound error, got %v", err)
+	}
+}
+
 func compatibilityTestSet(t *testing.T, manifest Manifest, name, version string, executedAt time.Time, toolsStatus interop.Status) LoadedResultSet {
 	t.Helper()
 	set := regressionTestSet(t, manifest, name, version, toolsStatus, "")

@@ -173,6 +173,21 @@ grep -F '"artifact_type": "mcp-interop/suite-baseline"' "$workdir/baseline-creat
 grep -F 'DECISION' "$workdir/baseline-compare.txt" >/dev/null
 grep -F 'CLEAN' "$workdir/baseline-compare.txt" >/dev/null
 
+MCP_INTEROP_FIXTURE_VERSION='codex-fixture 5.0.0' \
+  "$binary" compatibility query --client codex --target production-a \
+  --deployment-id production-a --baseline "$accepted_baseline" \
+  --observation "$suite_attempt" --json >"$workdir/compatibility-tested.json"
+grep -F '"state": "tested"' "$workdir/compatibility-tested.json" >/dev/null
+MCP_INTEROP_FIXTURE_VERSION='codex-fixture 6.0.0' \
+  "$binary" compatibility query --client codex --target production-a \
+  --deployment-id production-a --baseline "$accepted_baseline" \
+  --observation "$suite_attempt" --json >"$workdir/compatibility-untested.json"
+grep -F '"state": "untested"' "$workdir/compatibility-untested.json" >/dev/null
+if grep -F "$protected_secret" "$workdir/compatibility-tested.json" "$workdir/compatibility-untested.json" >/dev/null; then
+  echo "compatibility query leaked protected endpoint path" >&2
+  exit 1
+fi
+
 set +e
 "$binary" baseline create "$suite_attempt" --output-dir "$accepted_baseline" \
   >"$workdir/baseline-overwrite.out" 2>"$workdir/baseline-overwrite.err"

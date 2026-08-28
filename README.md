@@ -96,6 +96,7 @@ If you are not sure which command to start with:
 | Compare raw result sets with one or more attempts | `mcp-interop suite compare` |
 | Accept an immutable baseline snapshot | `mcp-interop baseline create` |
 | Compare an accepted baseline with retained attempts | `mcp-interop baseline compare` |
+| Classify the installed exact client version from observed evidence | `mcp-interop compatibility query` |
 | Run metadata-only preflight diagnostics | `mcp-interop diagnose` |
 
 Detect known clients on the local machine:
@@ -204,6 +205,12 @@ mcp-interop baseline compare baselines/current attempt-1 attempt-2 --fail-on-reg
 ```
 
 Compatibility is modeled from exact observed client-version/platform points only; unobserved versions remain `untested`, and version changes alone are never regressions. See [Compatibility envelope v1](docs/compatibility-envelope-v1.md) ([日本語](docs/compatibility-envelope-v1.ja.md)) for the `tested` / `untested` / `stale` / `known_broken` / `regressed` / `unknown` semantics.
+
+To classify the currently installed exact client version without changing the existing `clients --json` schema:
+
+```console
+mcp-interop compatibility query --client codex --target production-a --deployment-id production-a --baseline baselines/current --observation attempt-1 --json
+```
 
 Baseline creation never overwrites an existing directory. The result set is copied into the bundle, bound by a deterministic digest, and selected explicitly by path; retries and client auto-updates cannot silently replace the accepted anchor. A superseding baseline keeps the prior baseline unchanged and records its fingerprint. Baseline comparison fails closed on manifest, execution-context, deployment-fingerprint, or platform mismatch while preserving suite regression report v1 output. See [Suite baseline v1](docs/suite-baseline-v1.md) ([日本語](docs/suite-baseline-v1.ja.md)).
 

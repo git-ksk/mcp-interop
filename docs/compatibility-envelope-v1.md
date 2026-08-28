@@ -76,3 +76,23 @@ No migration is required for those existing artifacts. The envelope consumes the
 The envelope contains non-secret deployment identity and the deployment fingerprint already present in validated portable evidence. It does not add raw Remote MCP endpoint URLs, protected endpoint paths, OAuth credentials, bearer tokens, executable paths, or human diagnostic payloads.
 
 As with schema-v2 live results, credential-safe evidence is not automatically deployment-public: an origin or operator-chosen deployment ID can still be operationally private and should be shared accordingly.
+
+## Query the installed client
+
+`mcp-interop compatibility query` detects the currently installed exact version of one shipped live client and classifies that version against explicit local evidence:
+
+```console
+mcp-interop compatibility query \
+  --client codex \
+  --target production-a \
+  --deployment-id production-a \
+  --baseline baselines/current \
+  --observation suite-results-latest \
+  --stale-on-client-version-change
+```
+
+Use `--json` for the versioned `mcp-interop/compatibility-query` machine-readable output. The output includes the manifest/execution context, stale policy, optional accepted-baseline fingerprint, detected exact version, exact query, classification, retained point evidence, and relevant evidence gaps. It deliberately omits the detected executable path and all input filesystem paths.
+
+`--max-age-seconds N` enables age-based staleness. `--observation` may be repeated up to 128 times; the bound prevents an accidental command invocation from producing an unbounded retained-observation report. At least one `--baseline` or `--observation` is required.
+
+The command does not change the existing `mcp-interop clients` or `clients --json` contract. Detection alone still makes no compatibility claim. A newly auto-updated installed version that is absent from the supplied exact observed points is reported as `untested`.

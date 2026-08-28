@@ -108,6 +108,7 @@ mcp-interop --version
 | raw result setと1回以上のattemptを比較 | `mcp-interop suite compare` |
 | immutable baselineをaccept | `mcp-interop baseline create` |
 | accept済みbaselineとretained attemptを比較 | `mcp-interop baseline compare` |
+| インストール済みexact client versionを実測evidenceで分類 | `mcp-interop compatibility query` |
 | 実クライアントを動かさない事前診断 | `mcp-interop diagnose` |
 
 検出できるクライアントを確認:
@@ -224,6 +225,12 @@ mcp-interop baseline compare baselines/current attempt-1 attempt-2 --fail-on-reg
 ```
 
 compatibilityはexact client-version/platformの実測pointだけで表します。未観測versionは`untested`のままで、version変更だけをregressionにはしません。`tested` / `untested` / `stale` / `known_broken` / `regressed` / `unknown`の意味は[Compatibility envelope v1](docs/compatibility-envelope-v1.ja.md)を参照してください。
+
+既存`clients --json` schemaを変更せず、現在インストール済みのexact client versionを分類できます。
+
+```console
+mcp-interop compatibility query --client codex --target production-a --deployment-id production-a --baseline baselines/current --observation attempt-1 --json
+```
 
 baseline作成は既存directoryを上書きしません。result set自体をbundleへコピーしdeterministic digestで固定し、baselineはpathで明示選択します。そのためretryやclient auto-updateでaccept済み基準が勝手に置換されません。supersede時も旧baselineを変更せずfingerprintを記録します。baseline比較ではmanifest、execution context、deployment fingerprint、platform mismatchをfail-closedにしつつ、出力はsuite regression report v1を維持します。詳細は[Suite baseline v1](docs/suite-baseline-v1.ja.md)を参照してください。
 
