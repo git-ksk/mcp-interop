@@ -4,6 +4,21 @@ All notable project changes will be summarized here. GitHub Releases remain the 
 
 ## Unreleased
 
+## v0.10.0 — 2026-08-28
+
+### Added
+
+- Added a bilingual v1 public-contract candidate covering documented CLI/flag behavior, primary JSON compatibility, the `0`/`1`/`2` exit-code classes, and stable-open reason-code semantics.
+- Added explicit schema-evolution, migration, baseline/compatibility, and deprecation policy for portable inputs and derived reports, while keeping cross-schema comparison fail-closed without an explicit migration.
+- Added semantic contract tests for shipped adapter IDs, maturity/graduation states, the four-stage live PASS invariant, protocol-readiness projection, optional capability evidence, and version-only non-regression behavior.
+- Added a security-contract drift gate that protects release provenance, privileged self-hosted real-client boundaries, credential isolation expectations, security scans, fixture gates, artifact attestation, and release smoke checks.
+
+### Changed
+
+- Documented portable artifacts as evidence records rather than authenticated execution attestations by default; stronger provenance must use an explicit trust model/versioned extension.
+- Defined the v1 candidate deprecation/removal boundary: incompatible CLI/schema/semantic changes require documented migration/versioning instead of silent repurposing.
+- Kept Codex, Cursor, and Antigravity at evidence-reviewed `beta`; v0.10.0 does not infer wider version/platform support or graduate research clients.
+
 ## v0.9.0 — 2026-08-28
 
 ### Added

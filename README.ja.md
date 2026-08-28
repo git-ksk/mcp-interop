@@ -22,17 +22,19 @@ MCP仕様への適合性は公式のMCP Conformance Test Frameworkが担当し�
 
 ## 現在の状態
 
-現在の公開リリースは **v0.9.0** です。
+現在の公開リリースは **v0.10.0** です。
 
-Release: [v0.9.0](https://github.com/git-ksk/mcp-interop/releases/tag/v0.9.0)
+Release: [v0.10.0](https://github.com/git-ksk/mcp-interop/releases/tag/v0.10.0)
 
-v0.9.0で利用できる実クライアント向けアダプターは次のとおりです。
+v0.10.0で利用できる実クライアント向けアダプターは次のとおりです。
 
 - **Codex CLI（beta）** — 実クライアントのMCP一覧確認と、明示的に指定した場合だけ実行するOAuth認証
 - **Cursor CLI（beta）** — MCP管理コマンドを使った認証不要の実ツール確認と、実CursorのMCPログイン経路を使うOAuth認証
 - **Antigravity CLI（beta / macOS）** — 隔離したPTYとツールキャッシュを使う認証不要の確認と、実`/mcp`マネージャーを使うOAuth認証
 
 v0.9.0のevidence reviewでは、**Codex / Cursor / Antigravityの3adapterをすべてbeta**と分類します。既存client metadataの`tier=v1`はdelivery/roadmap tierであり、stable maturityの主張ではありません。詳細は[Adapter maturity contract](docs/adapter-maturity.ja.md)を参照してください。
+
+v0.10.0では、将来v1.xで維持する**public-contract candidate**を固定しました。documented CLI / JSON / exit code / reason code、schema evolution / migration rule、adapter / core / capability / protocol semantics、security / privacy / cleanup / releaseの最低保証を明文化し、contract regression testとCI/release security-drift gateを追加しています。既存live PASSを弱めず、beta adapterをstableへ自動昇格もしていません。詳細は[Public contract candidate](docs/public-contract-v1-candidate.ja.md)を参照してください。
 
 v0.9.0では、新clientを弱い基準で増やさず、evidence品質を強化しました。exact observed coverage matrix、baselineのlocal-consistency verify、evidence-based adapter maturity、独立したoptional-capability evidence contract、将来real client向けのfail-closed共通graduation gateを追加しています。cross-runner chronologyとrunner/client architecture解釈もhardeningし、v0.8のlive-result schemaは変更していません。
 
@@ -56,7 +58,7 @@ Go 1.24以降が必要です。
 現在の安定版を固定してインストールする場合:
 
 ```console
-go install github.com/git-ksk/mcp-interop/cmd/mcp-interop@v0.9.0
+go install github.com/git-ksk/mcp-interop/cmd/mcp-interop@v0.10.0
 ```
 
 最新公開版を使う場合:
@@ -73,7 +75,7 @@ mcp-interop version
 mcp-interop --version
 ```
 
-[v0.9.0 GitHub Release](https://github.com/git-ksk/mcp-interop/releases/tag/v0.9.0)には、macOS / Linux / Windows向けのamd64 / arm64アーカイブと`checksums.txt`があります。
+[v0.10.0 GitHub Release](https://github.com/git-ksk/mcp-interop/releases/tag/v0.10.0)には、macOS / Linux / Windows向けのamd64 / arm64アーカイブと`checksums.txt`があります。
 
 ## 何を検証するのか
 
