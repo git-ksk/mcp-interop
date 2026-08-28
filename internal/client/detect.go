@@ -18,8 +18,9 @@ const (
 type lookPathFunc func(string) (string, error)
 type versionFunc func(context.Context, string, []string) (string, error)
 
-// SystemDetector discovers clients from PATH and reads only their version output.
-// It never opens or modifies client configuration files.
+// SystemDetector discovers clients from PATH, reads their version output, and
+// inspects recognized executable-image metadata. It never opens or modifies
+// client configuration or credential files.
 type SystemDetector struct {
 	lookPath lookPathFunc
 	version  versionFunc
@@ -52,6 +53,9 @@ func (d *SystemDetector) Detect(ctx context.Context, spec Spec) Detection {
 		result.Installed = true
 		result.Executable = executable
 		result.Path = path
+		if architectures, inspectErr := inspectExecutableArchitectures(path); inspectErr == nil {
+			result.ExecutableArchitectures = architectures
+		}
 
 		if len(spec.VersionArgs) == 0 {
 			return result

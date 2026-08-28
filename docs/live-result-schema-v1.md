@@ -94,13 +94,21 @@ Each run records:
 - UTC `executed_at`;
 - endpoint identity and fingerprint under the v1 path-safety assumption above;
 - client ID, product name, and exact detected client version for a real-client adapter run;
-- operating system and architecture;
+- `mcp-interop` runner/process operating system and architecture;
 - `mcp-interop` version/commit and Go runtime version;
 - invocation auth mode (`default` or explicit `oauth` today);
 - evidence provenance;
 - exactly the ordered `reach`, `auth`, `init`, and `tools` stage results.
 
 `auth_mode` describes how the runner was invoked. It does not infer the server's authentication requirements from metadata.
+
+### Runner platform versus client executable architecture
+
+`platform.os` and `platform.arch` are populated from the `mcp-interop` runner process (`runtime.GOOS` / `runtime.GOARCH`). They are observation-platform evidence, **not** proof of the architecture of the real client executable. This meaning is unchanged for existing v0.8 artifacts.
+
+For new portable evidence, the detector performs a local metadata-only check of the discovered executable when it is a directly recognizable Mach-O, ELF, or PE image. It reads executable image metadata only; it does not execute an extra client command or read client configuration, credentials, browser state, or Keychain data. If the native image has known architectures and none matches the runner architecture, portable artifact production fails closed because schema v1/v2 cannot represent that materially different execution mode without ambiguity.
+
+Universal binaries may report multiple available architectures, but that local slice list is only a safety check and is not serialized into schema v1/v2; it does not itself prove which slice executed. Script/wrapper launchers do not provide trustworthy client-binary architecture evidence, because the wrapper may invoke another interpreter or binary; mcp-interop therefore records no inferred architecture for them and does not derive it from the host. This is a documented limitation of v1/v2 rather than a hidden compatibility claim. In particular, an old artifact's `platform.arch=arm64` must not be cited as evidence that the real client binary was arm64, and wrapper-backed evidence must not be used for architecture-specific graduation claims unless stronger external evidence is retained separately.
 
 ## Evidence provenance and PASS
 
@@ -140,7 +148,7 @@ endpoint fingerprint
 + platform.arch
 ```
 
-Exact client version, execution time, and runner/runtime versions are recorded context but are deliberately not pairing keys. This allows a client upgrade to be compared against the previous client version rather than being treated as an unrelated run.
+Exact client version, execution time, and runner/runtime versions are recorded context but are deliberately not pairing keys. This allows a client upgrade to be compared against the previous client version rather than being treated as an unrelated run. `platform.*` in this key is runner/process platform only. New artifact production rejects a directly observed native executable architecture mismatch before such evidence can be paired; script/wrapper execution architecture remains an explicit unknown limitation.
 
 A version-only change is not a regression.
 

@@ -189,14 +189,14 @@ Make repeated regression testing maintainable across client auto-updates and mul
 - Define adapter compatibility envelopes using **observed tested points**, not inferred continuous version ranges.
 - Distinguish at least `tested`, `untested`, `stale`, and `known-broken` where those states improve decisions.
 - Surface useful adapter/client compatibility information from `mcp-interop clients` or an equivalent machine-readable command without claiming an untested version is compatible.
-- Carry exact client version, platform/architecture, auth mode, test time/context, and relevant evidence provenance into compatibility reporting.
+- Carry exact client version, runner platform/architecture, auth mode, test time/context, and relevant evidence provenance into compatibility reporting.
 
 Example principle:
 
 ```text
 Tested:
-  Cursor X on macOS arm64 -> PASS
-  Cursor Y on macOS arm64 -> PASS
+  Cursor X on runner macOS arm64 -> PASS
+  Cursor Y on runner macOS arm64 -> PASS
 
 Does not imply:
   every version between X and Y is supported

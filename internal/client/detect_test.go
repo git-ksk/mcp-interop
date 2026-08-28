@@ -2,8 +2,12 @@ package client
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"os"
+	"path/filepath"
 	"reflect"
+	"runtime"
 	"testing"
 )
 
@@ -99,4 +103,55 @@ func TestNormalizeVersion(t *testing.T) {
 	if got != "first line" {
 		t.Fatalf("unexpected normalized version: %q", got)
 	}
+}
+
+func TestInspectExecutableArchitecturesFindsCurrentTestBinaryArchitecture(t *testing.T) {
+	path, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	architectures, err := inspectExecutableArchitectures(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !containsArchitecture(architectures, runtime.GOARCH) {
+		t.Fatalf("architectures=%v, want runner arch %q", architectures, runtime.GOARCH)
+	}
+}
+
+func TestInspectExecutableArchitecturesLeavesScriptUnknown(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "client-wrapper")
+	if err := os.WriteFile(path, []byte("#!/bin/sh\nexit 0\n"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	architectures, err := inspectExecutableArchitectures(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(architectures) != 0 {
+		t.Fatalf("script architecture was inferred: %v", architectures)
+	}
+}
+
+func TestDetectionJSONDoesNotExposeExecutableArchitectureEvidence(t *testing.T) {
+	data, err := json.Marshal(Detection{
+		ID: "codex", DisplayName: "Codex CLI", Tier: TierV1, Installed: true,
+		Executable: "codex", Path: "/private/client", Version: "1.0.0",
+		ExecutableArchitectures: []string{"arm64"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) == "" || containsJSONKey(data, "executable_architectures") {
+		t.Fatalf("internal architecture evidence changed clients JSON contract: %s", data)
+	}
+}
+
+func containsJSONKey(data []byte, key string) bool {
+	var value map[string]any
+	if err := json.Unmarshal(data, &value); err != nil {
+		return false
+	}
+	_, ok := value[key]
+	return ok
 }

@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"text/tabwriter"
 	"time"
@@ -518,6 +519,12 @@ func runTestWithIO(ctx context.Context, args []string, stdout, stderr io.Writer)
 				hadFailure = true
 				continue
 			}
+			if options.output != "" {
+				if err := validatePortableClientArchitecture(detection, currentRunnerPlatform()); err != nil {
+					fmt.Fprintln(stderr, err)
+					return 2
+				}
+			}
 
 			adapterOptions := make([]codexadapter.Option, 0, 1)
 			if options.oauth {
@@ -542,6 +549,12 @@ func runTestWithIO(ctx context.Context, args []string, stdout, stderr io.Writer)
 				hadFailure = true
 				continue
 			}
+			if options.output != "" {
+				if err := validatePortableClientArchitecture(detection, currentRunnerPlatform()); err != nil {
+					fmt.Fprintln(stderr, err)
+					return 2
+				}
+			}
 			adapterOptions := make([]cursoradapter.Option, 0, 1)
 			if options.oauth {
 				adapterOptions = append(adapterOptions, cursoradapter.WithAuthorizationHandler(printAuthorizationURL))
@@ -564,6 +577,12 @@ func runTestWithIO(ctx context.Context, args []string, stdout, stderr io.Writer)
 				appendResult(interop.RedactResult(result), artifact.EvidenceProvenance{Kind: artifact.ProvenanceRunnerObservation})
 				hadFailure = true
 				continue
+			}
+			if options.output != "" {
+				if err := validatePortableClientArchitecture(detection, currentRunnerPlatform()); err != nil {
+					fmt.Fprintln(stderr, err)
+					return 2
+				}
 			}
 			adapterOptions := make([]antigravityadapter.Option, 0, 1)
 			if options.oauth {
@@ -759,6 +778,27 @@ func splitClients(value string) []string {
 		out = append(out, part)
 	}
 	return out
+}
+
+func currentRunnerPlatform() artifact.Platform {
+	return artifact.Platform{OS: runtime.GOOS, Arch: runtime.GOARCH}
+}
+
+func validatePortableClientArchitecture(detection client.Detection, platform artifact.Platform) error {
+	if len(detection.ExecutableArchitectures) == 0 {
+		return nil
+	}
+	for _, architecture := range detection.ExecutableArchitectures {
+		if architecture == platform.Arch {
+			return nil
+		}
+	}
+	return fmt.Errorf(
+		"client executable architecture %s does not include runner architecture %s; "+
+			"portable evidence records runner platform only",
+		strings.Join(detection.ExecutableArchitectures, ","),
+		platform.Arch,
+	)
 }
 
 func detectClient(ctx context.Context, id string) client.Detection {
