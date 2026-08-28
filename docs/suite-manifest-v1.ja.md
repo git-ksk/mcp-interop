@@ -110,4 +110,4 @@ Client selection:
 - 既存output directoryを置換しない
 - non-PASSや未インストールclientもdropせず保存する
 
-`hosted_fixture`宣言は、#115でrepository CI trust policyとcontrolled localhost fixtureを接続するまではvalidation-onlyです。retry/flake semanticsとbaseline/regression reportingは#114の作業です。manifestには後続処理が実行できるarbitrary command/hook機構を追加しません。
+`hosted_fixture`宣言はv0.7.0ではvalidation-onlyです。repositoryのPull Request CIはcontrolled localhost fixture gateを別経路で使い、privileged runnerで任意suite manifestを実行しません。retry / flake / regression semanticsは[Suite regression report v1](suite-regression-report-v1.ja.md)で定義済みです。manifestには後続処理が実行できるarbitrary command/hook機構を追加しません。

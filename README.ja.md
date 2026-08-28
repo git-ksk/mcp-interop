@@ -189,7 +189,7 @@ mcp-interop suite run suite.json --output-dir suite-results-json --json
 
 suiteは最初のclientを起動する前に全endpointを解決・検証し、各runを`mcp-interop test`と同じlive-test経路で実行します。出力は`index.json`とrunごとのprotected-path schema v2 artifactです。indexへendpoint URLやendpoint環境変数名は保存しません。non-PASSや未インストールclientもsetから落とさず、commandはexit `1`になります。manifest不正、endpoint未解決、既存output directoryはclient起動前にexit `2`です。
 
-Manifest v1にはRemote MCP endpoint URL自体を保存しません。hosted fixture suiteは任意network targetやOAuthを指定できず、実際のCI fixture executionは#115までgateします。trusted real-client suiteはtarget固有の`MCP_INTEROP_SUITE_ENDPOINT_*`変数参照と非secret `deployment_id`を使います。詳細は[Suite manifest v1](docs/suite-manifest-v1.ja.md)と[Suite result set v1](docs/suite-result-set-v1.ja.md)を参照してください。
+Manifest v1にはRemote MCP endpoint URL自体を保存しません。hosted fixture宣言は任意network targetやOAuthを指定できず、v0.7.0ではvalidation-onlyです。repositoryのPR CIは任意suite manifestを実行せず、controlled localhost fixture gateを別経路で使います。trusted real-client suiteはtarget固有の`MCP_INTEROP_SUITE_ENDPOINT_*`変数参照と非secret `deployment_id`を使います。詳細は[Suite manifest v1](docs/suite-manifest-v1.ja.md)と[Suite result set v1](docs/suite-result-set-v1.ja.md)を参照してください。
 
 baseline result setと保持したattempt群を比較できます。
 

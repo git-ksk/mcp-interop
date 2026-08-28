@@ -169,7 +169,7 @@ mcp-interop suite run suite.json --output-dir suite-results-json --json
 
 The suite resolves every endpoint before launching the first client, executes each run through the same live-test path used by `mcp-interop test`, and writes `index.json` plus one protected-path schema-v2 artifact per run. The index never stores endpoint URLs or endpoint environment-variable names. A non-PASS/missing-client result remains represented in the set and makes the command exit `1`; invalid manifests, unresolved endpoints, or an existing output directory fail before execution with exit `2`.
 
-Manifest v1 never stores a Remote MCP endpoint URL. Hosted fixture suites cannot select network targets or OAuth; their actual CI fixture execution remains gated by #115. Trusted real-client suites reference a target-specific `MCP_INTEROP_SUITE_ENDPOINT_*` variable and require a non-secret `deployment_id`. See [Suite manifest v1](docs/suite-manifest-v1.md) ([日本語](docs/suite-manifest-v1.ja.md)) and [Suite result set v1](docs/suite-result-set-v1.md) ([日本語](docs/suite-result-set-v1.ja.md)).
+Manifest v1 never stores a Remote MCP endpoint URL. Hosted fixture declarations cannot select network targets or OAuth and remain validation-only in v0.7.0; repository PR CI continues to use controlled localhost fixture gates separately rather than executing arbitrary suite manifests. Trusted real-client suites reference a target-specific `MCP_INTEROP_SUITE_ENDPOINT_*` variable and require a non-secret `deployment_id`. See [Suite manifest v1](docs/suite-manifest-v1.md) ([日本語](docs/suite-manifest-v1.ja.md)) and [Suite result set v1](docs/suite-result-set-v1.md) ([日本語](docs/suite-result-set-v1.ja.md)).
 
 Compare a baseline result set with one or more retained attempts:
 
