@@ -57,6 +57,48 @@ grep -F '"client_id": "cursor"' "$workdir/maturity.json" >/dev/null
 grep -F '"client_id": "antigravity"' "$workdir/maturity.json" >/dev/null
 grep -F '"maturity": "beta"' "$workdir/maturity.json" >/dev/null
 
+cat >"$workdir/capability-profile.json" <<'CAPABILITY'
+{
+  "schema_version": 1,
+  "artifact_type": "mcp-interop/capability-profile",
+  "context": {
+    "observed_at": "2026-08-28T12:00:00Z",
+    "deployment_id": "fixture-a",
+    "deployment_fingerprint": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "client": {
+      "id": "codex",
+      "product": "Codex CLI",
+      "version": "codex-fixture 1.0.0"
+    },
+    "platform": {"os": "darwin", "arch": "arm64"},
+    "runtime": {
+      "mcp_interop_version": "dev",
+      "mcp_interop_commit": "deadbeef",
+      "go_version": "go1.26.6"
+    },
+    "auth_mode": "default",
+    "evidence_provenance": {"kind": "real_client_adapter", "adapter_id": "codex"}
+  },
+  "capabilities": [
+    {
+      "capability_id": "resources",
+      "state": "pass",
+      "evidence_kind": "client_protocol",
+      "evidence_id": "resources.list.response"
+    },
+    {
+      "capability_id": "tasks",
+      "state": "untested",
+      "evidence_kind": "none"
+    }
+  ]
+}
+CAPABILITY
+"$binary" capability validate "$workdir/capability-profile.json" --json >"$workdir/capability-validated.json"
+grep -F '"artifact_type": "mcp-interop/capability-profile"' "$workdir/capability-validated.json" >/dev/null
+grep -F '"state": "pass"' "$workdir/capability-validated.json" >/dev/null
+grep -F '"state": "untested"' "$workdir/capability-validated.json" >/dev/null
+
 endpoint='https://example.com/mcp?api_key=cli-smoke-secret&tenant=fixture'
 old="$workdir/old.json"
 new="$workdir/new.json"

@@ -115,6 +115,8 @@ Stable does not mean the external client can never change. A newly installed but
 
 The canonical machine/human-readable criteria and current shipped-adapter decisions are defined in [Adapter maturity contract](adapter-maturity.md). `mcp-interop maturity` reports those decisions without detecting or executing a client.
 
+Optional capability evidence uses the separate [Capability profile v1](capability-profile-v1.md) contract. Capability states do not broaden the core live PASS contract, and indirect metadata/configuration/UI presence cannot satisfy a capability PASS.
+
 ## Priority order
 
 When roadmap items compete, use this order.

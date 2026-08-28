@@ -112,6 +112,7 @@ mcp-interop --version
 | accept済みbaselineとretained attemptを比較 | `mcp-interop baseline compare` |
 | インストール済みexact client versionを実測evidenceで分類 | `mcp-interop compatibility query` |
 | shipped adapterのevidence-based maturityを確認 | `mcp-interop maturity` |
+| optional capabilityの独立evidenceをvalidate | `mcp-interop capability validate` |
 | 実クライアントを動かさない事前診断 | `mcp-interop diagnose` |
 
 検出できるクライアントを確認:
@@ -122,6 +123,8 @@ mcp-interop clients --json
 ```
 
 `clients`に出る`tier`はroadmap/delivery placementであり、evidence maturityではありません。current mainでは、未リリースv0.9の`mcp-interop maturity`で`research_only` / `beta` / `stable`のreview済みdecisionを確認します。このcommandはclientの検出・実行を行いません。公開v0.8.0 binaryにはまだ含まれません。
+
+Capability profile v1もcurrent mainの未リリースv0.9 workです。`mcp-interop capability validate`は独立evidence documentをvalidateするだけで、core `reach/auth/init/tools` PASSを変更しません。詳細は[Capability profile v1](docs/capability-profile-v1.ja.md)を参照してください。
 
 1クライアントをテスト:
 
