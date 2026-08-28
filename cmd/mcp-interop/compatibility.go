@@ -34,6 +34,7 @@ type compatibilityQueryOptions struct {
 	observationPaths           []string
 	maxAgeSeconds              int64
 	staleOnClientVersionChange bool
+	trustExecutedAtClock       bool
 	json                       bool
 }
 
@@ -141,6 +142,7 @@ func runCompatibilityQueryWith(
 	policy := suite.CompatibilityStalePolicy{
 		MaxAgeSeconds:              options.maxAgeSeconds,
 		StaleOnClientVersionChange: options.staleOnClientVersionChange,
+		TrustExecutedAtClock:       options.trustExecutedAtClock,
 	}
 	envelope, err := suite.BuildCompatibilityEnvelope(baseline, observations, policy, evaluatedAt)
 	if err != nil {
@@ -209,6 +211,8 @@ func parseCompatibilityQueryOptions(args []string) (compatibilityQueryOptions, e
 			options.json = true
 		case arg == "--stale-on-client-version-change":
 			options.staleOnClientVersionChange = true
+		case arg == "--trust-executed-at-clock":
+			options.trustExecutedAtClock = true
 		case arg == "--client":
 			value, err := next("--client")
 			if err != nil {
@@ -312,6 +316,12 @@ func parseCompatibilityQueryOptions(args []string) (compatibilityQueryOptions, e
 	}
 	if options.maxAgeSeconds < 0 {
 		return options, errors.New("--max-age-seconds must not be negative")
+	}
+	if options.maxAgeSeconds > 0 && !options.trustExecutedAtClock {
+		return options, errors.New("--max-age-seconds requires --trust-executed-at-clock")
+	}
+	if options.trustExecutedAtClock && options.maxAgeSeconds == 0 {
+		return options, errors.New("--trust-executed-at-clock requires a positive --max-age-seconds")
 	}
 	return options, nil
 }

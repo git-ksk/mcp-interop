@@ -79,7 +79,8 @@ func TestCompatibilityQuerySurfacesStaleObservedVersion(t *testing.T) {
 	output := runCompatibilityQueryJSONAt(t, []string{
 		"--client", "codex", "--target", "production-a", "--deployment-id", "production-a",
 		"--observation", old, "--observation", newer,
-		"--max-age-seconds", "1209600", "--stale-on-client-version-change", "--json",
+		"--max-age-seconds", "1209600", "--trust-executed-at-clock",
+		"--stale-on-client-version-change", "--json",
 	}, "1.0.0", time.Date(2026, 8, 28, 0, 0, 0, 0, time.UTC))
 	if output.Classification.State != suite.CompatibilityStale || output.Classification.Point == nil {
 		t.Fatalf("stale classification=%#v", output.Classification)
@@ -133,6 +134,23 @@ func TestParseCompatibilityQueryRejectsMissingEvidenceAndRanges(t *testing.T) {
 	}
 	if _, err := parseCompatibilityQueryOptions([]string{"--client", "codex", "--target", "production-a", "--deployment-id", "production-a", "--observation", "x", "--version-range", "1.0-2.0"}); err == nil {
 		t.Fatal("version-range option must not exist")
+	}
+}
+
+func TestParseCompatibilityQueryRequiresExplicitClockTrustForAge(t *testing.T) {
+	base := []string{
+		"--client", "codex",
+		"--target", "production-a",
+		"--deployment-id", "production-a",
+		"--observation", "result-set",
+	}
+	withoutTrust := append(append([]string(nil), base...), "--max-age-seconds", "3600")
+	if _, err := parseCompatibilityQueryOptions(withoutTrust); err == nil || !strings.Contains(err.Error(), "trust-executed-at-clock") {
+		t.Fatalf("expected explicit clock-trust error, got %v", err)
+	}
+	withoutAge := append(append([]string(nil), base...), "--trust-executed-at-clock")
+	if _, err := parseCompatibilityQueryOptions(withoutAge); err == nil || !strings.Contains(err.Error(), "max-age-seconds") {
+		t.Fatalf("expected max-age pairing error, got %v", err)
 	}
 }
 

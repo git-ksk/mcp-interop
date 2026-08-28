@@ -214,6 +214,18 @@ Does not imply:
 
 Deepen confidence in existing adapters and graduate additional product/capability support only where the evidence boundary is strong enough.
 
+### Focused implementation issues
+
+1. [#133](https://github.com/git-ksk/mcp-interop/issues/133) — cross-runner clock-skew chronology hardening
+2. [#134](https://github.com/git-ksk/mcp-interop/issues/134) — runner platform vs real client executable architecture
+3. [#136](https://github.com/git-ksk/mcp-interop/issues/136) — exact observed version/OS coverage matrix for shipped clients
+4. [#135](https://github.com/git-ksk/mcp-interop/issues/135) — baseline authenticity / acceptance provenance boundary
+5. [#137](https://github.com/git-ksk/mcp-interop/issues/137) — evidence-based adapter maturity and beta-to-stable criteria
+6. [#138](https://github.com/git-ksk/mcp-interop/issues/138) — capability-profile evidence contract and precise PASS semantics
+7. [#139](https://github.com/git-ksk/mcp-interop/issues/139) — equal-evidence graduation gate for new real clients
+
+Dependency order: #133 -> #134 -> #136 -> #135 -> #137 -> #138 -> #139.
+
 ### Priority order
 
 1. strengthen Codex, Cursor, and Antigravity across realistic current client versions;

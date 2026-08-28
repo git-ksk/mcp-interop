@@ -212,6 +212,8 @@ To classify the currently installed exact client version without changing the ex
 mcp-interop compatibility query --client codex --target production-a --deployment-id production-a --baseline baselines/current --observation attempt-1 --json
 ```
 
+For version-change staleness, repeated `--observation` inputs are explicit oldest-to-newest collection order rather than a wall-clock sort. Age-based staleness requires `--max-age-seconds N --trust-executed-at-clock`; future timestamps are treated conservatively as stale.
+
 Baseline creation never overwrites an existing directory. The result set is copied into the bundle, bound by a deterministic digest, and selected explicitly by path; retries and client auto-updates cannot silently replace the accepted anchor. A superseding baseline keeps the prior baseline unchanged and records its fingerprint. Baseline comparison fails closed on manifest, execution-context, deployment-fingerprint, or platform mismatch while preserving suite regression report v1 output. See [Suite baseline v1](docs/suite-baseline-v1.md) ([日本語](docs/suite-baseline-v1.ja.md)).
 
 Self-hosted real-client GitHub Actions are a separate privileged path: the manual macOS workflow is main-only, uses a main-only Environment policy, records exact run provenance, and never accepts remote suite endpoints or OAuth credentials. See [Self-hosted real-client CI security boundary](docs/self-hosted-ci-security.md) ([日本語](docs/self-hosted-ci-security.ja.md)).
