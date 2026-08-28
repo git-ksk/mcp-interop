@@ -209,6 +209,18 @@ Tested:
 
 既存アダプターの信頼性を深め、十分な証拠境界を持つ製品・capabilityだけを対応済みにします。
 
+### Focused implementation Issue
+
+1. [#133](https://github.com/git-ksk/mcp-interop/issues/133) — cross-runner clock skew chronology hardening
+2. [#134](https://github.com/git-ksk/mcp-interop/issues/134) — runner platformとreal client executable architectureの区別
+3. [#136](https://github.com/git-ksk/mcp-interop/issues/136) — shipped clientのexact observed version / OS coverage matrix
+4. [#135](https://github.com/git-ksk/mcp-interop/issues/135) — baseline authenticity / acceptance provenance境界
+5. [#137](https://github.com/git-ksk/mcp-interop/issues/137) — evidence-based adapter maturityとbeta -> stable基準
+6. [#138](https://github.com/git-ksk/mcp-interop/issues/138) — capability profile evidence contractと正確なPASS semantics
+7. [#139](https://github.com/git-ksk/mcp-interop/issues/139) — 新real client向けequal-evidence graduation gate
+
+依存順: #133 -> #134 -> #136 -> #135 -> #137 -> #138 -> #139。
+
 優先順:
 
 1. Codex / Cursor / Antigravityを現実的な最新version横断で検証

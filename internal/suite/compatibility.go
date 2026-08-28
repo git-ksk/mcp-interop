@@ -33,6 +33,7 @@ const (
 
 	CompatibilityStaleByAge           = "age_limit_exceeded"
 	CompatibilityStaleByVersionChange = "later_client_version_observed"
+	CompatibilityStaleByFutureClock   = "observation_after_evaluation"
 
 	maxCompatibilityAgeSeconds = int64((1<<63 - 1) / int64(time.Second))
 )
@@ -43,11 +44,13 @@ const (
 type CompatibilityState string
 
 // CompatibilityStalePolicy makes staleness an explicit input. A zero max age
-// disables age-based staleness. Version-change staleness compares observation
-// times only; it never parses or orders version strings semantically.
+// disables age-based staleness. Version-change staleness uses explicit retained
+// collection order, never wall-clock ordering or semantic version parsing.
+// Age-based staleness requires an explicit synchronized-clock trust assertion.
 type CompatibilityStalePolicy struct {
 	MaxAgeSeconds              int64 `json:"max_age_seconds,omitempty"`
 	StaleOnClientVersionChange bool  `json:"stale_on_client_version_change,omitempty"`
+	TrustExecutedAtClock       bool  `json:"trust_executed_at_clock,omitempty"`
 }
 
 // CompatibilityEnvelope is a deterministic set of exact observed points for
@@ -149,6 +152,12 @@ type compatibilityPointBuilder struct {
 type compatibilityContextLast struct {
 	version string
 	at      time.Time
+	order   compatibilityCollectionOrder
+}
+
+type compatibilityCollectionOrder struct {
+	sourceRank int
+	attempt    int
 }
 
 // BuildCompatibilityEnvelope aggregates exact observed points from an optional
@@ -163,6 +172,9 @@ func BuildCompatibilityEnvelope(
 ) (CompatibilityEnvelope, error) {
 	if err := validateCompatibilityPolicy(policy); err != nil {
 		return CompatibilityEnvelope{}, err
+	}
+	if policy.MaxAgeSeconds > 0 && !policy.TrustExecutedAtClock {
+		return CompatibilityEnvelope{}, errors.New("compatibility max_age_seconds requires trust_executed_at_clock")
 	}
 	if evaluatedAt.IsZero() {
 		return CompatibilityEnvelope{}, errors.New("compatibility evaluated_at is required")
@@ -250,7 +262,8 @@ func BuildCompatibilityEnvelope(
 	points := make([]CompatibilityPoint, 0, len(builders))
 	for _, builder := range builders {
 		sortCompatibilityObservations(builder.point.Observations)
-		builder.point.LastObservedAt = builder.point.Observations[len(builder.point.Observations)-1].ExecutedAt
+		lastCollected := compatibilityLastCollectedObservation(builder.point.Observations)
+		builder.point.LastObservedAt = lastCollected.ExecutedAt
 		builder.point.Unstable = len(builder.signatures) > 1
 		builder.point.State = baseCompatibilityState(builder.point, builder.signatures)
 		points = append(points, builder.point)
@@ -266,16 +279,21 @@ func BuildCompatibilityEnvelope(
 		if points[i].State != CompatibilityTested {
 			continue
 		}
-		if policy.MaxAgeSeconds > 0 && evaluatedAt.After(points[i].LastObservedAt) {
-			age := evaluatedAt.Sub(points[i].LastObservedAt)
-			if age > time.Duration(policy.MaxAgeSeconds)*time.Second {
-				points[i].StaleReasons = append(points[i].StaleReasons, CompatibilityStaleByAge)
+		if policy.MaxAgeSeconds > 0 {
+			if points[i].LastObservedAt.After(evaluatedAt) {
+				points[i].StaleReasons = append(points[i].StaleReasons, CompatibilityStaleByFutureClock)
+			} else {
+				age := evaluatedAt.Sub(points[i].LastObservedAt)
+				if age > time.Duration(policy.MaxAgeSeconds)*time.Second {
+					points[i].StaleReasons = append(points[i].StaleReasons, CompatibilityStaleByAge)
+				}
 			}
 		}
+		pointOrder := compatibilityObservationCollectionOrder(compatibilityLastCollectedObservation(points[i].Observations))
 		if policy.StaleOnClientVersionChange &&
 			last.version != "" &&
 			last.version != points[i].ClientVersion &&
-			last.at.After(points[i].LastObservedAt) {
+			compatibilityCollectionOrderAfter(last.order, pointOrder) {
 			points[i].StaleReasons = append(points[i].StaleReasons, CompatibilityStaleByVersionChange)
 		}
 		if len(points[i].StaleReasons) > 0 {
@@ -359,13 +377,15 @@ func ClassifyCompatibilityExact(
 	result.State = CompatibilityUntested
 	seenVersions := make(map[string]struct{}, len(platformPoints))
 	var last *CompatibilityPoint
+	var lastOrder compatibilityCollectionOrder
 	for i := range platformPoints {
 		point := platformPoints[i]
 		seenVersions[point.ClientVersion] = struct{}{}
-		if last == nil || point.LastObservedAt.After(last.LastObservedAt) ||
-			(point.LastObservedAt.Equal(last.LastObservedAt) && point.ClientVersion > last.ClientVersion) {
+		order := compatibilityObservationCollectionOrder(compatibilityLastCollectedObservation(point.Observations))
+		if last == nil || compatibilityCollectionOrderAfter(order, lastOrder) {
 			candidate := point
 			last = &candidate
+			lastOrder = order
 		}
 	}
 	for version := range seenVersions {
@@ -804,7 +824,7 @@ func validateCompatibilityPoint(point CompatibilityPoint) error {
 	seenStaleReasons := make(map[string]struct{}, len(point.StaleReasons))
 	for _, reason := range point.StaleReasons {
 		switch reason {
-		case CompatibilityStaleByAge, CompatibilityStaleByVersionChange:
+		case CompatibilityStaleByAge, CompatibilityStaleByVersionChange, CompatibilityStaleByFutureClock:
 		default:
 			return fmt.Errorf("unsupported stale reason %q", reason)
 		}
@@ -972,13 +992,45 @@ func compatibilityContextLastObserved(points []CompatibilityPoint) map[string]co
 	out := make(map[string]compatibilityContextLast)
 	for _, point := range points {
 		key := compatibilityPointContextKey(point)
+		lastObservation := compatibilityLastCollectedObservation(point.Observations)
+		order := compatibilityObservationCollectionOrder(lastObservation)
 		current, ok := out[key]
-		if !ok || point.LastObservedAt.After(current.at) ||
-			(point.LastObservedAt.Equal(current.at) && point.ClientVersion > current.version) {
-			out[key] = compatibilityContextLast{version: point.ClientVersion, at: point.LastObservedAt}
+		if !ok || compatibilityCollectionOrderAfter(order, current.order) {
+			out[key] = compatibilityContextLast{
+				version: point.ClientVersion,
+				at:      lastObservation.ExecutedAt,
+				order:   order,
+			}
 		}
 	}
 	return out
+}
+
+func compatibilityLastCollectedObservation(observations []CompatibilityObservation) CompatibilityObservation {
+	last := observations[0]
+	lastOrder := compatibilityObservationCollectionOrder(last)
+	for _, observation := range observations[1:] {
+		order := compatibilityObservationCollectionOrder(observation)
+		if compatibilityCollectionOrderAfter(order, lastOrder) {
+			last = observation
+			lastOrder = order
+		}
+	}
+	return last
+}
+
+func compatibilityObservationCollectionOrder(observation CompatibilityObservation) compatibilityCollectionOrder {
+	if observation.Source == CompatibilitySourceAttempt {
+		return compatibilityCollectionOrder{sourceRank: 1, attempt: observation.Attempt}
+	}
+	return compatibilityCollectionOrder{}
+}
+
+func compatibilityCollectionOrderAfter(left, right compatibilityCollectionOrder) bool {
+	if left.sourceRank != right.sourceRank {
+		return left.sourceRank > right.sourceRank
+	}
+	return left.attempt > right.attempt
 }
 
 func compatibilityStaticContextMatches(point CompatibilityPoint, query CompatibilityQuery) bool {

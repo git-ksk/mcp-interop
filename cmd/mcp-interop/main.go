@@ -33,7 +33,7 @@ Usage:
   mcp-interop suite compare <baseline-index> <attempt-index> [<attempt-index>...] [--json] [--fail-on-regression]
   mcp-interop baseline create <result-set> --output-dir <dir> [--supersedes <baseline-dir>] [--json]
   mcp-interop baseline compare <baseline-dir> <attempt-index> [<attempt-index>...] [--json] [--fail-on-regression]
-  mcp-interop compatibility query --client <id> --target <id> --deployment-id <id> [--auth none|oauth] [--baseline <dir>] [--observation <result-set>]... [--max-age-seconds <n>] [--stale-on-client-version-change] [--json]
+  mcp-interop compatibility query --client <id> --target <id> --deployment-id <id> [--auth none|oauth] [--baseline <dir>] [--observation <result-set>]... [--max-age-seconds <n> --trust-executed-at-clock] [--stale-on-client-version-change] [--json]
   mcp-interop diagnose <url> [--profile chatgpt] [--client-id <url>] [--redirect-uri <url>] [--runtime-evidence <file|->] [--json]
   mcp-interop evidence <validate|summary|merge> ...
   mcp-interop version

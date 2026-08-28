@@ -65,7 +65,11 @@ func TestCompatibilityStaleUsesAgeAndLaterObservedVersionWithoutRanges(t *testin
 	manifest := regressionTestManifest()
 	old := compatibilityTestSet(t, manifest, "old", "1.0.0", time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC), interop.StatusPass)
 	newer := compatibilityTestSet(t, manifest, "newer", "next-build", time.Date(2026, 8, 27, 0, 0, 0, 0, time.UTC), interop.StatusPass)
-	policy := CompatibilityStalePolicy{MaxAgeSeconds: int64((14 * 24 * time.Hour) / time.Second), StaleOnClientVersionChange: true}
+	policy := CompatibilityStalePolicy{
+		MaxAgeSeconds:              int64((14 * 24 * time.Hour) / time.Second),
+		StaleOnClientVersionChange: true,
+		TrustExecutedAtClock:       true,
+	}
 	envelope, err := BuildCompatibilityEnvelope(nil, []LoadedResultSet{old, newer}, policy, time.Date(2026, 8, 28, 0, 0, 0, 0, time.UTC))
 	if err != nil {
 		t.Fatal(err)
@@ -86,6 +90,146 @@ func TestCompatibilityStaleUsesAgeAndLaterObservedVersionWithoutRanges(t *testin
 	}
 	if newClass.State != CompatibilityTested {
 		t.Fatalf("latest point state=%s", newClass.State)
+	}
+}
+
+func TestCompatibilityVersionChangeUsesObservationOrderNotExecutedAt(t *testing.T) {
+	manifest := regressionTestManifest()
+	clockAheadOld := compatibilityTestSet(
+		t,
+		manifest,
+		"clock-ahead-old",
+		"1.0.0",
+		time.Date(2026, 8, 28, 0, 30, 0, 0, time.UTC),
+		interop.StatusPass,
+	)
+	collectedLater := compatibilityTestSet(
+		t,
+		manifest,
+		"collected-later",
+		"2.0.0",
+		time.Date(2026, 8, 27, 23, 30, 0, 0, time.UTC),
+		interop.StatusPass,
+	)
+
+	envelope, err := BuildCompatibilityEnvelope(
+		nil,
+		[]LoadedResultSet{clockAheadOld, collectedLater},
+		CompatibilityStalePolicy{StaleOnClientVersionChange: true},
+		time.Date(2026, 8, 28, 1, 0, 0, 0, time.UTC),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	oldClass, err := ClassifyCompatibilityExact(envelope, compatibilityQuery("1.0.0"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if oldClass.State != CompatibilityStale || oldClass.Point == nil {
+		t.Fatalf("older collection-order point=%#v, want stale", oldClass)
+	}
+	if !containsString(oldClass.Point.StaleReasons, CompatibilityStaleByVersionChange) {
+		t.Fatalf("stale reasons=%v, want version-change reason", oldClass.Point.StaleReasons)
+	}
+
+	newClass, err := ClassifyCompatibilityExact(envelope, compatibilityQuery("2.0.0"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if newClass.State != CompatibilityTested || newClass.Point == nil {
+		t.Fatalf("later collection-order point=%#v, want tested", newClass)
+	}
+	if newClass.Point.ContextLastObservedVersion != "2.0.0" {
+		t.Fatalf("context last version=%q, want 2.0.0", newClass.Point.ContextLastObservedVersion)
+	}
+
+	unseenClass, err := ClassifyCompatibilityExact(envelope, compatibilityQuery("3.0.0"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if unseenClass.State != CompatibilityUntested || unseenClass.ContextLastObservedVersion != "2.0.0" {
+		t.Fatalf("unseen context chronology=%#v, want last collected version 2.0.0", unseenClass)
+	}
+}
+
+func TestCompatibilityAgePolicyRequiresExplicitClockTrust(t *testing.T) {
+	manifest := regressionTestManifest()
+	set := compatibilityTestSet(
+		t,
+		manifest,
+		"age-policy",
+		"1.0.0",
+		time.Date(2026, 8, 27, 0, 0, 0, 0, time.UTC),
+		interop.StatusPass,
+	)
+	_, err := BuildCompatibilityEnvelope(
+		nil,
+		[]LoadedResultSet{set},
+		CompatibilityStalePolicy{MaxAgeSeconds: 3600},
+		time.Date(2026, 8, 28, 0, 0, 0, 0, time.UTC),
+	)
+	if err == nil || !strings.Contains(err.Error(), "trust_executed_at_clock") {
+		t.Fatalf("expected explicit clock-trust error, got %v", err)
+	}
+}
+
+func TestCompatibilityFutureTimestampIsStaleWithTrustedClock(t *testing.T) {
+	manifest := regressionTestManifest()
+	set := compatibilityTestSet(
+		t,
+		manifest,
+		"future-clock",
+		"1.0.0",
+		time.Date(2026, 8, 28, 2, 0, 0, 0, time.UTC),
+		interop.StatusPass,
+	)
+	envelope, err := BuildCompatibilityEnvelope(
+		nil,
+		[]LoadedResultSet{set},
+		CompatibilityStalePolicy{MaxAgeSeconds: 3600, TrustExecutedAtClock: true},
+		time.Date(2026, 8, 28, 1, 0, 0, 0, time.UTC),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	classification, err := ClassifyCompatibilityExact(envelope, compatibilityQuery("1.0.0"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if classification.State != CompatibilityStale || classification.Point == nil {
+		t.Fatalf("future timestamp classification=%#v, want stale", classification)
+	}
+	if !containsString(classification.Point.StaleReasons, CompatibilityStaleByFutureClock) {
+		t.Fatalf("stale reasons=%v, want future-clock reason", classification.Point.StaleReasons)
+	}
+}
+
+func TestCompatibilityValidationReadsLegacyV08AgePolicyWithoutClockTrustField(t *testing.T) {
+	manifest := regressionTestManifest()
+	set := compatibilityTestSet(
+		t,
+		manifest,
+		"legacy-age",
+		"1.0.0",
+		time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC),
+		interop.StatusPass,
+	)
+	envelope, err := BuildCompatibilityEnvelope(
+		nil,
+		[]LoadedResultSet{set},
+		CompatibilityStalePolicy{MaxAgeSeconds: 3600, TrustExecutedAtClock: true},
+		time.Date(2026, 8, 28, 0, 0, 0, 0, time.UTC),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// v0.8 artifacts have no trust_executed_at_clock field. Structural reading
+	// remains backward compatible even though new age-policy construction
+	// requires the explicit clock-trust assertion.
+	envelope.StalePolicy.TrustExecutedAtClock = false
+	if err := ValidateCompatibilityEnvelope(envelope); err != nil {
+		t.Fatalf("legacy v0.8 envelope became unreadable: %v", err)
 	}
 }
 
