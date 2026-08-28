@@ -37,6 +37,8 @@ Local diagnostic JSON may contain local-machine facts such as an executable path
 
 Portable/versioned artifacts use explicit `schema_version` and, where defined, `artifact_type`. Their evolution policy is stricter and is documented separately in the schema contract. A successful validator means the document satisfies that schema; it does not turn a non-PASS observation into PASS.
 
+Portable schema evolution, migration, baseline authenticity, and deprecation rules are defined in [Schema evolution v1 candidate](schema-evolution-v1-candidate.md).
+
 ## Reason-code compatibility
 
 `reason_code` is an **open string enum with stable existing values**:
