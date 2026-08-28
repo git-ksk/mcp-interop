@@ -33,6 +33,8 @@ const (
 
 	CompatibilityStaleByAge           = "age_limit_exceeded"
 	CompatibilityStaleByVersionChange = "later_client_version_observed"
+
+	maxCompatibilityAgeSeconds = int64((1<<63 - 1) / int64(time.Second))
 )
 
 // CompatibilityState classifies one exact client-version/platform/auth/
@@ -702,6 +704,9 @@ func validateCompatibilityRunSet(expected map[string]ResultEntry, index ResultIn
 func validateCompatibilityPolicy(policy CompatibilityStalePolicy) error {
 	if policy.MaxAgeSeconds < 0 {
 		return errors.New("compatibility stale max_age_seconds must not be negative")
+	}
+	if policy.MaxAgeSeconds > maxCompatibilityAgeSeconds {
+		return errors.New("compatibility stale max_age_seconds exceeds supported duration")
 	}
 	return nil
 }

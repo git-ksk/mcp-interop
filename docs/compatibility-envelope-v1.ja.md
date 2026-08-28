@@ -76,3 +76,23 @@ Compatibility envelope v1は既存contractの上に追加する新しいreportin
 envelopeには非secret deployment identityと、既存portable evidenceに含まれるdeployment fingerprintを使います。raw Remote MCP endpoint URL、protected endpoint path、OAuth credential、bearer token、executable path、human diagnostic payloadは追加しません。
 
 schema-v2 live resultと同様、credential-safeであることとdeployment-publicであることは別です。originやoperator定義deployment ID自体が運用上privateな場合は、その前提で共有してください。
+
+## インストール済みclientをqueryする
+
+`mcp-interop compatibility query`は、shipped live clientの現在インストール済みexact versionを検出し、明示的に指定したlocal evidenceに対してそのversionを分類します。
+
+```console
+mcp-interop compatibility query \
+  --client codex \
+  --target production-a \
+  --deployment-id production-a \
+  --baseline baselines/current \
+  --observation suite-results-latest \
+  --stale-on-client-version-change
+```
+
+`--json`ではversionedな`mcp-interop/compatibility-query` machine-readable outputを返します。manifest/execution context、stale policy、任意のaccept済みbaseline fingerprint、検出したexact version、exact query、classification、保持したpoint evidence、関連evidence gapを含みます。一方で、検出したexecutable pathや入力filesystem pathは出力しません。
+
+`--max-age-seconds N`でage-based stale判定を有効にできます。`--observation`は最大128件まで繰り返せます。大量入力によって保持observation reportが無制限に大きくなるのを防ぐための上限です。`--baseline`または`--observation`の少なくとも一方が必要です。
+
+既存の`mcp-interop clients` / `clients --json` contractは変更しません。検出metadataだけではcompatibility claimになりません。auto-updateされた新しいinstalled versionが指定evidenceのexact observed pointに存在しなければ`untested`と表示します。

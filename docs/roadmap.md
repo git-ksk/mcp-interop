@@ -25,7 +25,7 @@ The roadmap is the canonical planning/exit-criteria document. GitHub Milestones 
 | --- | --- | --- |
 | v0.6.x | [#102](https://github.com/git-ksk/mcp-interop/issues/102) | **Completed:** [#87](https://github.com/git-ksk/mcp-interop/issues/87), [#99](https://github.com/git-ksk/mcp-interop/issues/99), [#100](https://github.com/git-ksk/mcp-interop/issues/100), [#101](https://github.com/git-ksk/mcp-interop/issues/101) |
 | v0.7.x | [#103](https://github.com/git-ksk/mcp-interop/issues/103) | **Completed:** [#112](https://github.com/git-ksk/mcp-interop/issues/112), [#113](https://github.com/git-ksk/mcp-interop/issues/113), [#114](https://github.com/git-ksk/mcp-interop/issues/114), [#115](https://github.com/git-ksk/mcp-interop/issues/115) |
-| v0.8.x | [#104](https://github.com/git-ksk/mcp-interop/issues/104) | **Completed:** [#125](https://github.com/git-ksk/mcp-interop/issues/125); **Active:** [#126](https://github.com/git-ksk/mcp-interop/issues/126); **Next:** [#127](https://github.com/git-ksk/mcp-interop/issues/127) |
+| v0.8.x | [#104](https://github.com/git-ksk/mcp-interop/issues/104) | **Completed:** [#125](https://github.com/git-ksk/mcp-interop/issues/125), [#126](https://github.com/git-ksk/mcp-interop/issues/126); **Active:** [#127](https://github.com/git-ksk/mcp-interop/issues/127) |
 | v0.9.x | [#105](https://github.com/git-ksk/mcp-interop/issues/105) | Research candidates: [#6](https://github.com/git-ksk/mcp-interop/issues/6), [#20](https://github.com/git-ksk/mcp-interop/issues/20), [#48](https://github.com/git-ksk/mcp-interop/issues/48), [#68](https://github.com/git-ksk/mcp-interop/issues/68) |
 | v0.10.x | [#106](https://github.com/git-ksk/mcp-interop/issues/106) | Split into focused audit/fix Issues when contract review starts |
 
