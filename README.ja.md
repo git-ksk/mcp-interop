@@ -490,3 +490,5 @@ MCP_INTEROP_CLIENTS=codex,cursor bash scripts/e2e-real-clients.sh
 ## ライセンス
 
 Apache License 2.0です。`LICENSE`を参照してください。
+
+- [Public contract candidate](docs/public-contract-v1-candidate.ja.md) — v0.10のCLI/JSON/exit/reason互換性review

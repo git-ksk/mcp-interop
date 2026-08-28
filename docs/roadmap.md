@@ -260,6 +260,15 @@ Existing adapters have documented tested envelopes and maturity status. Any newl
 
 Prepare the public contracts that the project may eventually promise to keep stable across `v1.x`.
 
+### Focused audit issues
+
+1. [#149](https://github.com/git-ksk/mcp-interop/issues/149) — CLI / JSON / exit-code / reason-code contract candidate
+2. [#150](https://github.com/git-ksk/mcp-interop/issues/150) — artifact schema / baseline / compatibility / deprecation policy
+3. [#151](https://github.com/git-ksk/mcp-interop/issues/151) — adapter identity / core PASS / capability / protocol-era semantics
+4. [#152](https://github.com/git-ksk/mcp-interop/issues/152) — security / privacy / cleanup / release guarantees
+
+Dependency order: #149 -> #150 -> #151 -> #152.
+
 ### Required work
 
 Review and, where necessary, stabilize:

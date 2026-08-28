@@ -128,6 +128,11 @@ A Runtime Evidence report exposes the first conclusive failure reason in diagnos
 
 For example, a request may first fail with `TOKEN_AUTH_METHOD_MISMATCH` and also have `CLIENT_AUTH_REJECTED` from the token endpoint; both checks remain visible.
 
+
+## Compatibility policy
+
+Reason codes are an open string enum with stable existing values. Existing codes are not renamed, removed, or repurposed within a stable major line; new codes may be added for new direct evidence. Consumers must tolerate unknown non-empty codes and must not derive a replacement code from free-form messages. See [Public contract candidate](public-contract-v1-candidate.md).
+
 ## Security boundary
 
 Runtime Evidence accepts only narrow presence/match booleans, stable non-secret metadata identifiers, registration strategy, and a short sanitized OAuth error code. Unknown JSON fields are rejected.
