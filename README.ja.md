@@ -22,11 +22,11 @@ MCP仕様への適合性は公式のMCP Conformance Test Frameworkが担当し�
 
 ## 現在の状態
 
-現在の公開リリースは **v0.7.0** です。
+現在の公開リリースは **v0.8.0** です。
 
-Release: [v0.7.0](https://github.com/git-ksk/mcp-interop/releases/tag/v0.7.0)
+Release: [v0.8.0](https://github.com/git-ksk/mcp-interop/releases/tag/v0.8.0)
 
-v0.7.0で利用できる実クライアント向けアダプターは次のとおりです。
+v0.8.0で利用できる実クライアント向けアダプターは次のとおりです。
 
 - **Codex CLI** — 実クライアントのMCP一覧確認と、明示的に指定した場合だけ実行するOAuth認証
 - **Cursor CLI（beta）** — MCP管理コマンドを使った認証不要の実ツール確認と、実CursorのMCPログイン経路を使うOAuth認証
@@ -34,7 +34,7 @@ v0.7.0で利用できる実クライアント向けアダプターは次のと�
 
 v0.7.0では、単発のlive testだけでなく、同じRemote MCPを複数クライアントで繰り返し検証し、前回結果との退行まで確認できるようになりました。v0.6.0のprotocol-aware coreとprotected-path artifactを土台に、秘密情報をmanifestへ書かないsuite宣言、複数clientの一括実行、baselineとの比較、manual / main-onlyのself-hosted CI境界を追加しています。retry後にPASSしても最初の失敗は消えません。live PASSの意味自体は変えていません。
 
-現在の`main`ではv0.8のbaseline lifecycleとexact observed-point compatibility実装まで完了しています。v0.8.0をtagするまではv0.7.0が公開版です。公開済みv0.7の保証は引き続き次のとおりです。
+v0.8.0では、v0.7の繰り返しregression workflowにimmutable baselineのaccept/supersedeとexact observed-point compatibility分類を追加しました。auto-updateされた未観測versionは観測されるまで`untested`のまま、stale evidenceは明示され、version変更だけでregressionにはなりません。公開版の保証は次のとおりです。
 
 - 実クライアントの4段階すべてを確認できた場合だけlive PASSにする
 - 診断用メタデータとRuntime Evidenceを、実クライアントのPASS証拠から分離する
@@ -52,7 +52,7 @@ Go 1.24以降が必要です。
 現在の安定版を固定してインストールする場合:
 
 ```console
-go install github.com/git-ksk/mcp-interop/cmd/mcp-interop@v0.7.0
+go install github.com/git-ksk/mcp-interop/cmd/mcp-interop@v0.8.0
 ```
 
 最新公開版を使う場合:
@@ -69,7 +69,7 @@ mcp-interop version
 mcp-interop --version
 ```
 
-[v0.7.0 GitHub Release](https://github.com/git-ksk/mcp-interop/releases/tag/v0.7.0)には、macOS / Linux / Windows向けのamd64 / arm64アーカイブと`checksums.txt`があります。
+[v0.8.0 GitHub Release](https://github.com/git-ksk/mcp-interop/releases/tag/v0.8.0)には、macOS / Linux / Windows向けのamd64 / arm64アーカイブと`checksums.txt`があります。
 
 ## 何を検証するのか
 
@@ -204,7 +204,7 @@ mcp-interop suite run suite.json --output-dir suite-results-json --json
 
 suiteは最初のclientを起動する前に全endpointを解決・検証し、各runを`mcp-interop test`と同じlive-test経路で実行します。出力は`index.json`とrunごとのprotected-path schema v2 artifactです。indexへendpoint URLやendpoint環境変数名は保存しません。non-PASSや未インストールclientもsetから落とさず、commandはexit `1`になります。manifest不正、endpoint未解決、既存output directoryはclient起動前にexit `2`です。
 
-Manifest v1にはRemote MCP endpoint URL自体を保存しません。hosted fixture宣言は任意network targetやOAuthを指定できず、v0.7.0ではvalidation-onlyです。repositoryのPR CIは任意suite manifestを実行せず、controlled localhost fixture gateを別経路で使います。trusted real-client suiteはtarget固有の`MCP_INTEROP_SUITE_ENDPOINT_*`変数参照と非secret `deployment_id`を使います。詳細は[Suite manifest v1](docs/suite-manifest-v1.ja.md)と[Suite result set v1](docs/suite-result-set-v1.ja.md)を参照してください。
+Manifest v1にはRemote MCP endpoint URL自体を保存しません。hosted fixture宣言は任意network targetやOAuthを指定できず、v0.8.0でもvalidation-onlyです。repositoryのPR CIは任意suite manifestを実行せず、controlled localhost fixture gateを別経路で使います。trusted real-client suiteはtarget固有の`MCP_INTEROP_SUITE_ENDPOINT_*`変数参照と非secret `deployment_id`を使います。詳細は[Suite manifest v1](docs/suite-manifest-v1.ja.md)と[Suite result set v1](docs/suite-result-set-v1.ja.md)を参照してください。
 
 比較基準として保存した結果（baseline）と、その後の1回以上の実行結果（attempt）を比較できます。
 
