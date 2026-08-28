@@ -203,6 +203,8 @@ mcp-interop baseline create suite-results-new --output-dir baselines/next --supe
 mcp-interop baseline compare baselines/current attempt-1 attempt-2 --fail-on-regression
 ```
 
+Compatibility is modeled from exact observed client-version/platform points only; unobserved versions remain `untested`, and version changes alone are never regressions. See [Compatibility envelope v1](docs/compatibility-envelope-v1.md) ([日本語](docs/compatibility-envelope-v1.ja.md)) for the `tested` / `untested` / `stale` / `known_broken` / `regressed` / `unknown` semantics.
+
 Baseline creation never overwrites an existing directory. The result set is copied into the bundle, bound by a deterministic digest, and selected explicitly by path; retries and client auto-updates cannot silently replace the accepted anchor. A superseding baseline keeps the prior baseline unchanged and records its fingerprint. Baseline comparison fails closed on manifest, execution-context, deployment-fingerprint, or platform mismatch while preserving suite regression report v1 output. See [Suite baseline v1](docs/suite-baseline-v1.md) ([日本語](docs/suite-baseline-v1.ja.md)).
 
 Self-hosted real-client GitHub Actions are a separate privileged path: the manual macOS workflow is main-only, uses a main-only Environment policy, records exact run provenance, and never accepts remote suite endpoints or OAuth credentials. See [Self-hosted real-client CI security boundary](docs/self-hosted-ci-security.md) ([日本語](docs/self-hosted-ci-security.ja.md)).

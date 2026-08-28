@@ -6,6 +6,11 @@ All notable project changes will be summarized here. GitHub Releases remain the 
 
 ### Added
 
+- Added compatibility envelope v1 for exact observed client-version/platform/auth/deployment points, with evidence-derived `tested`, `stale`, `known_broken`, `regressed`, and `unknown` states plus exact-query `untested` classification without inferred version ranges.
+- Added explicit staleness policy inputs for observation age and later observed client-version changes, while retaining evidence gaps instead of inventing versions for execution errors or incomplete provenance.
+
+### Added
+
 - Added immutable suite baseline bundles with explicit acceptance/supersession, deterministic snapshot digests, no-overwrite output reservation, strict real-client/exact-version source requirements, and baseline-specific fail-closed comparison identity checks while preserving suite regression report v1.
 
 ## v0.7.0 — 2026-08-28

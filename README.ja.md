@@ -223,6 +223,8 @@ mcp-interop baseline create suite-results-new --output-dir baselines/next --supe
 mcp-interop baseline compare baselines/current attempt-1 attempt-2 --fail-on-regression
 ```
 
+compatibilityはexact client-version/platformの実測pointだけで表します。未観測versionは`untested`のままで、version変更だけをregressionにはしません。`tested` / `untested` / `stale` / `known_broken` / `regressed` / `unknown`の意味は[Compatibility envelope v1](docs/compatibility-envelope-v1.ja.md)を参照してください。
+
 baseline作成は既存directoryを上書きしません。result set自体をbundleへコピーしdeterministic digestで固定し、baselineはpathで明示選択します。そのためretryやclient auto-updateでaccept済み基準が勝手に置換されません。supersede時も旧baselineを変更せずfingerprintを記録します。baseline比較ではmanifest、execution context、deployment fingerprint、platform mismatchをfail-closedにしつつ、出力はsuite regression report v1を維持します。詳細は[Suite baseline v1](docs/suite-baseline-v1.ja.md)を参照してください。
 
 self-hosted real-client GitHub Actionsは別のprivileged pathです。manual macOS workflowはmain-only、main-only Environment policy、exact run provenanceを使い、remote suite endpointやOAuth credentialを受け取りません。詳細は[Self-hosted real-client CI security boundary](docs/self-hosted-ci-security.ja.md)を参照してください。
