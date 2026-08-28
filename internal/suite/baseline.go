@@ -257,6 +257,27 @@ func ResultSetDigest(set LoadedResultSet) (string, error) {
 	return "sha256:" + hex.EncodeToString(h.Sum(nil)), nil
 }
 
+// VerifyBaselineSupersedes validates an explicitly supplied predecessor link.
+// Both bundles must already pass ReadBaseline local-consistency validation. The
+// fingerprint relation proves content identity only; it is not an authenticated
+// acceptance signature or actor assertion.
+func VerifyBaselineSupersedes(current, previous LoadedBaseline) error {
+	previousFingerprint, err := BaselineFingerprint(previous.Descriptor)
+	if err != nil {
+		return fmt.Errorf("fingerprint predecessor baseline: %w", err)
+	}
+	if current.Descriptor.Supersedes == "" {
+		return errors.New("baseline does not declare a supersedes predecessor")
+	}
+	if current.Descriptor.Supersedes != previousFingerprint {
+		return errors.New("baseline supersedes fingerprint does not match predecessor")
+	}
+	if err := validateSupersedingSource(previous, current.ResultSet); err != nil {
+		return fmt.Errorf("baseline supersedes relation is not comparable: %w", err)
+	}
+	return nil
+}
+
 // CompareBaselineResultSets performs the v0.7 regression comparison after
 // enforcing baseline-specific deployment/platform identity fail-closed checks.
 func CompareBaselineResultSets(

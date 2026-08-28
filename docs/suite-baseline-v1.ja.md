@@ -2,8 +2,8 @@
 
 [English](suite-baseline-v1.md) | [日本語](suite-baseline-v1.ja.md)
 
-Suite baseline v1は、v0.8の退行テスト向けに追加するimmutableなlocal baseline contractです。
-すでに検証済みのsuite result setを固定するだけで、新しい相互運用証拠を作りません。
+Suite baseline v1は、v0.8の退行テスト向けに追加したworkflow-immutableなlocal baseline contractです。
+すでに検証済みのsuite result setを固定するだけで、新しい相互運用証拠を作りません。ここでの"immutable"は、CLIがaccept済みbundleを上書きせず、readerが不整合なin-place snapshot変更を検出するという意味です。cryptographic authenticityやfilesystem自体のimmutabilityは意味しません。
 
 ## accept境界
 
@@ -58,6 +58,23 @@ descriptorにはendpoint origin/path、executable path、token、OAuth credentia
 pathを重複保存しません。コピーされたschema v2 artifactには既存のcanonical origin privacy境界が
 そのまま残るため、`credential-safe != deployment-public`は引き続き成立します。
 
+## trust / authenticity境界
+
+Baseline v1が提供するのは**local consistencyとworkflow immutability**で、authenticated provenanceではありません。
+
+- exclusive destination creationにより、CLIがaccept済みdirectoryを黙って上書きしない
+- copied result-set digestにより、snapshotとdescriptorの不整合を検出する
+- baseline fingerprintにより、descriptorへdeterministicなcontent identityを付ける
+- `created_at`と`supersedes`はcontent fieldであり、trusted timestampやauthenticated actor assertionではない
+
+baseline directoryを書き換えられる主体は、snapshotとdescriptorの両方を置換し、新しい整合したdigest/fingerprintを計算できます。Baseline v1はその置換を防止・認証しません。SHA-256 fingerprintはcontent identifierであり、signatureではありません。
+
+同じ理由でv0.9では、free-formな`accepted_by`、operator/reviewer identity、acceptance reasonをbaseline v1へ追加しません。署名されていないmetadataはbundleと一緒に書き換えられる一方、local baseline formatに不要なidentity/privacy dataだけを増やすためです。
+
+team/CIでauthenticated acceptanceが必要な場合は、返されたbaseline fingerprintを、その環境に適した**外部のauthenticated record**（review済みsource-control change、signed record、CI/artifact attestationなど）へbindします。`mcp-interop`はその外部recordをlive interoperability evidenceへ昇格させず、baseline v1自体も外部署名を検証しません。
+
+将来nativeなsigned acceptanceを追加する場合は、baseline fingerprintをsign/attestする別のversioned provenance envelope/schemaにします。baseline v1のoptional metadataを後からauthenticated provenanceとして再解釈しません。通常のlocal利用では署名を必須にせず、local-firstを維持します。
+
 ## 意図的な置換
 
 baselineはin-place更新しません。新しいcomparable result setをacceptするときは別directoryを作り、
@@ -77,6 +94,27 @@ manifest fingerprintまたはexecution contextが違う場合、supersedeはfail
 
 暗黙のmutableな"current baseline" pointerは持ちません。baseline pathを毎回明示して選択するため、
 retryやauto-update後のclientが勝手に比較基準になることを防ぎます。
+
+## local consistencyとsupersedes linkをverifyする
+
+`baseline verify`はcopied result setを再読込し、digestを再計算し、descriptorをvalidateしてexact baseline fingerprintを計算します。
+
+```console
+mcp-interop baseline verify baselines/codex-current
+mcp-interop baseline verify baselines/codex-current --json
+```
+
+machine-readable resultは`integrity_scope: "local_consistency"`と`authenticated_provenance: false`を明示します。local baseline pathは出力せず、digest一致をsignature/authenticity claimへ昇格させません。
+
+supersession chainはimmutable bundleを2つ明示してauditします。
+
+```console
+mcp-interop baseline verify baselines/codex-next \
+  --predecessor baselines/codex-current \
+  --json
+```
+
+両bundleをvalidateし、successorの`supersedes`がpredecessorのexact fingerprintと一致すること、およびsupersede作成時と同じcomparability境界を再確認します。ambientなmutable "current" pointerは追跡しません。長いchainは隣接pairごとにverifyし、team/CIでauthenticated provenanceが必要なら返されたfingerprintを外部recordへ保持します。
 
 ## 比較
 

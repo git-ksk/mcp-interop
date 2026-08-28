@@ -221,6 +221,8 @@ Tested:
 
 依存順: #133 -> #134 -> #136 -> #135 -> #137 -> #138 -> #139。
 
+Baseline acceptanceはv0.9でもbaseline schema v1のlocal-firstを維持します。digest/fingerprintが証明するのは内部content consistencyであり、authenticated acceptanceではありません。team/CIでauthenticityが必要な場合はexact baseline fingerprintを外部のreview/signature/attestation recordへbindします。将来native signed provenanceを追加する場合も、baseline-v1 metadataの意味を変えず別versioned envelopeを使います。
+
 優先順:
 
 1. Codex / Cursor / Antigravityを現実的な最新version横断で検証

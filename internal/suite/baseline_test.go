@@ -243,3 +243,67 @@ func TestCreateBaselineRejectsRunnerObservation(t *testing.T) {
 		t.Fatalf("expected runner observation rejection, got %v", err)
 	}
 }
+
+func TestVerifyBaselineSupersedesAcceptsExplicitComparablePredecessor(t *testing.T) {
+	manifest := regressionTestManifest()
+	firstSource := regressionTestSet(t, manifest, "first-source", "1.0.0", interop.StatusPass, "")
+	first, err := CreateBaseline(
+		firstSource,
+		filepath.Join(t.TempDir(), "baseline-1"),
+		nil,
+		time.Date(2026, 8, 28, 1, 0, 0, 0, time.UTC),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	secondSource := regressionTestSet(t, manifest, "second-source", "2.0.0", interop.StatusPass, "")
+	second, err := CreateBaseline(
+		secondSource,
+		filepath.Join(t.TempDir(), "baseline-2"),
+		&first,
+		time.Date(2026, 8, 28, 2, 0, 0, 0, time.UTC),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := VerifyBaselineSupersedes(second, first); err != nil {
+		t.Fatalf("verify explicit predecessor: %v", err)
+	}
+}
+
+func TestVerifyBaselineSupersedesRejectsWrongPredecessor(t *testing.T) {
+	manifest := regressionTestManifest()
+	firstSource := regressionTestSet(t, manifest, "first-source", "1.0.0", interop.StatusPass, "")
+	first, err := CreateBaseline(
+		firstSource,
+		filepath.Join(t.TempDir(), "baseline-1"),
+		nil,
+		time.Date(2026, 8, 28, 1, 0, 0, 0, time.UTC),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	secondSource := regressionTestSet(t, manifest, "second-source", "2.0.0", interop.StatusPass, "")
+	second, err := CreateBaseline(
+		secondSource,
+		filepath.Join(t.TempDir(), "baseline-2"),
+		&first,
+		time.Date(2026, 8, 28, 2, 0, 0, 0, time.UTC),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wrongSource := regressionTestSet(t, manifest, "wrong-source", "1.5.0", interop.StatusPass, "")
+	wrong, err := CreateBaseline(
+		wrongSource,
+		filepath.Join(t.TempDir(), "baseline-wrong"),
+		nil,
+		time.Date(2026, 8, 28, 1, 30, 0, 0, time.UTC),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := VerifyBaselineSupersedes(second, wrong); err == nil || !strings.Contains(err.Error(), "fingerprint does not match") {
+		t.Fatalf("expected explicit predecessor mismatch, got %v", err)
+	}
+}

@@ -25,14 +25,45 @@ type baselineCreateResult struct {
 	Baseline    suite.Baseline `json:"baseline"`
 }
 
+const (
+	baselineVerificationSchemaVersion = 1
+	baselineVerificationArtifactType  = "mcp-interop/baseline-verification"
+	baselineIntegrityLocalConsistency = "local_consistency"
+)
+
+type baselineVerifyOptions struct {
+	baselinePath    string
+	predecessorPath string
+	json            bool
+}
+
+type baselineVerifiedPredecessor struct {
+	Fingerprint string `json:"fingerprint"`
+	Relation    string `json:"relation"`
+	Verified    bool   `json:"verified"`
+}
+
+type baselineVerifyResult struct {
+	SchemaVersion           int                          `json:"schema_version"`
+	ArtifactType            string                       `json:"artifact_type"`
+	Valid                   bool                         `json:"valid"`
+	Fingerprint             string                       `json:"fingerprint"`
+	IntegrityScope          string                       `json:"integrity_scope"`
+	AuthenticatedProvenance bool                         `json:"authenticated_provenance"`
+	Baseline                suite.Baseline               `json:"baseline"`
+	Predecessor             *baselineVerifiedPredecessor `json:"predecessor,omitempty"`
+}
+
 func runBaseline(args []string) int {
 	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, "baseline requires a subcommand: create or compare")
+		fmt.Fprintln(os.Stderr, "baseline requires a subcommand: create, verify, or compare")
 		return 2
 	}
 	switch args[0] {
 	case "create":
 		return runBaselineCreate(args[1:], os.Stdout, os.Stderr, time.Now)
+	case "verify":
+		return runBaselineVerify(args[1:], os.Stdout, os.Stderr)
 	case "compare":
 		return runBaselineCompare(args[1:], os.Stdout, os.Stderr)
 	default:
@@ -102,6 +133,123 @@ func runBaselineCreate(
 		return 1
 	}
 	return 0
+}
+
+func runBaselineVerify(args []string, stdout, stderr io.Writer) int {
+	options, err := parseBaselineVerifyOptions(args)
+	if err != nil {
+		fmt.Fprintf(stderr, "invalid baseline verify: %v\n", err)
+		return 2
+	}
+	baseline, err := suite.ReadBaseline(options.baselinePath)
+	if err != nil {
+		fmt.Fprintf(stderr, "verify baseline: %v\n", err)
+		return 2
+	}
+	fingerprint, err := suite.BaselineFingerprint(baseline.Descriptor)
+	if err != nil {
+		fmt.Fprintf(stderr, "fingerprint baseline: %v\n", err)
+		return 2
+	}
+	result := baselineVerifyResult{
+		SchemaVersion:           baselineVerificationSchemaVersion,
+		ArtifactType:            baselineVerificationArtifactType,
+		Valid:                   true,
+		Fingerprint:             fingerprint,
+		IntegrityScope:          baselineIntegrityLocalConsistency,
+		AuthenticatedProvenance: false,
+		Baseline:                baseline.Descriptor,
+	}
+	if options.predecessorPath != "" {
+		predecessor, err := suite.ReadBaseline(options.predecessorPath)
+		if err != nil {
+			fmt.Fprintf(stderr, "verify predecessor baseline: %v\n", err)
+			return 2
+		}
+		if err := suite.VerifyBaselineSupersedes(baseline, predecessor); err != nil {
+			fmt.Fprintf(stderr, "verify supersedes relation: %v\n", err)
+			return 2
+		}
+		predecessorFingerprint, err := suite.BaselineFingerprint(predecessor.Descriptor)
+		if err != nil {
+			fmt.Fprintf(stderr, "fingerprint predecessor baseline: %v\n", err)
+			return 2
+		}
+		result.Predecessor = &baselineVerifiedPredecessor{
+			Fingerprint: predecessorFingerprint,
+			Relation:    "supersedes",
+			Verified:    true,
+		}
+	}
+	if options.json {
+		encoder := json.NewEncoder(stdout)
+		encoder.SetIndent("", "  ")
+		if err := encoder.Encode(result); err != nil {
+			fmt.Fprintf(stderr, "encode baseline verification: %v\n", err)
+			return 1
+		}
+		return 0
+	}
+	if err := writeBaselineVerifySummary(stdout, result); err != nil {
+		fmt.Fprintf(stderr, "write baseline verification: %v\n", err)
+		return 1
+	}
+	return 0
+}
+
+func parseBaselineVerifyOptions(args []string) (baselineVerifyOptions, error) {
+	var options baselineVerifyOptions
+	predecessorProvided := false
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		switch {
+		case arg == "--json":
+			options.json = true
+		case arg == "--predecessor":
+			if predecessorProvided {
+				return options, errors.New("--predecessor may be specified only once")
+			}
+			if i+1 >= len(args) {
+				return options, errors.New("--predecessor requires a baseline directory path")
+			}
+			i++
+			options.predecessorPath = args[i]
+			predecessorProvided = true
+		case strings.HasPrefix(arg, "--predecessor="):
+			if predecessorProvided {
+				return options, errors.New("--predecessor may be specified only once")
+			}
+			options.predecessorPath = strings.TrimPrefix(arg, "--predecessor=")
+			predecessorProvided = true
+		case strings.HasPrefix(arg, "-"):
+			return options, fmt.Errorf("unknown baseline verify option %q", arg)
+		default:
+			if options.baselinePath != "" {
+				return options, errors.New("baseline verify requires exactly one baseline directory path")
+			}
+			options.baselinePath = arg
+		}
+	}
+	if strings.TrimSpace(options.baselinePath) == "" || options.baselinePath == "-" || strings.TrimSpace(options.baselinePath) != options.baselinePath {
+		return options, errors.New("baseline verify requires exactly one baseline directory path without surrounding whitespace")
+	}
+	if predecessorProvided && (strings.TrimSpace(options.predecessorPath) == "" || options.predecessorPath == "-" || strings.TrimSpace(options.predecessorPath) != options.predecessorPath) {
+		return options, errors.New("--predecessor requires a non-empty baseline directory path without surrounding whitespace")
+	}
+	return options, nil
+}
+
+func writeBaselineVerifySummary(output io.Writer, result baselineVerifyResult) error {
+	writer := tabwriter.NewWriter(output, 0, 4, 2, ' ', 0)
+	fmt.Fprintf(writer, "VALID\t%s\n", yesNo(result.Valid))
+	fmt.Fprintf(writer, "FINGERPRINT\t%s\n", result.Fingerprint)
+	fmt.Fprintf(writer, "INTEGRITY_SCOPE\t%s\n", strings.ToUpper(result.IntegrityScope))
+	fmt.Fprintf(writer, "AUTHENTICATED_PROVENANCE\t%s\n", yesNo(result.AuthenticatedProvenance))
+	if result.Predecessor != nil {
+		fmt.Fprintf(writer, "PREDECESSOR\t%s\n", result.Predecessor.Fingerprint)
+		fmt.Fprintln(writer, "SUPERSEDES_LINK\tVERIFIED")
+	}
+	return writer.Flush()
 }
 
 func runBaselineCompare(args []string, stdout, stderr io.Writer) int {
