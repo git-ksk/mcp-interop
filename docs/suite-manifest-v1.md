@@ -2,7 +2,7 @@
 
 [English](suite-manifest-v1.md) | [日本語](suite-manifest-v1.ja.md)
 
-Suite manifest v1 is the declaration contract for the v0.7 repeatable regression workflow. The `suite` CLI validates the contract and can execute `trusted_real_client` manifests. Regression reporting and hosted-CI fixture orchestration remain later v0.7 work.
+Suite manifest v1 is the declaration contract for the v0.7 repeatable regression workflow. The `suite` CLI validates the contract and can execute `trusted_real_client` manifests. Regression reporting is shipped through [Suite regression report v1](suite-regression-report-v1.md). `hosted_fixture` declarations remain validation-only in v0.7.0; repository CI runs its controlled localhost fixtures through a separate trusted path.
 
 ## Validate
 

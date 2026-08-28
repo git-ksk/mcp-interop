@@ -26,7 +26,7 @@ The live adapters in v0.7.0 are:
 - **Cursor CLI (beta)** — live no-auth inventory plus explicit opt-in OAuth through the real Cursor MCP login path; authenticated `mcp list-tools` has been validated with the controlled fixture.
 - **Antigravity CLI (beta, macOS)** — live no-auth inventory plus explicit opt-in OAuth through the real `/mcp` manager in an isolated PTY. Authentication can be proven independently of client-side tool-cache observation, so generic `init/tools` may conservatively remain `unknown` while controlled E2E proves the authenticated MCP exchange.
 
-v0.7.0 completes the repeatable-regression milestone on top of v0.6.0's protocol-aware core and schema-v2 protected-path deployment identity. It adds strict secret-safe suite manifests, multi-client `suite run` artifact sets, evidence-derived `suite compare` reports that retain every retry attempt, and a hardened main-only/manual self-hosted real-client CI trust boundary. The real-client-only PASS boundary remains unchanged.
+v0.7.0 turns one-off live checks into a repeatable regression workflow. Building on v0.6.0's protocol-aware core and protected-path artifact identity, it can now declare a secret-safe suite, run the same Remote MCP target across multiple real clients, compare a baseline with every retained attempt, and gate privileged self-hosted CI behind a manual main-only path. A retry cannot erase an earlier failure, and the meaning of a live PASS is unchanged.
 
 Post-v0.7.0 work moves to baseline lifecycle and observed compatibility envelopes before broader client graduation. The shipped guarantees include:
 
@@ -73,7 +73,7 @@ A complete client test has four observable stages:
 
 1. `reach` — the real client reached enough of the Remote MCP deployment to prove live interaction.
 2. `auth` — required client authentication completed, or live tool discovery proved that client authentication was not required.
-3. `init` — the real client established MCP protocol readiness; this is not permanently tied to a literal legacy `initialize` handshake.
+3. `init` — the real client reached the protocol-ready state needed to continue the MCP exchange. This does not necessarily mean that a legacy `initialize` handshake was observed.
 4. `tools` — the client discovered the server's tools.
 
 A test exits with code `0` only when **all four stages are `pass`**. `fail`, `skip`, and `unknown` are non-zero results because CI should not silently accept an inconclusive interoperability test.
@@ -83,6 +83,18 @@ A test exits with code `0` only when **all four stages are `pass`**. `fail`, `sk
 A `diagnose` command has a different contract: it produces `PREFLIGHT PASS` / `PREFLIGHT FAIL` from published server/client metadata and never substitutes that result for a real-client interoperability PASS.
 
 ## Current CLI
+
+If you are not sure which command to start with:
+
+| Goal | Command |
+| --- | --- |
+| See which supported clients are installed | `mcp-interop clients` |
+| Test one or more real clients now | `mcp-interop test` |
+| Save one live run for later comparison | `mcp-interop test --output` |
+| Check a suite file without running clients | `mcp-interop suite validate` |
+| Run the same declared targets across multiple clients | `mcp-interop suite run` |
+| Compare a baseline with one or more attempts | `mcp-interop suite compare` |
+| Run metadata-only preflight diagnostics | `mcp-interop diagnose` |
 
 Detect known clients on the local machine:
 
@@ -150,16 +162,16 @@ The comparison explicitly reports `PASS_TO_FAIL`, `PASS_TO_UNKNOWN`, `PASS_TO_SK
 
 See [Live interoperability result artifact schema v1](docs/live-result-schema-v1.md) ([日本語](docs/live-result-schema-v1.ja.md)) and [schema v2 protected-path identity](docs/live-result-schema-v2.md) ([日本語](docs/live-result-schema-v2.ja.md)) for the exact compatibility, secret-safety, pairing, and migration contracts.
 
-### Repeatable suite workflow
+### Repeatable multi-client suites
 
-The v0.7 workflow starts with a strict, secret-safe suite declaration. Validate it without launching clients or resolving endpoint values:
+For repeatable multi-client checks, declare the targets and clients in `suite.json`. Start by validating the file; validation does not launch clients or read endpoint values:
 
 ```console
 mcp-interop suite validate suite.json
 mcp-interop suite validate suite.json --json
 ```
 
-A `trusted_real_client` manifest can then execute its declared target/client matrix and write a coherent schema-v2 artifact set:
+A `trusted_real_client` manifest can then run every declared target/client combination and save the results as one coherent schema-v2 artifact set:
 
 ```console
 export MCP_INTEROP_SUITE_ENDPOINT_PRODUCTION_A='https://example.com/mcp/<protected-path>'
