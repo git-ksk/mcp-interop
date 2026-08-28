@@ -235,7 +235,7 @@ mcp-interop compatibility query --client codex --target production-a --deploymen
 
 version-change staleでは、繰り返した`--observation`をwall-clockで並べ替えず、oldest -> newestの明示collection orderとして扱います。age-based staleには`--max-age-seconds N --trust-executed-at-clock`が必須で、未来timestampは保守的にstale扱いします。
 
-baseline作成は既存directoryを上書きしません。result set自体をbundleへコピーしdeterministic digestで固定し、baselineはpathで明示選択します。そのためretryやclient auto-updateでaccept済み基準が勝手に置換されません。supersede時も旧baselineを変更せずfingerprintを記録します。baseline比較ではmanifest、execution context、deployment fingerprint、platform mismatchをfail-closedにしつつ、出力はsuite regression report v1を維持します。詳細は[Suite baseline v1](docs/suite-baseline-v1.ja.md)を参照してください。
+baseline作成は既存directoryを上書きしません。result set自体をbundleへコピーしdeterministic digestで固定し、baselineはpathで明示選択します。そのためretryやclient auto-updateでaccept済み基準が勝手に置換されません。これはworkflow-localなimmutability / tamper consistencyであり、**cryptographic authenticityではありません**。`mcp-interop baseline verify`でbundleを再検証し、明示predecessor linkも確認できますがauthenticated provenanceは主張しません。supersede時も旧baselineを変更せずfingerprintを記録します。baseline比較ではmanifest、execution context、deployment fingerprint、platform mismatchをfail-closedにしつつ、出力はsuite regression report v1を維持します。詳細は[Suite baseline v1](docs/suite-baseline-v1.ja.md)を参照してください。
 
 self-hosted real-client GitHub Actionsは別のprivileged pathです。manual macOS workflowはmain-only、main-only Environment policy、exact run provenanceを使い、remote suite endpointやOAuth credentialを受け取りません。詳細は[Self-hosted real-client CI security boundary](docs/self-hosted-ci-security.ja.md)を参照してください。
 

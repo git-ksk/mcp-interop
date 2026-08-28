@@ -120,3 +120,122 @@ func TestRunBaselineCompareRetainsFailedRetry(t *testing.T) {
 		t.Fatalf("expected both attempts, got %#v", report.Runs)
 	}
 }
+
+func TestRunBaselineVerifyReportsLocalConsistencyWithoutAuthenticatedProvenance(t *testing.T) {
+	manifest := cliSuiteCompareManifest()
+	source := writeCLISuiteCompareSet(t, manifest, "source", "1.2.3", interop.StatusPass, "")
+	baselineDir := filepath.Join(t.TempDir(), "baseline-private-path")
+	var createOut, createErr bytes.Buffer
+	if rc := runBaselineCreate(
+		[]string{source, "--output-dir", baselineDir},
+		&createOut,
+		&createErr,
+		time.Now,
+	); rc != 0 {
+		t.Fatalf("create rc=%d stderr=%s", rc, createErr.String())
+	}
+
+	var stdout, stderr bytes.Buffer
+	if rc := runBaselineVerify([]string{baselineDir, "--json"}, &stdout, &stderr); rc != 0 {
+		t.Fatalf("verify rc=%d stderr=%s", rc, stderr.String())
+	}
+	var got baselineVerifyResult
+	if err := json.Unmarshal(stdout.Bytes(), &got); err != nil {
+		t.Fatal(err)
+	}
+	if !got.Valid || got.IntegrityScope != baselineIntegrityLocalConsistency || got.AuthenticatedProvenance {
+		t.Fatalf("verification overclaimed provenance: %#v", got)
+	}
+	if got.SchemaVersion != baselineVerificationSchemaVersion || got.ArtifactType != baselineVerificationArtifactType {
+		t.Fatalf("unexpected verification contract: %#v", got)
+	}
+	for _, forbidden := range []string{baselineDir, source, "protected-value", "https://example.com/mcp"} {
+		if bytes.Contains(stdout.Bytes(), []byte(forbidden)) {
+			t.Fatalf("verification JSON leaked %q: %s", forbidden, stdout.String())
+		}
+	}
+}
+
+func TestRunBaselineVerifyChecksExplicitSupersedesLink(t *testing.T) {
+	manifest := cliSuiteCompareManifest()
+	firstSource := writeCLISuiteCompareSet(t, manifest, "first", "1.0.0", interop.StatusPass, "")
+	firstDir := filepath.Join(t.TempDir(), "baseline-1")
+	var stdout, stderr bytes.Buffer
+	if rc := runBaselineCreate([]string{firstSource, "--output-dir", firstDir}, &stdout, &stderr, time.Now); rc != 0 {
+		t.Fatalf("first create rc=%d stderr=%s", rc, stderr.String())
+	}
+
+	secondSource := writeCLISuiteCompareSet(t, manifest, "second", "2.0.0", interop.StatusPass, "")
+	secondDir := filepath.Join(t.TempDir(), "baseline-2")
+	stdout.Reset()
+	stderr.Reset()
+	if rc := runBaselineCreate(
+		[]string{secondSource, "--output-dir", secondDir, "--supersedes", firstDir},
+		&stdout,
+		&stderr,
+		time.Now,
+	); rc != 0 {
+		t.Fatalf("second create rc=%d stderr=%s", rc, stderr.String())
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if rc := runBaselineVerify([]string{secondDir, "--predecessor", firstDir, "--json"}, &stdout, &stderr); rc != 0 {
+		t.Fatalf("verify rc=%d stderr=%s", rc, stderr.String())
+	}
+	var got baselineVerifyResult
+	if err := json.Unmarshal(stdout.Bytes(), &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.Predecessor == nil || !got.Predecessor.Verified || got.Predecessor.Relation != "supersedes" {
+		t.Fatalf("predecessor link not verified: %#v", got)
+	}
+}
+
+func TestRunBaselineVerifyRejectsWrongPredecessor(t *testing.T) {
+	manifest := cliSuiteCompareManifest()
+	firstSource := writeCLISuiteCompareSet(t, manifest, "first", "1.0.0", interop.StatusPass, "")
+	firstDir := filepath.Join(t.TempDir(), "baseline-1")
+	var stdout, stderr bytes.Buffer
+	if rc := runBaselineCreate([]string{firstSource, "--output-dir", firstDir}, &stdout, &stderr, time.Now); rc != 0 {
+		t.Fatal(stderr.String())
+	}
+	secondSource := writeCLISuiteCompareSet(t, manifest, "second", "2.0.0", interop.StatusPass, "")
+	secondDir := filepath.Join(t.TempDir(), "baseline-2")
+	stdout.Reset()
+	stderr.Reset()
+	if rc := runBaselineCreate([]string{secondSource, "--output-dir", secondDir, "--supersedes", firstDir}, &stdout, &stderr, time.Now); rc != 0 {
+		t.Fatal(stderr.String())
+	}
+	wrongSource := writeCLISuiteCompareSet(t, manifest, "wrong", "1.5.0", interop.StatusPass, "")
+	wrongDir := filepath.Join(t.TempDir(), "baseline-wrong")
+	stdout.Reset()
+	stderr.Reset()
+	if rc := runBaselineCreate([]string{wrongSource, "--output-dir", wrongDir}, &stdout, &stderr, time.Now); rc != 0 {
+		t.Fatal(stderr.String())
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if rc := runBaselineVerify([]string{secondDir, "--predecessor", wrongDir}, &stdout, &stderr); rc != 2 || !bytes.Contains(stderr.Bytes(), []byte("fingerprint does not match")) {
+		t.Fatalf("rc=%d stderr=%s", rc, stderr.String())
+	}
+}
+
+func TestParseBaselineVerifyOptionsRejectsAmbiguousInput(t *testing.T) {
+	if _, err := parseBaselineVerifyOptions(nil); err == nil {
+		t.Fatal("expected missing baseline path error")
+	}
+	if _, err := parseBaselineVerifyOptions([]string{"one", "two"}); err == nil {
+		t.Fatal("expected multiple baseline path error")
+	}
+	if _, err := parseBaselineVerifyOptions([]string{"one", "--predecessor", " two "}); err == nil {
+		t.Fatal("expected predecessor whitespace error")
+	}
+	if _, err := parseBaselineVerifyOptions([]string{"one", "--predecessor="}); err == nil {
+		t.Fatal("expected empty predecessor error")
+	}
+	if _, err := parseBaselineVerifyOptions([]string{"one", "--predecessor", "two", "--predecessor", "three"}); err == nil {
+		t.Fatal("expected duplicate predecessor error")
+	}
+}

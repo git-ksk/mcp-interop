@@ -33,6 +33,7 @@ Usage:
   mcp-interop suite run <manifest.json> --output-dir <dir> [--json]
   mcp-interop suite compare <baseline-index> <attempt-index> [<attempt-index>...] [--json] [--fail-on-regression]
   mcp-interop baseline create <result-set> --output-dir <dir> [--supersedes <baseline-dir>] [--json]
+  mcp-interop baseline verify <baseline-dir> [--predecessor <baseline-dir>] [--json]
   mcp-interop baseline compare <baseline-dir> <attempt-index> [<attempt-index>...] [--json] [--fail-on-regression]
   mcp-interop compatibility query --client <id> --target <id> --deployment-id <id> [--auth none|oauth] [--baseline <dir>] [--observation <result-set>]... [--max-age-seconds <n> --trust-executed-at-clock] [--stale-on-client-version-change] [--json]
   mcp-interop compatibility matrix [--baseline <dir>] [--observation <result-set>]... [--max-age-seconds <n> --trust-executed-at-clock] [--stale-on-client-version-change] [--json]
@@ -46,7 +47,7 @@ Commands:
   test       Run a Remote MCP interoperability test through real clients.
   compare    Compare portable live-result artifacts across client versions/runs.
   suite      Validate, execute, and compare repeatable suite result sets.
-  baseline   Accept immutable suite baselines and compare attempts against them.
+  baseline   Accept, verify local consistency, and compare suite baselines.
   compatibility  Classify or list exact observed client-version/platform evidence.
   diagnose   Run profile-based server/OAuth preflight diagnostics without claiming real-client PASS.
   evidence   Validate, summarize, or merge secret-free Runtime Evidence documents.
