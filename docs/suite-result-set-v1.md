@@ -76,4 +76,4 @@ Result-set readers require a regular `index.json`, clean relative artifact refer
 
 ## Current scope
 
-`hosted_fixture` suite execution is not enabled by this schema. #115 owns repository CI orchestration and the trusted/untrusted boundary. Suite regression/retry aggregation is defined by [Suite regression report v1](suite-regression-report-v1.md).
+`hosted_fixture` suite execution is not enabled by this schema in v0.7.0. Repository CI keeps controlled localhost fixture execution separate from arbitrary suite manifests, while the trusted/untrusted runner boundary is documented in [Self-hosted real-client CI security](self-hosted-ci-security.md). Suite regression/retry aggregation is defined by [Suite regression report v1](suite-regression-report-v1.md).

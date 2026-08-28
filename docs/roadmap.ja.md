@@ -93,7 +93,7 @@ fixtureで分かったprotocol versionを、別の本番runへ転記して「実
 
 **GitHub tracking:** [#102](https://github.com/git-ksk/mcp-interop/issues/102)。focused workは[#99](https://github.com/git-ksk/mcp-interop/issues/99)、[#100](https://github.com/git-ksk/mcp-interop/issues/100)、[#101](https://github.com/git-ksk/mcp-interop/issues/101)。protected-path deployment identityの[#87](https://github.com/git-ksk/mcp-interop/issues/87)は完了済みです。
 
-**Status:** 完了。#87 / #99 / #100 / #101でv0.6.xの完了条件を満たし、次に進むRoadmap milestoneはv0.7.x / #103です。
+**Status:** 完了。#87 / #99 / #100 / #101でv0.6.xの完了条件を満たしています。v0.7.xも完了済みで、現在の次milestoneはv0.8.x / #104です。
 
 ### 目的
 

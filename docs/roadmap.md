@@ -93,7 +93,7 @@ The core project remains focused on **Remote MCP deployments**.
 
 **GitHub tracking:** [#102](https://github.com/git-ksk/mcp-interop/issues/102), with focused work in [#99](https://github.com/git-ksk/mcp-interop/issues/99), [#100](https://github.com/git-ksk/mcp-interop/issues/100), and [#101](https://github.com/git-ksk/mcp-interop/issues/101). Protected-path deployment identity work [#87](https://github.com/git-ksk/mcp-interop/issues/87) is complete.
 
-**Status:** completed. #87, #99, #100, and #101 satisfy the v0.6.x exit criteria; the next active roadmap milestone is v0.7.x / #103.
+**Status:** completed. #87, #99, #100, and #101 satisfy the v0.6.x exit criteria. v0.7.x has also completed; the current next milestone is v0.8.x / #104.
 
 ### Goal
 
