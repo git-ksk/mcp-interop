@@ -208,7 +208,7 @@ Does not imply:
 
 ## v0.9.x — Coverage, capability profiles, and safe graduation
 
-**Status:** completed on current main. #133 through #139 satisfy the v0.9.x exit criteria; the next roadmap milestone is v0.10.x / #106. The published release remains v0.8.0 until v0.9.0 is tagged.
+**Status:** completed. #133 through #139 satisfy the v0.9.x exit criteria; the next roadmap milestone is v0.10.x / #106.
 
 **GitHub tracking:** [#105](https://github.com/git-ksk/mcp-interop/issues/105). Existing research candidates [#6](https://github.com/git-ksk/mcp-interop/issues/6), [#20](https://github.com/git-ksk/mcp-interop/issues/20), [#48](https://github.com/git-ksk/mcp-interop/issues/48), and [#68](https://github.com/git-ksk/mcp-interop/issues/68) are assigned here for eventual graduation decisions; research may continue earlier without implying shipped support.
 

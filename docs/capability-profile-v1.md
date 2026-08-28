@@ -10,7 +10,7 @@ reach -> auth -> init -> tools
 
 A capability profile can describe Resources, Prompts, Tasks, MRTR, controlled tool-call profiles, or future capabilities only after that capability has its own precise evidence contract. Merely naming a capability here does **not** mean any shipped adapter currently supports it.
 
-Current main does not emit a capability PASS for Resources, Prompts, Tasks, MRTR, or any other optional capability. This issue establishes the evidence boundary first.
+v0.9.0 does not emit a capability PASS for Resources, Prompts, Tasks, MRTR, or any other optional capability. This issue establishes the evidence boundary first.
 
 ## CLI
 

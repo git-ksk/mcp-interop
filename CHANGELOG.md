@@ -4,6 +4,23 @@ All notable project changes will be summarized here. GitHub Releases remain the 
 
 ## Unreleased
 
+## v0.9.0 — 2026-08-28
+
+### Added
+
+- Added `compatibility matrix` for exact observed client-version/runner-platform points derived from retained baseline/result-set evidence, preserving retries and evidence gaps instead of inferring support ranges.
+- Added `baseline verify` for strict local-consistency verification of baseline v1 bundles and optional predecessor linkage while explicitly reporting that baseline fingerprints are not authenticated provenance.
+- Added `mcp-interop maturity` with evidence-reviewed beta/stable criteria; Codex, Cursor, and Antigravity remain beta with explicit stable blockers.
+- Added capability profile v1 plus `capability validate`, separating optional capability `pass`, `fail`, `unknown`, `unsupported`, and `untested` from the existing core `reach/auth/init/tools` contract.
+- Added `mcp-interop graduation` and a reusable equal-evidence gate for future real-client adapters; Copilot CLI, VS Code, ChatGPT, and Claude web/Desktop remain research-only.
+
+### Changed
+
+- Hardened compatibility chronology against cross-runner wall-clock skew: client-version staleness follows retained collection order, age-based staleness requires explicit clock trust, and future-dated observations are conservative.
+- Clarified that portable `platform.os` / `platform.arch` describe the mcp-interop runner/process, not proof of client executable architecture; recognized Mach-O/ELF/PE metadata is inspected non-invasively and known runner/client mismatches fail closed without changing v0.8 artifact schemas.
+- Unified live-test, suite, and compatibility client selection behind the validated shipped-maturity catalog so research candidates cannot ship through a separate allowlist or parser exception.
+- Documented exact retained coverage and platform evidence gaps without turning nearby versions or unobserved operating systems into compatibility claims.
+
 ## v0.8.0 — 2026-08-28
 
 ### Added
