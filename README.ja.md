@@ -34,7 +34,7 @@ v0.7.0で利用できる実クライアント向けアダプターは次のと�
 
 v0.7.0では、単発のlive testだけでなく、同じRemote MCPを複数クライアントで繰り返し検証し、前回結果との退行まで確認できるようになりました。v0.6.0のprotocol-aware coreとprotected-path artifactを土台に、秘密情報をmanifestへ書かないsuite宣言、複数clientの一括実行、baselineとの比較、manual / main-onlyのself-hosted CI境界を追加しています。retry後にPASSしても最初の失敗は消えません。live PASSの意味自体は変えていません。
 
-v0.7.0以降は、client追加を急ぐ前にbaseline lifecycleと実測点だけで表すcompatibility envelopeを固めます。現在の保証は次のとおりです。
+現在の`main`ではv0.8のbaseline lifecycleとexact observed-point compatibility実装まで完了しています。v0.8.0をtagするまではv0.7.0が公開版です。公開済みv0.7の保証は引き続き次のとおりです。
 
 - 実クライアントの4段階すべてを確認できた場合だけlive PASSにする
 - 診断用メタデータとRuntime Evidenceを、実クライアントのPASS証拠から分離する
