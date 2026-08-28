@@ -203,7 +203,7 @@ Tested:
 
 ## v0.9.x — coverage、capability profile、安全な昇格
 
-**Status:** current mainで完了。#133〜#139でv0.9.xの完了条件を満たし、次のRoadmap milestoneはv0.10.x / #106です。v0.9.0をtagするまでは公開releaseはv0.8.0のままです。
+**Status:** 完了。#133〜#139でv0.9.xの完了条件を満たし、次のRoadmap milestoneはv0.10.x / #106です。
 
 **GitHub tracking:** [#105](https://github.com/git-ksk/mcp-interop/issues/105)。既存research候補[#6](https://github.com/git-ksk/mcp-interop/issues/6)、[#20](https://github.com/git-ksk/mcp-interop/issues/20)、[#48](https://github.com/git-ksk/mcp-interop/issues/48)、[#68](https://github.com/git-ksk/mcp-interop/issues/68)は将来のgraduation判断先としてここへ紐付けます。調査自体はそれ以前でも継続できます。
 

@@ -12,7 +12,7 @@ reach -> auth -> init -> tools
 
 Resources、Prompts、Tasks、MRTR、controlled tool-call profile、将来capabilityは、それぞれ正確なevidence contractを定義した後だけcapability profileで表現できます。ここでcapability名を例示すること自体は、現在のshipped adapterが対応済みという意味ではありません。
 
-current mainでは、Resources / Prompts / Tasks / MRTRその他optional capabilityについて**capability PASSをまだ1件もemitしません**。まずevidence boundaryを固定します。
+v0.9.0では、Resources / Prompts / Tasks / MRTRその他optional capabilityについて**capability PASSをまだ1件もemitしません**。まずevidence boundaryを固定します。
 
 ## CLI
 

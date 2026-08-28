@@ -16,17 +16,19 @@ It also includes profile-based **preflight diagnostics** for client surfaces tha
 
 ## Status
 
-**v0.8.0 is the current published release.**
+**v0.9.0 is the current published release.**
 
-Release: [v0.8.0](https://github.com/git-ksk/mcp-interop/releases/tag/v0.8.0)
+Release: [v0.9.0](https://github.com/git-ksk/mcp-interop/releases/tag/v0.9.0)
 
-The live adapters in v0.8.0 are:
+The live adapters in v0.9.0 are:
 
-- **Codex CLI** — live inventory and explicit opt-in OAuth flow.
+- **Codex CLI (beta)** — live inventory and explicit opt-in OAuth flow.
 - **Cursor CLI (beta)** — live no-auth inventory plus explicit opt-in OAuth through the real Cursor MCP login path; authenticated `mcp list-tools` has been validated with the controlled fixture.
 - **Antigravity CLI (beta, macOS)** — live no-auth inventory plus explicit opt-in OAuth through the real `/mcp` manager in an isolated PTY. Authentication can be proven independently of client-side tool-cache observation, so generic `init/tools` may conservatively remain `unknown` while controlled E2E proves the authenticated MCP exchange.
 
-On current main as part of the unreleased v0.9 work, the evidence review classifies **Codex, Cursor, and Antigravity as beta adapters**. The existing `tier=v1` client metadata is a delivery/roadmap tier, not a stable-maturity claim. See [Adapter maturity contract](docs/adapter-maturity.md) ([日本語](docs/adapter-maturity.ja.md)).
+The v0.9.0 evidence review classifies **Codex, Cursor, and Antigravity as beta adapters**. The existing `tier=v1` client metadata is a delivery/roadmap tier, not a stable-maturity claim. See [Adapter maturity contract](docs/adapter-maturity.md) ([日本語](docs/adapter-maturity.ja.md)).
+
+v0.9.0 deepens evidence quality without adding a weaker or speculative client path. It adds an exact observed coverage matrix, local-consistency baseline verification, evidence-reviewed adapter maturity, a separate optional-capability evidence contract, and one fail-closed graduation gate for future real clients. Cross-runner chronology and runner/client architecture interpretation are also hardened without changing the v0.8 live-result schemas.
 
 v0.7.0 turns one-off live checks into a repeatable regression workflow. Building on v0.6.0's protocol-aware core and protected-path artifact identity, it can now declare a secret-safe suite, run the same Remote MCP target across multiple real clients, compare a baseline with every retained attempt, and gate privileged self-hosted CI behind a manual main-only path. A retry cannot erase an earlier failure, and the meaning of a live PASS is unchanged.
 
@@ -50,7 +52,7 @@ ChatGPT real-client support remains intentionally blocked ([#20](https://github.
 With Go 1.24 or newer, install the current stable release explicitly:
 
 ```console
-go install github.com/git-ksk/mcp-interop/cmd/mcp-interop@v0.8.0
+go install github.com/git-ksk/mcp-interop/cmd/mcp-interop@v0.9.0
 ```
 
 To track the newest published module version instead:
@@ -67,7 +69,7 @@ mcp-interop version
 mcp-interop --version
 ```
 
-The [v0.8.0 GitHub Release](https://github.com/git-ksk/mcp-interop/releases/tag/v0.8.0) provides checksummed archives for macOS, Linux, and Windows on both amd64 and arm64.
+The [v0.9.0 GitHub Release](https://github.com/git-ksk/mcp-interop/releases/tag/v0.9.0) provides checksummed archives for macOS, Linux, and Windows on both amd64 and arm64.
 
 ## What a test proves
 
@@ -111,11 +113,11 @@ mcp-interop clients
 mcp-interop clients --json
 ```
 
-The `tier` shown by `clients` is roadmap/delivery placement, not evidence maturity. On current main, use the unreleased v0.9 `mcp-interop maturity` command for the separately reviewed `research_only` / `beta` / `stable` decision; this does not execute or detect a client. The published v0.8.0 binary does not contain this command.
+The `tier` shown by `clients` is roadmap/delivery placement, not evidence maturity. In v0.9.0, use `mcp-interop maturity` for the separately reviewed `research_only` / `beta` / `stable` decision; this does not execute or detect a client.
 
-Capability profile v1 is also current-main unreleased v0.9 work. `mcp-interop capability validate` validates a separate evidence document and never changes core `reach/auth/init/tools` PASS. See [Capability profile v1](docs/capability-profile-v1.md) ([日本語](docs/capability-profile-v1.ja.md)).
+Capability profile v1 is included in v0.9.0. `mcp-interop capability validate` validates a separate evidence document and never changes core `reach/auth/init/tools` PASS. See [Capability profile v1](docs/capability-profile-v1.md) ([日本語](docs/capability-profile-v1.ja.md)).
 
-The same unreleased v0.9 work adds `mcp-interop graduation`, a no-execution common gate for research candidates. Copilot CLI, VS Code, ChatGPT, and Claude web/Desktop all remain `research_only`; none is eligible to ship yet. Live test, suite, and compatibility client selection are wired to the validated shipped-adapter maturity catalog so a research candidate cannot enter through a separate allowlist. See [Real-client adapter graduation gate](docs/adapter-graduation-gate.md) ([日本語](docs/adapter-graduation-gate.ja.md)).
+v0.9.0 also adds `mcp-interop graduation`, a no-execution common gate for research candidates. Copilot CLI, VS Code, ChatGPT, and Claude web/Desktop all remain `research_only`; none is eligible to ship yet. Live test, suite, and compatibility client selection are wired to the validated shipped-adapter maturity catalog so a research candidate cannot enter through a separate allowlist. See [Real-client adapter graduation gate](docs/adapter-graduation-gate.md) ([日本語](docs/adapter-graduation-gate.ja.md)).
 
 Run one live adapter:
 
@@ -195,7 +197,7 @@ mcp-interop suite run suite.json --output-dir suite-results-json --json
 
 The suite resolves every endpoint before launching the first client, executes each run through the same live-test path used by `mcp-interop test`, and writes `index.json` plus one protected-path schema-v2 artifact per run. The index never stores endpoint URLs or endpoint environment-variable names. A non-PASS/missing-client result remains represented in the set and makes the command exit `1`; invalid manifests, unresolved endpoints, or an existing output directory fail before execution with exit `2`.
 
-Manifest v1 never stores a Remote MCP endpoint URL. Hosted fixture declarations cannot select network targets or OAuth and remain validation-only in v0.8.0; repository PR CI continues to use controlled localhost fixture gates separately rather than executing arbitrary suite manifests. Trusted real-client suites reference a target-specific `MCP_INTEROP_SUITE_ENDPOINT_*` variable and require a non-secret `deployment_id`. See [Suite manifest v1](docs/suite-manifest-v1.md) ([日本語](docs/suite-manifest-v1.ja.md)) and [Suite result set v1](docs/suite-result-set-v1.md) ([日本語](docs/suite-result-set-v1.ja.md)).
+Manifest v1 never stores a Remote MCP endpoint URL. Hosted fixture declarations cannot select network targets or OAuth and remain validation-only in v0.9.0; repository PR CI continues to use controlled localhost fixture gates separately rather than executing arbitrary suite manifests. Trusted real-client suites reference a target-specific `MCP_INTEROP_SUITE_ENDPOINT_*` variable and require a non-secret `deployment_id`. See [Suite manifest v1](docs/suite-manifest-v1.md) ([日本語](docs/suite-manifest-v1.ja.md)) and [Suite result set v1](docs/suite-result-set-v1.md) ([日本語](docs/suite-result-set-v1.ja.md)).
 
 Compare a baseline result set with one or more retained attempts:
 
