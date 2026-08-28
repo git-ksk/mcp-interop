@@ -28,7 +28,7 @@ The live adapters in v0.7.0 are:
 
 v0.7.0 turns one-off live checks into a repeatable regression workflow. Building on v0.6.0's protocol-aware core and protected-path artifact identity, it can now declare a secret-safe suite, run the same Remote MCP target across multiple real clients, compare a baseline with every retained attempt, and gate privileged self-hosted CI behind a manual main-only path. A retry cannot erase an earlier failure, and the meaning of a live PASS is unchanged.
 
-Post-v0.7.0 work moves to baseline lifecycle and observed compatibility envelopes before broader client graduation. The shipped guarantees include:
+The current `main` branch has completed the v0.8 baseline lifecycle and exact observed-point compatibility work; v0.7.0 remains the published release until v0.8.0 is tagged. The shipped v0.7 guarantees remain:
 
 - a live PASS still requires all four real-client stages to be `pass`;
 - diagnostic metadata and Runtime Evidence remain separate from real-client PASS evidence;
