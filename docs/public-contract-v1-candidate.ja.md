@@ -37,6 +37,8 @@ local diagnostic JSONには、既存contractに含まれるexecutable path等の
 
 portable/versioned artifactは明示的な`schema_version`と、定義される場合は`artifact_type`を持ちます。evolution policyはschema contractでより厳密に定義します。validatorの成功はschema validという意味で、non-PASS observationをPASSへ変えません。
 
+portable schema evolution、migration、baseline authenticity、deprecation ruleは[Schema evolution v1 candidate](schema-evolution-v1-candidate.ja.md)で定義します。
+
 ## Reason-code compatibility
 
 `reason_code`は、**既存値をstableに保つopen string enum**です。
