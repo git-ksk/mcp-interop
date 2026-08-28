@@ -242,3 +242,116 @@ func setCLIResultExecutedAt(t *testing.T, root string, executedAt time.Time) {
 		t.Fatal(err)
 	}
 }
+
+func TestCompatibilityMatrixRetainsExactPointsAndRetries(t *testing.T) {
+	manifest := cliSuiteCompareManifest()
+	observed := writeCLISuiteCompareSet(t, manifest, "observed", "1.0.0", interop.StatusPass, "")
+	failed := writeCLISuiteCompareSet(t, manifest, "retry-failed", "2.0.0", interop.StatusUnknown, "")
+	passed := writeCLISuiteCompareSet(t, manifest, "retry-passed", "2.0.0", interop.StatusPass, "")
+
+	var stdout, stderr bytes.Buffer
+	rc := runCompatibilityMatrixWith([]string{
+		"--observation", observed,
+		"--observation", failed,
+		"--observation", passed,
+		"--json",
+	}, &stdout, &stderr, func() time.Time { return time.Date(2026, 8, 28, 0, 0, 0, 0, time.UTC) })
+	if rc != 0 {
+		t.Fatalf("rc=%d stderr=%s", rc, stderr.String())
+	}
+	var envelope suite.CompatibilityEnvelope
+	if err := json.Unmarshal(stdout.Bytes(), &envelope); err != nil {
+		t.Fatalf("decode matrix: %v\n%s", err, stdout.String())
+	}
+	if len(envelope.Points) != 2 {
+		t.Fatalf("points=%d want 2: %#v", len(envelope.Points), envelope.Points)
+	}
+	var first, second *suite.CompatibilityPoint
+	for i := range envelope.Points {
+		switch envelope.Points[i].ClientVersion {
+		case "1.0.0":
+			first = &envelope.Points[i]
+		case "2.0.0":
+			second = &envelope.Points[i]
+		}
+	}
+	if first == nil || first.State != suite.CompatibilityTested || len(first.Observations) != 1 {
+		t.Fatalf("first exact point=%#v", first)
+	}
+	if second == nil || second.State != suite.CompatibilityUnknown || !second.Unstable || len(second.Observations) != 2 {
+		t.Fatalf("retry point=%#v", second)
+	}
+	if second.Observations[0].Outcome != suite.OutcomeNonPass || second.Observations[1].Outcome != suite.OutcomePass {
+		t.Fatalf("retry observations were collapsed/reordered: %#v", second.Observations)
+	}
+}
+
+func TestCompatibilityMatrixHumanOutputKeepsAttemptHistory(t *testing.T) {
+	manifest := cliSuiteCompareManifest()
+	failed := writeCLISuiteCompareSet(t, manifest, "retry-failed", "2.0.0", interop.StatusUnknown, "")
+	passed := writeCLISuiteCompareSet(t, manifest, "retry-passed", "2.0.0", interop.StatusPass, "")
+
+	var stdout, stderr bytes.Buffer
+	rc := runCompatibilityMatrixWith([]string{
+		"--observation", failed,
+		"--observation", passed,
+	}, &stdout, &stderr, time.Now)
+	if rc != 0 {
+		t.Fatalf("rc=%d stderr=%s", rc, stderr.String())
+	}
+	for _, want := range []string{"2.0.0", "unknown", "2", "YES", "attempt1:non_pass", "attempt2:pass"} {
+		if !strings.Contains(stdout.String(), want) {
+			t.Fatalf("matrix missing %q:\n%s", want, stdout.String())
+		}
+	}
+}
+
+func TestCompatibilityMatrixExecutionErrorIsEvidenceGapNotFailurePoint(t *testing.T) {
+	manifest := cliSuiteCompareManifest()
+	root := filepath.Join(t.TempDir(), "unavailable")
+	if err := os.MkdirAll(root, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	index, err := suite.NewResultIndex(manifest, []suite.ResultEntry{{
+		TargetID:     "production-a",
+		DeploymentID: "production-a",
+		ClientID:     "codex",
+		AuthMode:     suite.AuthNone,
+		Outcome:      suite.OutcomeError,
+		ExitCode:     1,
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := suite.WriteResultIndex(filepath.Join(root, "index.json"), index); err != nil {
+		t.Fatal(err)
+	}
+
+	var stdout, stderr bytes.Buffer
+	rc := runCompatibilityMatrixWith([]string{"--observation", root, "--json"}, &stdout, &stderr, time.Now)
+	if rc != 0 {
+		t.Fatalf("rc=%d stderr=%s", rc, stderr.String())
+	}
+	var envelope suite.CompatibilityEnvelope
+	if err := json.Unmarshal(stdout.Bytes(), &envelope); err != nil {
+		t.Fatal(err)
+	}
+	if len(envelope.Points) != 0 || len(envelope.EvidenceGaps) != 1 {
+		t.Fatalf("unavailable run became a tested failure: %#v", envelope)
+	}
+	if envelope.EvidenceGaps[0].Kind != suite.CompatibilityGapExecutionError {
+		t.Fatalf("gap kind=%q", envelope.EvidenceGaps[0].Kind)
+	}
+}
+
+func TestParseCompatibilityMatrixRejectsMissingEvidenceRangesAndClockAmbiguity(t *testing.T) {
+	if _, err := parseCompatibilityMatrixOptions(nil); err == nil {
+		t.Fatal("expected missing evidence input to fail")
+	}
+	if _, err := parseCompatibilityMatrixOptions([]string{"--observation", "set", "--version-range", "1-2"}); err == nil {
+		t.Fatal("version ranges must not be accepted")
+	}
+	if _, err := parseCompatibilityMatrixOptions([]string{"--observation", "set", "--max-age-seconds", "60"}); err == nil || !strings.Contains(err.Error(), "trust-executed-at-clock") {
+		t.Fatalf("expected explicit clock-trust error, got %v", err)
+	}
+}

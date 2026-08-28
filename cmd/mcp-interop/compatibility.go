@@ -38,6 +38,15 @@ type compatibilityQueryOptions struct {
 	json                       bool
 }
 
+type compatibilityMatrixOptions struct {
+	baselinePath               string
+	observationPaths           []string
+	maxAgeSeconds              int64
+	staleOnClientVersionChange bool
+	trustExecutedAtClock       bool
+	json                       bool
+}
+
 type compatibilityDetectedClient struct {
 	ID          string      `json:"id"`
 	DisplayName string      `json:"display_name"`
@@ -61,12 +70,14 @@ type compatibilityQueryOutput struct {
 
 func runCompatibility(ctx context.Context, args []string) int {
 	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, "compatibility requires a subcommand: query")
+		fmt.Fprintln(os.Stderr, "compatibility requires a subcommand: query or matrix")
 		return 2
 	}
 	switch args[0] {
 	case "query":
 		return runCompatibilityQueryWith(ctx, args[1:], os.Stdout, os.Stderr, client.NewSystemDetector(), time.Now, artifact.Platform{OS: runtime.GOOS, Arch: runtime.GOARCH})
+	case "matrix":
+		return runCompatibilityMatrixWith(args[1:], os.Stdout, os.Stderr, time.Now)
 	default:
 		fmt.Fprintf(os.Stderr, "unknown compatibility subcommand %q\n", args[0])
 		return 2
@@ -197,6 +208,199 @@ func runCompatibilityQueryWith(
 		return 1
 	}
 	return 0
+}
+
+func runCompatibilityMatrixWith(
+	args []string,
+	stdout io.Writer,
+	stderr io.Writer,
+	now func() time.Time,
+) int {
+	options, err := parseCompatibilityMatrixOptions(args)
+	if err != nil {
+		fmt.Fprintf(stderr, "invalid compatibility matrix: %v\n", err)
+		return 2
+	}
+	if now == nil {
+		fmt.Fprintln(stderr, "compatibility matrix runtime is unavailable")
+		return 1
+	}
+
+	var baseline *suite.LoadedBaseline
+	if options.baselinePath != "" {
+		loaded, err := suite.ReadBaseline(options.baselinePath)
+		if err != nil {
+			fmt.Fprintf(stderr, "read compatibility baseline: %v\n", err)
+			return 2
+		}
+		baseline = &loaded
+	}
+	observations := make([]suite.LoadedResultSet, 0, len(options.observationPaths))
+	for i, input := range options.observationPaths {
+		indexPath, err := resolveSuiteIndexPath(input)
+		if err != nil {
+			fmt.Fprintf(stderr, "resolve compatibility observation %d: %v\n", i+1, err)
+			return 2
+		}
+		set, err := suite.ReadResultSet(indexPath)
+		if err != nil {
+			fmt.Fprintf(stderr, "read compatibility observation %d: %v\n", i+1, err)
+			return 2
+		}
+		observations = append(observations, set)
+	}
+
+	policy := suite.CompatibilityStalePolicy{
+		MaxAgeSeconds:              options.maxAgeSeconds,
+		StaleOnClientVersionChange: options.staleOnClientVersionChange,
+		TrustExecutedAtClock:       options.trustExecutedAtClock,
+	}
+	envelope, err := suite.BuildCompatibilityEnvelope(baseline, observations, policy, now().UTC())
+	if err != nil {
+		fmt.Fprintf(stderr, "build compatibility matrix: %v\n", err)
+		return 2
+	}
+	if options.json {
+		encoder := json.NewEncoder(stdout)
+		encoder.SetIndent("", "  ")
+		if err := encoder.Encode(envelope); err != nil {
+			fmt.Fprintf(stderr, "encode compatibility matrix: %v\n", err)
+			return 1
+		}
+		return 0
+	}
+	if err := writeCompatibilityMatrix(stdout, envelope); err != nil {
+		fmt.Fprintf(stderr, "write compatibility matrix: %v\n", err)
+		return 1
+	}
+	return 0
+}
+
+func parseCompatibilityMatrixOptions(args []string) (compatibilityMatrixOptions, error) {
+	var options compatibilityMatrixOptions
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		next := func(name string) (string, error) {
+			if i+1 >= len(args) {
+				return "", fmt.Errorf("%s requires a value", name)
+			}
+			i++
+			return args[i], nil
+		}
+		switch {
+		case arg == "--json":
+			options.json = true
+		case arg == "--stale-on-client-version-change":
+			options.staleOnClientVersionChange = true
+		case arg == "--trust-executed-at-clock":
+			options.trustExecutedAtClock = true
+		case arg == "--baseline":
+			value, err := next("--baseline")
+			if err != nil {
+				return options, err
+			}
+			options.baselinePath = value
+		case strings.HasPrefix(arg, "--baseline="):
+			options.baselinePath = strings.TrimPrefix(arg, "--baseline=")
+		case arg == "--observation":
+			value, err := next("--observation")
+			if err != nil {
+				return options, err
+			}
+			options.observationPaths = append(options.observationPaths, value)
+		case strings.HasPrefix(arg, "--observation="):
+			options.observationPaths = append(options.observationPaths, strings.TrimPrefix(arg, "--observation="))
+		case arg == "--max-age-seconds":
+			value, err := next("--max-age-seconds")
+			if err != nil {
+				return options, err
+			}
+			parsed, err := strconv.ParseInt(value, 10, 64)
+			if err != nil {
+				return options, errors.New("--max-age-seconds must be an integer")
+			}
+			options.maxAgeSeconds = parsed
+		case strings.HasPrefix(arg, "--max-age-seconds="):
+			parsed, err := strconv.ParseInt(strings.TrimPrefix(arg, "--max-age-seconds="), 10, 64)
+			if err != nil {
+				return options, errors.New("--max-age-seconds must be an integer")
+			}
+			options.maxAgeSeconds = parsed
+		case strings.HasPrefix(arg, "-"):
+			return options, fmt.Errorf("unknown compatibility matrix option %q", arg)
+		default:
+			return options, fmt.Errorf("compatibility matrix does not accept positional argument %q", arg)
+		}
+	}
+	if options.baselinePath == "" && len(options.observationPaths) == 0 {
+		return options, errors.New("at least one --baseline or --observation is required")
+	}
+	if len(options.observationPaths) > maxCompatibilityObservationInputs {
+		return options, fmt.Errorf("compatibility matrix accepts at most %d --observation inputs", maxCompatibilityObservationInputs)
+	}
+	if options.baselinePath != "" && strings.TrimSpace(options.baselinePath) != options.baselinePath {
+		return options, errors.New("--baseline must not have surrounding whitespace")
+	}
+	for _, path := range options.observationPaths {
+		if strings.TrimSpace(path) == "" || strings.TrimSpace(path) != path {
+			return options, errors.New("--observation paths must be non-empty without surrounding whitespace")
+		}
+	}
+	if options.maxAgeSeconds < 0 {
+		return options, errors.New("--max-age-seconds must not be negative")
+	}
+	if options.maxAgeSeconds > 0 && !options.trustExecutedAtClock {
+		return options, errors.New("--max-age-seconds requires --trust-executed-at-clock")
+	}
+	if options.trustExecutedAtClock && options.maxAgeSeconds == 0 {
+		return options, errors.New("--trust-executed-at-clock requires a positive --max-age-seconds")
+	}
+	return options, nil
+}
+
+func writeCompatibilityMatrix(output io.Writer, envelope suite.CompatibilityEnvelope) error {
+	writer := tabwriter.NewWriter(output, 0, 4, 2, ' ', 0)
+	fmt.Fprintln(writer, "TARGET\tDEPLOYMENT\tCLIENT\tVERSION\tRUNNER\tAUTH\tSTATE\tATTEMPTS\tUNSTABLE\tOBSERVATIONS")
+	for _, point := range envelope.Points {
+		observations := make([]string, 0, len(point.Observations))
+		for _, observation := range point.Observations {
+			label := observation.Source
+			if observation.Attempt > 0 {
+				label += strconv.Itoa(observation.Attempt)
+			}
+			observations = append(observations, label+":"+string(observation.Outcome))
+		}
+		fmt.Fprintf(
+			writer,
+			"%s\t%s\t%s\t%s\t%s/%s\t%s\t%s\t%d\t%s\t%s\n",
+			point.TargetID,
+			point.DeploymentID,
+			point.ClientID,
+			point.ClientVersion,
+			point.Platform.OS,
+			point.Platform.Arch,
+			point.AuthMode,
+			point.State,
+			len(point.Observations),
+			yesNo(point.Unstable),
+			strings.Join(observations, ","),
+		)
+	}
+	if len(envelope.EvidenceGaps) > 0 {
+		fmt.Fprintln(writer)
+		fmt.Fprintln(writer, "EVIDENCE_GAPS")
+		fmt.Fprintln(writer, "TARGET\tDEPLOYMENT\tCLIENT\tAUTH\tSOURCE\tKIND\tREGRESSION")
+		for _, gap := range envelope.EvidenceGaps {
+			source := gap.Source
+			if gap.Attempt > 0 {
+				source += strconv.Itoa(gap.Attempt)
+			}
+			fmt.Fprintf(writer, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+				gap.TargetID, gap.DeploymentID, gap.ClientID, gap.AuthMode,
+				source, gap.Kind, yesNo(gap.Regression))
+		}
+	}
+	return writer.Flush()
 }
 
 func parseCompatibilityQueryOptions(args []string) (compatibilityQueryOptions, error) {

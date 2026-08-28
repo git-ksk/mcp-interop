@@ -100,3 +100,16 @@ Use `--json` for the versioned `mcp-interop/compatibility-query` machine-readabl
 `--max-age-seconds N` enables age-based staleness only together with `--trust-executed-at-clock`. `--observation` may be repeated up to 128 times; its argument order is the explicit collection order used by `--stale-on-client-version-change`, so supply oldest to newest. The bound prevents an accidental command invocation from producing an unbounded retained-observation report. At least one `--baseline` or `--observation` is required.
 
 The command does not change the existing `mcp-interop clients` or `clients --json` contract. Detection alone still makes no compatibility claim. A newly auto-updated installed version that is absent from the supplied exact observed points is reported as `untested`.
+
+## List the exact observed matrix
+
+`mcp-interop compatibility matrix` outputs the full compatibility envelope from explicit baseline/result-set evidence without detecting or executing an installed client.
+
+```console
+mcp-interop compatibility matrix \
+  --baseline baselines/current \
+  --observation attempt-1 \
+  --observation attempt-2 --json
+```
+
+Every observation, retry, state, and evidence gap for each exact point is retained. Human output includes attempt count and `attemptN:outcome`, so a later PASS cannot hide an earlier FAIL/UNKNOWN. Execution errors and unavailable clients remain `evidence_gaps`; they are not converted into `known_broken`. Observation ordering, staleness policy, and the 128-observation bound are the same as for `compatibility query`. See [Exact observed client coverage](observed-coverage.md) for the exact repository-retained coverage currently documented.

@@ -100,3 +100,16 @@ mcp-interop compatibility query \
 `--max-age-seconds N`でage-based stale判定を有効にする場合は`--trust-executed-at-clock`も必須です。`--observation`は最大128件まで繰り返せます。`--stale-on-client-version-change`ではその指定順が明示collection orderになるため、oldest -> newestで渡してください。大量入力によって保持observation reportが無制限に大きくなるのを防ぐための上限です。`--baseline`または`--observation`の少なくとも一方が必要です。
 
 既存の`mcp-interop clients` / `clients --json` contractは変更しません。検出metadataだけではcompatibility claimになりません。auto-updateされた新しいinstalled versionが指定evidenceのexact observed pointに存在しなければ`untested`と表示します。
+
+## exact observed matrixを列挙する
+
+`mcp-interop compatibility matrix`は、installed clientを検出・実行せず、明示したbaseline / result setからcompatibility envelope全体を出力します。
+
+```console
+mcp-interop compatibility matrix \
+  --baseline baselines/current \
+  --observation attempt-1 \
+  --observation attempt-2 --json
+```
+
+各exact pointの全observation、retry、state、evidence gapを保持します。human outputもattempt countと`attemptN:outcome`を表示し、retry後のPASSで先行FAIL/UNKNOWNを隠しません。execution errorやclient unavailableは`known_broken`へ変換せず`evidence_gaps`のままです。入力順・stale policy・128 observation上限は`compatibility query`と同じです。現在repositoryに保持しているexact実測範囲は[Exact observed client coverage](observed-coverage.ja.md)を参照してください。

@@ -206,6 +206,8 @@ mcp-interop baseline compare baselines/current attempt-1 attempt-2 --fail-on-reg
 
 Compatibility is modeled from exact observed client-version/platform points only; unobserved versions remain `untested`, and version changes alone are never regressions. See [Compatibility envelope v1](docs/compatibility-envelope-v1.md) ([日本語](docs/compatibility-envelope-v1.ja.md)) for the `tested` / `untested` / `stale` / `known_broken` / `regressed` / `unknown` semantics.
 
+To list every exact version/platform point from retained result-set/baseline evidence without detecting or executing a client, use `mcp-interop compatibility matrix`. Retry history and evidence gaps remain visible. The repository-retained current observations are documented in [Exact observed client coverage](docs/observed-coverage.md) ([日本語](docs/observed-coverage.ja.md)).
+
 To classify the currently installed exact client version without changing the existing `clients --json` schema:
 
 ```console

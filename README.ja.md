@@ -226,6 +226,7 @@ mcp-interop baseline compare baselines/current attempt-1 attempt-2 --fail-on-reg
 
 compatibilityはexact client-version/platformの実測pointだけで表します。未観測versionは`untested`のままで、version変更だけをregressionにはしません。`tested` / `untested` / `stale` / `known_broken` / `regressed` / `unknown`の意味は[Compatibility envelope v1](docs/compatibility-envelope-v1.ja.md)を参照してください。
 
+保持したresult set / baseline全体からexact version/OS matrixを列挙する場合は`mcp-interop compatibility matrix`を使います。retryとevidence gapも保持されます。現在repositoryに保持している実測範囲は[Exact observed client coverage](docs/observed-coverage.ja.md)を参照してください。
 既存`clients --json` schemaを変更せず、現在インストール済みのexact client versionを分類できます。
 
 ```console
