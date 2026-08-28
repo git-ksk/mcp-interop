@@ -22,6 +22,8 @@ The E2E harness deletes its temporary result directory after the run, so these 2
 
 Those rows are exact points only. For example, the Cursor observation does not imply support for an earlier or later `2026.08.*` build.
 
+Adapter-level beta/stable decisions are a separate review layer; see [Adapter maturity contract](adapter-maturity.md). An exact version becoming untested does not by itself rewrite adapter maturity.
+
 ## OS/platform coverage state
 
 | Client | macOS arm64 | macOS amd64 | Linux | Windows |

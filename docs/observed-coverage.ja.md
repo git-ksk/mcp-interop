@@ -22,6 +22,8 @@ E2E harnessは実行後にtemporary result directoryを削除するため、2026
 
 この表はexact pointだけです。たとえばCursorの1行から、前後の`2026.08.*` buildまでsupportedとは推測しません。
 
+Adapter-levelのbeta/stable decisionは別のreview layerです。[Adapter maturity contract](adapter-maturity.ja.md)を参照してください。exact versionがuntestedになっただけでadapter maturityを自動変更しません。
+
 ## OS/platform coverage state
 
 | Client | macOS arm64 | macOS amd64 | Linux | Windows |

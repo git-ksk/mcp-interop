@@ -26,6 +26,8 @@ The live adapters in v0.8.0 are:
 - **Cursor CLI (beta)** — live no-auth inventory plus explicit opt-in OAuth through the real Cursor MCP login path; authenticated `mcp list-tools` has been validated with the controlled fixture.
 - **Antigravity CLI (beta, macOS)** — live no-auth inventory plus explicit opt-in OAuth through the real `/mcp` manager in an isolated PTY. Authentication can be proven independently of client-side tool-cache observation, so generic `init/tools` may conservatively remain `unknown` while controlled E2E proves the authenticated MCP exchange.
 
+On current main as part of the unreleased v0.9 work, the evidence review classifies **Codex, Cursor, and Antigravity as beta adapters**. The existing `tier=v1` client metadata is a delivery/roadmap tier, not a stable-maturity claim. See [Adapter maturity contract](docs/adapter-maturity.md) ([日本語](docs/adapter-maturity.ja.md)).
+
 v0.7.0 turns one-off live checks into a repeatable regression workflow. Building on v0.6.0's protocol-aware core and protected-path artifact identity, it can now declare a secret-safe suite, run the same Remote MCP target across multiple real clients, compare a baseline with every retained attempt, and gate privileged self-hosted CI behind a manual main-only path. A retry cannot erase an earlier failure, and the meaning of a live PASS is unchanged.
 
 v0.8.0 adds immutable baseline acceptance/supersession and exact observed-point compatibility classification on top of the v0.7 repeatable regression workflow. An auto-updated client version remains `untested` until observed, stale evidence is explicit, and a version-only change is never promoted into a regression. The shipped guarantees include:
@@ -97,6 +99,7 @@ If you are not sure which command to start with:
 | Accept an immutable baseline snapshot | `mcp-interop baseline create` |
 | Compare an accepted baseline with retained attempts | `mcp-interop baseline compare` |
 | Classify the installed exact client version from observed evidence | `mcp-interop compatibility query` |
+| Review evidence-based maturity for shipped adapters | `mcp-interop maturity` |
 | Run metadata-only preflight diagnostics | `mcp-interop diagnose` |
 
 Detect known clients on the local machine:
@@ -105,6 +108,8 @@ Detect known clients on the local machine:
 mcp-interop clients
 mcp-interop clients --json
 ```
+
+The `tier` shown by `clients` is roadmap/delivery placement, not evidence maturity. On current main, use the unreleased v0.9 `mcp-interop maturity` command for the separately reviewed `research_only` / `beta` / `stable` decision; this does not execute or detect a client. The published v0.8.0 binary does not contain this command.
 
 Run one live adapter:
 
@@ -307,7 +312,7 @@ mcp-interop evidence merge authorization.json resource.json tool.json -o runtime
 
 `summary` prints only structural coverage (section names and supplied-field counts), never observed values or metadata URLs. `merge` fails on conflicting observations instead of using last-write-wins and emits canonical schema v3 JSON. Unknown fields remain rejected, so these commands do not create a second path for ingesting tokens, authorization codes, raw client assertions, cookies, or other credentials.
 
-## Codex adapter
+## Codex adapter (beta)
 
 The Codex adapter:
 

@@ -228,6 +228,8 @@ Dependency order: #133 -> #134 -> #136 -> #135 -> #137 -> #138 -> #139.
 
 Baseline acceptance in v0.9 keeps baseline schema v1 local-first: its digest/fingerprint prove internal content consistency, not authenticated acceptance. Team/CI authenticity should bind the exact baseline fingerprint to an external reviewed/signed/attested record. Any future native signed provenance must use a separate versioned envelope rather than changing the meaning of baseline-v1 metadata.
 
+The explicit v0.9 maturity review currently classifies Codex, Cursor, and Antigravity as `beta`. `tier=v1` remains a delivery/roadmap designation, not a stable-evidence claim. Stable promotion is blocked by the exact criterion gaps documented in [Adapter maturity contract](adapter-maturity.md); a client-version-only change never changes maturity automatically.
+
 ### Priority order
 
 1. strengthen Codex, Cursor, and Antigravity across realistic current client versions;
