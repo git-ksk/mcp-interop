@@ -120,19 +120,20 @@ betaでも少なくとも次が必要です。
 - owned process / session cleanup
 - secret rejection / redaction
 - controlled fixture E2E
+- 可能な範囲でnormal user stateのbefore/after非変更check
 
 ### Stable
 
-1バージョンで偶然動いただけではなく、現実的なversion/platform範囲で測定境界を説明できるようになってからstableへ昇格します。
+1 version / 1 platformだけの偶然ではないことをexact evidenceで示せる場合だけbetaからstableへ昇格します。stableにはbeta gate全部に加えて次が必要です。
 
-Stableは「外部クライアントが将来変わらない」という意味ではありません。
+- advertised PASS pathごとに少なくとも2つのexact client versionで繰り返しevidenceがあり、連続version rangeへ補間しない
+- advertisedする各OS/architecture scopeにretained real-client evidenceがあるか、supported scopeを明示的に狭める
+- client measurement surfaceが十分supported、または繰り返し実測されている
+- 将来のclient変更に対するexact-point compatibility / regression maintenance pathがある
 
-- 検証済みの互換範囲
-- release gate
-- failure semantics
-- クライアント変更時のmaintenance path
+Stableは「外部clientが将来変わらない」という意味ではありません。新しくinstalledされたexact versionが未観測なら引き続き`untested`で、version文字列が変わっただけでadapterを自動promote/demote/regressしません。maturity変更にはexplicit evidence reviewが必要です。
 
-を持っている状態を意味します。
+canonicalなmachine/human-readable criteriaと現在のshipped-adapter decisionは[Adapter maturity contract](adapter-maturity.ja.md)で定義します。`mcp-interop maturity`はclientを検出・実行せず、そのdecisionをreportします。
 
 ## 優先順位
 

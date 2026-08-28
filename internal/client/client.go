@@ -2,7 +2,7 @@ package client
 
 import "context"
 
-// Tier describes when an adapter is expected to become a live interoperability target.
+// Tier describes roadmap/delivery placement. It is not an adapter maturity claim.
 type Tier string
 
 const (

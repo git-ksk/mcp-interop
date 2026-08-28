@@ -104,9 +104,16 @@ Before beta, require all of the following for the supported path:
 
 ### Stable
 
-Promote beta only after the adapter has enough evidence across realistic client versions/platforms to show that the measurement boundary is not a one-version accident.
+Promote beta only after the adapter has enough exact evidence to show that the measurement boundary is not a one-version or one-platform accident. Stable requires the full beta gate plus:
 
-Stable does not mean the external client can never change. It means the adapter has a documented compatibility envelope, release gates, failure semantics, and a maintenance path when the client changes.
+- repeated evidence for each advertised PASS path across at least two exact client versions, without inferring a continuous version range;
+- retained real-client evidence for every advertised OS/architecture scope, or an explicitly narrower supported scope;
+- a sufficiently supported or repeatedly evidenced client measurement surface;
+- an exact-point compatibility/regression maintenance path for future client changes.
+
+Stable does not mean the external client can never change. A newly installed but unobserved exact version is still `untested`; a version string changing by itself does not automatically promote, demote, or regress the adapter. Maturity changes require an explicit evidence review.
+
+The canonical machine/human-readable criteria and current shipped-adapter decisions are defined in [Adapter maturity contract](adapter-maturity.md). `mcp-interop maturity` reports those decisions without detecting or executing a client.
 
 ## Priority order
 

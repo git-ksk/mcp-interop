@@ -32,6 +32,8 @@ v0.8.0で利用できる実クライアント向けアダプターは次のと�
 - **Cursor CLI（beta）** — MCP管理コマンドを使った認証不要の実ツール確認と、実CursorのMCPログイン経路を使うOAuth認証
 - **Antigravity CLI（beta / macOS）** — 隔離したPTYとツールキャッシュを使う認証不要の確認と、実`/mcp`マネージャーを使うOAuth認証
 
+current mainで進行中の未リリースv0.9 evidence reviewでは、**Codex / Cursor / Antigravityの3adapterをすべてbeta**と分類します。既存client metadataの`tier=v1`はdelivery/roadmap tierであり、stable maturityの主張ではありません。詳細は[Adapter maturity contract](docs/adapter-maturity.ja.md)を参照してください。
+
 v0.7.0では、単発のlive testだけでなく、同じRemote MCPを複数クライアントで繰り返し検証し、前回結果との退行まで確認できるようになりました。v0.6.0のprotocol-aware coreとprotected-path artifactを土台に、秘密情報をmanifestへ書かないsuite宣言、複数clientの一括実行、baselineとの比較、manual / main-onlyのself-hosted CI境界を追加しています。retry後にPASSしても最初の失敗は消えません。live PASSの意味自体は変えていません。
 
 v0.8.0では、v0.7の繰り返しregression workflowにimmutable baselineのaccept/supersedeとexact observed-point compatibility分類を追加しました。auto-updateされた未観測versionは観測されるまで`untested`のまま、stale evidenceは明示され、version変更だけでregressionにはなりません。公開版の保証は次のとおりです。
@@ -109,6 +111,7 @@ mcp-interop --version
 | immutable baselineをaccept | `mcp-interop baseline create` |
 | accept済みbaselineとretained attemptを比較 | `mcp-interop baseline compare` |
 | インストール済みexact client versionを実測evidenceで分類 | `mcp-interop compatibility query` |
+| shipped adapterのevidence-based maturityを確認 | `mcp-interop maturity` |
 | 実クライアントを動かさない事前診断 | `mcp-interop diagnose` |
 
 検出できるクライアントを確認:
@@ -117,6 +120,8 @@ mcp-interop --version
 mcp-interop clients
 mcp-interop clients --json
 ```
+
+`clients`に出る`tier`はroadmap/delivery placementであり、evidence maturityではありません。current mainでは、未リリースv0.9の`mcp-interop maturity`で`research_only` / `beta` / `stable`のreview済みdecisionを確認します。このcommandはclientの検出・実行を行いません。公開v0.8.0 binaryにはまだ含まれません。
 
 1クライアントをテスト:
 
@@ -350,7 +355,7 @@ Preflight、Runtime Evidence、実クライアント相互運用テストは**�
 
 ## アダプターの仕組み
 
-### Codex CLI
+### Codex CLI（beta）
 
 Codexアダプターは次の流れで動きます。
 

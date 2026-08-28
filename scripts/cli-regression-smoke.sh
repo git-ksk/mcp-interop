@@ -50,6 +50,13 @@ FIXTURE
 chmod 700 "$workdir/bin/codex"
 export PATH="$workdir/bin:$PATH"
 
+"$binary" maturity --json >"$workdir/maturity.json"
+grep -F '"artifact_type": "mcp-interop/adapter-maturity"' "$workdir/maturity.json" >/dev/null
+grep -F '"client_id": "codex"' "$workdir/maturity.json" >/dev/null
+grep -F '"client_id": "cursor"' "$workdir/maturity.json" >/dev/null
+grep -F '"client_id": "antigravity"' "$workdir/maturity.json" >/dev/null
+grep -F '"maturity": "beta"' "$workdir/maturity.json" >/dev/null
+
 endpoint='https://example.com/mcp?api_key=cli-smoke-secret&tenant=fixture'
 old="$workdir/old.json"
 new="$workdir/new.json"
