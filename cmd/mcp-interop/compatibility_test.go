@@ -355,3 +355,17 @@ func TestParseCompatibilityMatrixRejectsMissingEvidenceRangesAndClockAmbiguity(t
 		t.Fatalf("expected explicit clock-trust error, got %v", err)
 	}
 }
+
+func TestParseCompatibilityQueryRejectsResearchCandidates(t *testing.T) {
+	for _, candidate := range []string{"copilot", "vscode", "chatgpt", "claude"} {
+		_, err := parseCompatibilityQueryOptions([]string{
+			"--client", candidate,
+			"--target", "production-a",
+			"--deployment-id", "production-a",
+			"--observation", "result-set",
+		})
+		if err == nil || !strings.Contains(err.Error(), `unsupported --client "`+candidate+`"`) {
+			t.Fatalf("candidate=%s err=%v", candidate, err)
+		}
+	}
+}

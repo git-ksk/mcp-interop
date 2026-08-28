@@ -103,7 +103,7 @@ At minimum, evaluate:
 - **version context** — the shipping client version and relevant platform context are recorded;
 - **deterministic fixture proof** — controlled E2E demonstrates that the adapter is observing the real client path it claims to measure.
 
-If a client cannot meet this boundary, keep it research-only rather than weakening the project-wide meaning of PASS.
+If a client cannot meet this boundary, keep it research-only rather than weakening the project-wide meaning of PASS. The machine-readable common policy and current candidate blockers are defined in [Real-client adapter graduation gate](adapter-graduation-gate.md).
 
 ## Why both layers matter
 

@@ -535,12 +535,13 @@ func parseCompatibilityQueryOptions(args []string) (compatibilityQueryOptions, e
 }
 
 func compatibilityClientSpec(id string) (client.Spec, bool) {
+	shipped, err := client.IsShippedLiveAdapter(id)
+	if err != nil || !shipped {
+		return client.Spec{}, false
+	}
 	for _, spec := range client.Specs() {
 		if spec.ID == id {
-			switch id {
-			case "codex", "cursor", "antigravity":
-				return spec, true
-			}
+			return spec, true
 		}
 	}
 	return client.Spec{}, false

@@ -2,8 +2,9 @@ package client
 
 // Specs returns the client set currently tracked by mcp-interop.
 //
-// Detection is intentionally broader than the V1 live-adapter set so users can
-// see which clients are present before a corresponding live adapter lands.
+// Detection is intentionally broader than the shipped live-adapter set so users can
+// see which clients are present during research. Detection/tier alone never satisfies
+// the graduation policy or makes a client runnable by the live-test path.
 func Specs() []Spec {
 	return []Spec{
 		{

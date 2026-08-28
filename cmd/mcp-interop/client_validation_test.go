@@ -32,3 +32,12 @@ func TestParseTestOptionsAcceptsAllImplementedClients(t *testing.T) {
 		t.Fatalf("unexpected clients: %#v", options.clients)
 	}
 }
+
+func TestParseTestOptionsRejectsResearchCandidatesBeforeRun(t *testing.T) {
+	for _, candidate := range []string{"copilot", "vscode", "chatgpt", "claude"} {
+		_, err := parseTestOptions([]string{"https://example.com/mcp", "--client", candidate})
+		if err == nil || !strings.Contains(err.Error(), `live adapter "`+candidate+`" is not implemented yet`) {
+			t.Fatalf("candidate=%s err=%v", candidate, err)
+		}
+	}
+}

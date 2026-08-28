@@ -41,7 +41,7 @@ v0.8.0 adds immutable baseline acceptance/supersession and exact observed-point 
 
 VS Code remains research-only until its separate lifecycle/tool-discovery automation research is promoted into a stable live adapter.
 
-GitHub Copilot CLI remains research-only: current testing proves real-client MCP initialization but has not yet proven `tools/list` under the project's no-model evidence contract ([#48](https://github.com/git-ksk/mcp-interop/issues/48)). Claude Code support is intentionally deferred.
+GitHub Copilot CLI remains research-only: current testing proves real-client MCP initialization but has not yet proven `tools/list` under the project's no-model evidence contract ([#48](https://github.com/git-ksk/mcp-interop/issues/48)). Regular Claude web/Desktop Remote MCP connectors are also research-only under [#68](https://github.com/git-ksk/mcp-interop/issues/68); Claude Code remains a separate deferred candidate.
 
 ChatGPT real-client support remains intentionally blocked ([#20](https://github.com/git-ksk/mcp-interop/issues/20)) until an officially supported direct/headless ChatGPT MCP app-management surface exists. Model prompts, brittle DOM/UI automation, private endpoints, and normal-user browser credentials are not acceptable evidence for a real-client PASS.
 
@@ -100,6 +100,7 @@ If you are not sure which command to start with:
 | Compare an accepted baseline with retained attempts | `mcp-interop baseline compare` |
 | Classify the installed exact client version from observed evidence | `mcp-interop compatibility query` |
 | Review evidence-based maturity for shipped adapters | `mcp-interop maturity` |
+| Review research-client graduation blockers | `mcp-interop graduation` |
 | Validate separate optional-capability evidence | `mcp-interop capability validate` |
 | Run metadata-only preflight diagnostics | `mcp-interop diagnose` |
 
@@ -113,6 +114,8 @@ mcp-interop clients --json
 The `tier` shown by `clients` is roadmap/delivery placement, not evidence maturity. On current main, use the unreleased v0.9 `mcp-interop maturity` command for the separately reviewed `research_only` / `beta` / `stable` decision; this does not execute or detect a client. The published v0.8.0 binary does not contain this command.
 
 Capability profile v1 is also current-main unreleased v0.9 work. `mcp-interop capability validate` validates a separate evidence document and never changes core `reach/auth/init/tools` PASS. See [Capability profile v1](docs/capability-profile-v1.md) ([日本語](docs/capability-profile-v1.ja.md)).
+
+The same unreleased v0.9 work adds `mcp-interop graduation`, a no-execution common gate for research candidates. Copilot CLI, VS Code, ChatGPT, and Claude web/Desktop all remain `research_only`; none is eligible to ship yet. Live test, suite, and compatibility client selection are wired to the validated shipped-adapter maturity catalog so a research candidate cannot enter through a separate allowlist. See [Real-client adapter graduation gate](docs/adapter-graduation-gate.md) ([日本語](docs/adapter-graduation-gate.ja.md)).
 
 Run one live adapter:
 

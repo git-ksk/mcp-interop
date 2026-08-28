@@ -117,6 +117,8 @@ The canonical machine/human-readable criteria and current shipped-adapter decisi
 
 Optional capability evidence uses the separate [Capability profile v1](capability-profile-v1.md) contract. Capability states do not broaden the core live PASS contract, and indirect metadata/configuration/UI presence cannot satisfy a capability PASS.
 
+Research-client promotion uses the single [Real-client adapter graduation gate](adapter-graduation-gate.md). The live test, suite, and compatibility client-selection paths derive their permitted IDs from validated shipped maturity decisions rather than maintaining weaker candidate-specific allowlists.
+
 ## Priority order
 
 When roadmap items compete, use this order.

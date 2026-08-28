@@ -173,3 +173,13 @@ func assertParseErrorContains(t *testing.T, input, want string) {
 		t.Fatalf("expected error containing %q, got %v", want, err)
 	}
 }
+
+func TestManifestRejectsResearchCandidateAsLiveClient(t *testing.T) {
+	for _, candidate := range []string{"copilot", "vscode", "chatgpt", "claude"} {
+		input := `{"schema_version":1,"execution_context":"hosted_fixture","targets":[{"id":"fixture-a","endpoint":{"source":"fixture"},"clients":[{"id":"` + candidate + `","auth":"none"}]}]}`
+		_, err := Parse(strings.NewReader(input))
+		if err == nil || !strings.Contains(err.Error(), `unsupported live client "`+candidate+`"`) {
+			t.Fatalf("candidate=%s err=%v", candidate, err)
+		}
+	}
+}
