@@ -172,3 +172,7 @@ capability evidenceはProtected Resource MetadataとAuthorization Server discove
 registration URLを推測してDCR対応を判定しません。
 
 複数の`authorization_servers`がある場合も、実際のflowがどのissuerを選んだか証明できなければ、別issuerのcapabilityを混ぜて期待値を作らず`unknown`にします。
+
+## Compatibility policy
+
+Reason codeは既存値をstableに保つopen string enumです。stable major line内では既存codeをrename・削除・別意味へ再利用せず、新しいdirect evidenceには新codeを追加できます。consumerは未知のnon-empty codeを許容し、free-form messageから代替codeを推測してはいけません。詳細は[Public contract candidate](public-contract-v1-candidate.ja.md)を参照してください。

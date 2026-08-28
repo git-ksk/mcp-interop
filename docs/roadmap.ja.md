@@ -247,6 +247,15 @@ Capability profile v1は独立したadditive evidence contractです。capabilit
 
 将来`v1.x`で維持する可能性がある公開契約を整理します。
 
+### Focused audit Issue
+
+1. [#149](https://github.com/git-ksk/mcp-interop/issues/149) — CLI / JSON / exit-code / reason-code contract candidate
+2. [#150](https://github.com/git-ksk/mcp-interop/issues/150) — artifact schema / baseline / compatibility / deprecation policy
+3. [#151](https://github.com/git-ksk/mcp-interop/issues/151) — adapter identity / core PASS / capability / protocol-era semantics
+4. [#152](https://github.com/git-ksk/mcp-interop/issues/152) — security / privacy / cleanup / release guarantees
+
+依存順: #149 -> #150 -> #151 -> #152。
+
 対象例:
 
 - CLI command / flag semantics
