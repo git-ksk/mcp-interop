@@ -38,6 +38,7 @@ Usage:
   mcp-interop compatibility query --client <id> --target <id> --deployment-id <id> [--auth none|oauth] [--baseline <dir>] [--observation <result-set>]... [--max-age-seconds <n> --trust-executed-at-clock] [--stale-on-client-version-change] [--json]
   mcp-interop compatibility matrix [--baseline <dir>] [--observation <result-set>]... [--max-age-seconds <n> --trust-executed-at-clock] [--stale-on-client-version-change] [--json]
   mcp-interop maturity [--json]
+  mcp-interop graduation [--json]
   mcp-interop capability validate <profile.json> [--json]
   mcp-interop diagnose <url> [--profile chatgpt] [--client-id <url>] [--redirect-uri <url>] [--runtime-evidence <file|->] [--json]
   mcp-interop evidence <validate|summary|merge> ...
@@ -52,6 +53,7 @@ Commands:
   baseline   Accept, verify local consistency, and compare suite baselines.
   compatibility  Classify or list exact observed client-version/platform evidence.
   maturity   Report evidence-reviewed maturity for shipped live adapters.
+  graduation Report the equal-evidence gate for research client candidates.
   capability Validate separate optional-capability profile evidence without changing core PASS.
   diagnose   Run profile-based server/OAuth preflight diagnostics without claiming real-client PASS.
   evidence   Validate, summarize, or merge secret-free Runtime Evidence documents.
@@ -97,6 +99,8 @@ func run(ctx context.Context, args []string) int {
 		return runCompatibility(ctx, args[1:])
 	case "maturity":
 		return runMaturity(args[1:], os.Stdout, os.Stderr)
+	case "graduation":
+		return runGraduation(args[1:], os.Stdout, os.Stderr)
 	case "capability":
 		return runCapability(args[1:], os.Stdout, os.Stderr)
 	case "diagnose":
@@ -752,9 +756,11 @@ func parseTestOptions(args []string) (testOptions, error) {
 		return options, fmt.Errorf("--client must name at least one client")
 	}
 	for _, clientID := range options.clients {
-		switch clientID {
-		case "codex", "cursor", "antigravity":
-		default:
+		shipped, err := client.IsShippedLiveAdapter(clientID)
+		if err != nil {
+			return options, fmt.Errorf("live adapter graduation policy is invalid: %w", err)
+		}
+		if !shipped {
 			return options, fmt.Errorf("live adapter %q is not implemented yet", clientID)
 		}
 	}

@@ -227,6 +227,8 @@ Baseline acceptanceはv0.9でもbaseline schema v1のlocal-firstを維持しま�
 
 Capability profile v1は独立したadditive evidence contractです。capability `pass` / `fail` / `unknown`にはaccepted real-client direct evidence surfaceが必須で、`unsupported` / `untested`は別stateとして保持します。このcontractだけで現在のshipped adapterへoptional-capability PASSは追加せず、core `reach/auth/init/tools` semanticsも変更しません。詳細は[Capability profile v1](capability-profile-v1.ja.md)を参照してください。
 
+共通[Real-client adapter graduation gate](adapter-graduation-gate.ja.md)でresearch -> beta eligibilityを明示的かつfail-closedにします。Copilot CLI #48 / VS Code #6 / ChatGPT #20 / Claude web/Desktop #68は全て`research_only`のままで、v0.9で新規graduated clientが0件でも正常です。live test / suite / compatibility selectionはvalidated shipped maturity catalogを使い、parser/manifestの別例外からcandidateをshipできません。
+
 優先順:
 
 1. Codex / Cursor / Antigravityを現実的な最新version横断で検証

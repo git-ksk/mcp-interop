@@ -110,7 +110,7 @@ localhost fixtureの成功は「アダプターが正しく測定できる」こ
 - **バージョン情報** — 実際に検証した製品バージョンとplatformを記録する
 - **fixtureによる検証** — controlled E2Eで、アダプターが本当に実クライアント経路を測定していると確認する
 
-この条件を満たせないクライアントは、PASSの意味を弱めるよりresearch-onlyのままにします。
+この条件を満たせないクライアントは、PASSの意味を弱めるよりresearch-onlyのままにします。 machine-readableな共通policyと現在のcandidate blockerは[Real-client adapter graduation gate](adapter-graduation-gate.ja.md)で定義します。
 
 ## 併用する場合
 

@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/git-ksk/mcp-interop/internal/artifact"
+	"github.com/git-ksk/mcp-interop/internal/client"
 )
 
 const (
@@ -215,9 +216,11 @@ func validateTargetID(value string) error {
 }
 
 func validateClientSelection(context ExecutionContext, selection ClientSelection) error {
-	switch selection.ID {
-	case "codex", "cursor", "antigravity":
-	default:
+	shipped, err := client.IsShippedLiveAdapter(selection.ID)
+	if err != nil {
+		return fmt.Errorf("live adapter graduation policy is invalid: %w", err)
+	}
+	if !shipped {
 		return fmt.Errorf("unsupported live client %q", selection.ID)
 	}
 	switch selection.Auth {

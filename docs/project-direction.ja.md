@@ -137,6 +137,8 @@ canonicalなmachine/human-readable criteriaと現在のshipped-adapter decision�
 
 optional capability evidenceは独立した[Capability profile v1](capability-profile-v1.ja.md) contractを使います。capability stateでcore live PASSを広げず、indirect metadata/configuration/UI presenceはcapability PASSを満たせません。
 
+research clientのpromotionには単一の[Real-client adapter graduation gate](adapter-graduation-gate.ja.md)を使います。live test / suite / compatibilityのclient-selection pathはvalidated shipped maturity decisionから許可IDを導出し、candidate固有の弱いallowlistを持ちません。
+
 ## 優先順位
 
 ### P0 — PASSの正しさを守る

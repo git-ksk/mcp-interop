@@ -45,7 +45,7 @@ v0.8.0では、v0.7の繰り返しregression workflowにimmutable baselineのacc
 - クライアントの正確なバージョンを含む結果をローカルファイルへ保存し、バージョン間の退行を比較できるようにする
 - CI / releaseではformat、vet、unit、race、脆弱性検査、fixture、release archiveを可能な範囲で検証する
 
-VS CodeとGitHub Copilot CLIは調査段階です。ChatGPTは、公式にサポートされた自動操作可能なMCPアプリ管理インターフェースが利用できるまで、実クライアントアダプターを意図的にBLOCKEDとしています。
+VS CodeとGitHub Copilot CLIは調査段階です。ChatGPTは、公式にサポートされた自動操作可能なMCPアプリ管理インターフェースが利用できるまで実クライアントアダプターを意図的にBLOCKEDとしています。通常のClaude web/Desktop Remote MCP connectorも#68でresearch-onlyとし、Claude Codeとは別candidateとして扱います。
 
 ## インストール
 
@@ -112,6 +112,7 @@ mcp-interop --version
 | accept済みbaselineとretained attemptを比較 | `mcp-interop baseline compare` |
 | インストール済みexact client versionを実測evidenceで分類 | `mcp-interop compatibility query` |
 | shipped adapterのevidence-based maturityを確認 | `mcp-interop maturity` |
+| research clientのgraduation blockerを確認 | `mcp-interop graduation` |
 | optional capabilityの独立evidenceをvalidate | `mcp-interop capability validate` |
 | 実クライアントを動かさない事前診断 | `mcp-interop diagnose` |
 
@@ -125,6 +126,8 @@ mcp-interop clients --json
 `clients`に出る`tier`はroadmap/delivery placementであり、evidence maturityではありません。current mainでは、未リリースv0.9の`mcp-interop maturity`で`research_only` / `beta` / `stable`のreview済みdecisionを確認します。このcommandはclientの検出・実行を行いません。公開v0.8.0 binaryにはまだ含まれません。
 
 Capability profile v1もcurrent mainの未リリースv0.9 workです。`mcp-interop capability validate`は独立evidence documentをvalidateするだけで、core `reach/auth/init/tools` PASSを変更しません。詳細は[Capability profile v1](docs/capability-profile-v1.ja.md)を参照してください。
+
+同じ未リリースv0.9 workとして`mcp-interop graduation`も追加します。clientを実行しない共通gateで、Copilot CLI / VS Code / ChatGPT / Claude web/Desktopはいずれも`research_only`のまま、現在eligibleな新clientは0件です。live test / suite / compatibilityのclient選択はvalidated shipped-adapter maturity catalogへ接続し、research candidateが別allowlistから入る経路を作りません。詳細は[Real-client adapter graduation gate](docs/adapter-graduation-gate.ja.md)を参照してください。
 
 1クライアントをテスト:
 

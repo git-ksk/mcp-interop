@@ -232,6 +232,8 @@ The explicit v0.9 maturity review currently classifies Codex, Cursor, and Antigr
 
 Capability profile v1 is a separate additive evidence contract: direct capability `pass`/`fail`/`unknown` requires an accepted real-client evidence surface, while `unsupported` and `untested` remain distinct. No current shipped adapter gains an optional-capability PASS from this contract, and core `reach/auth/init/tools` semantics remain unchanged. See [Capability profile v1](capability-profile-v1.md).
 
+The common [Real-client adapter graduation gate](adapter-graduation-gate.md) makes research -> beta eligibility explicit and fail-closed. Copilot CLI #48, VS Code #6, ChatGPT #20, and Claude web/Desktop #68 all remain `research_only`; zero new graduated clients is an acceptable v0.9 result. Live test, suite, and compatibility selection use the validated shipped maturity catalog, so a candidate cannot ship through a separate parser/manifest exception.
+
 ### Priority order
 
 1. strengthen Codex, Cursor, and Antigravity across realistic current client versions;
