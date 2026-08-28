@@ -4,15 +4,14 @@ All notable project changes will be summarized here. GitHub Releases remain the 
 
 ## Unreleased
 
-### Added
-
-- Added compatibility envelope v1 for exact observed client-version/platform/auth/deployment points, with evidence-derived `tested`, `stale`, `known_broken`, `regressed`, and `unknown` states plus exact-query `untested` classification without inferred version ranges.
-- Added explicit staleness policy inputs for observation age and later observed client-version changes, while retaining evidence gaps instead of inventing versions for execution errors or incomplete provenance.
-- Added `compatibility query` to classify the currently installed exact client version against explicit baseline/result-set evidence without changing the existing `clients --json` contract; machine-readable output omits executable/input paths and bounds retained observation inputs.
+## v0.8.0 — 2026-08-28
 
 ### Added
 
 - Added immutable suite baseline bundles with explicit acceptance/supersession, deterministic snapshot digests, no-overwrite output reservation, strict real-client/exact-version source requirements, and baseline-specific fail-closed comparison identity checks while preserving suite regression report v1.
+- Added compatibility envelope v1 for exact observed client-version/platform/auth/deployment points, with evidence-derived `tested`, `stale`, `known_broken`, `regressed`, and `unknown` states plus exact-query `untested` classification without inferred version ranges.
+- Added explicit staleness policy inputs for observation age and later observed client-version changes, while retaining evidence gaps instead of inventing versions for execution errors or incomplete provenance.
+- Added `compatibility query` to classify the currently installed exact client version against explicit baseline/result-set evidence without changing the existing `clients --json` contract; machine-readable output omits executable/input paths and bounds retained observation inputs.
 
 ## v0.7.0 — 2026-08-28
 

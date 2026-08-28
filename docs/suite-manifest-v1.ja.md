@@ -4,7 +4,7 @@
 
 > この文書は英語版`suite-manifest-v1.md`の日本語訳です。契約の正本は英語版です。
 
-Suite manifest v1は、v0.7の繰り返し検証で使う宣言形式です。`suite` CLIは内容を検証し、`trusted_real_client` manifestを実行できます。結果の比較方法は[Suite regression report v1](suite-regression-report-v1.ja.md)で定義済みです。`hosted_fixture`宣言はv0.7.0ではvalidation-onlyで、repository CIのcontrolled localhost fixtureは別の信頼済み経路で実行します。
+Suite manifest v1は、v0.7の繰り返し検証で使う宣言形式です。`suite` CLIは内容を検証し、`trusted_real_client` manifestを実行できます。結果の比較方法は[Suite regression report v1](suite-regression-report-v1.ja.md)で定義済みです。`hosted_fixture`宣言はv0.8.0でもvalidation-onlyで、repository CIのcontrolled localhost fixtureは別の信頼済み経路で実行します。
 
 ## 内容を検証する
 
@@ -110,4 +110,4 @@ Client selection:
 - 既存output directoryを置換しない
 - non-PASSや未インストールclientもdropせず保存する
 
-`hosted_fixture`宣言はv0.7.0ではvalidation-onlyです。repositoryのPull Request CIはcontrolled localhost fixture gateを別経路で使い、privileged runnerで任意suite manifestを実行しません。retry / flake / regression semanticsは[Suite regression report v1](suite-regression-report-v1.ja.md)で定義済みです。manifestには後続処理が実行できるarbitrary command/hook機構を追加しません。
+`hosted_fixture`宣言はv0.8.0でもvalidation-onlyです。repositoryのPull Request CIはcontrolled localhost fixture gateを別経路で使い、privileged runnerで任意suite manifestを実行しません。retry / flake / regression semanticsは[Suite regression report v1](suite-regression-report-v1.ja.md)で定義済みです。manifestには後続処理が実行できるarbitrary command/hook機構を追加しません。

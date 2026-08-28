@@ -16,11 +16,11 @@ It also includes profile-based **preflight diagnostics** for client surfaces tha
 
 ## Status
 
-**v0.7.0 is the current published release.**
+**v0.8.0 is the current published release.**
 
-Release: [v0.7.0](https://github.com/git-ksk/mcp-interop/releases/tag/v0.7.0)
+Release: [v0.8.0](https://github.com/git-ksk/mcp-interop/releases/tag/v0.8.0)
 
-The live adapters in v0.7.0 are:
+The live adapters in v0.8.0 are:
 
 - **Codex CLI** — live inventory and explicit opt-in OAuth flow.
 - **Cursor CLI (beta)** — live no-auth inventory plus explicit opt-in OAuth through the real Cursor MCP login path; authenticated `mcp list-tools` has been validated with the controlled fixture.
@@ -28,7 +28,7 @@ The live adapters in v0.7.0 are:
 
 v0.7.0 turns one-off live checks into a repeatable regression workflow. Building on v0.6.0's protocol-aware core and protected-path artifact identity, it can now declare a secret-safe suite, run the same Remote MCP target across multiple real clients, compare a baseline with every retained attempt, and gate privileged self-hosted CI behind a manual main-only path. A retry cannot erase an earlier failure, and the meaning of a live PASS is unchanged.
 
-The current `main` branch has completed the v0.8 baseline lifecycle and exact observed-point compatibility work; v0.7.0 remains the published release until v0.8.0 is tagged. The shipped v0.7 guarantees remain:
+v0.8.0 adds immutable baseline acceptance/supersession and exact observed-point compatibility classification on top of the v0.7 repeatable regression workflow. An auto-updated client version remains `untested` until observed, stale evidence is explicit, and a version-only change is never promoted into a regression. The shipped guarantees include:
 
 - a live PASS still requires all four real-client stages to be `pass`;
 - diagnostic metadata and Runtime Evidence remain separate from real-client PASS evidence;
@@ -48,7 +48,7 @@ ChatGPT real-client support remains intentionally blocked ([#20](https://github.
 With Go 1.24 or newer, install the current stable release explicitly:
 
 ```console
-go install github.com/git-ksk/mcp-interop/cmd/mcp-interop@v0.7.0
+go install github.com/git-ksk/mcp-interop/cmd/mcp-interop@v0.8.0
 ```
 
 To track the newest published module version instead:
@@ -65,7 +65,7 @@ mcp-interop version
 mcp-interop --version
 ```
 
-The [v0.7.0 GitHub Release](https://github.com/git-ksk/mcp-interop/releases/tag/v0.7.0) provides checksummed archives for macOS, Linux, and Windows on both amd64 and arm64.
+The [v0.8.0 GitHub Release](https://github.com/git-ksk/mcp-interop/releases/tag/v0.8.0) provides checksummed archives for macOS, Linux, and Windows on both amd64 and arm64.
 
 ## What a test proves
 
@@ -184,7 +184,7 @@ mcp-interop suite run suite.json --output-dir suite-results-json --json
 
 The suite resolves every endpoint before launching the first client, executes each run through the same live-test path used by `mcp-interop test`, and writes `index.json` plus one protected-path schema-v2 artifact per run. The index never stores endpoint URLs or endpoint environment-variable names. A non-PASS/missing-client result remains represented in the set and makes the command exit `1`; invalid manifests, unresolved endpoints, or an existing output directory fail before execution with exit `2`.
 
-Manifest v1 never stores a Remote MCP endpoint URL. Hosted fixture declarations cannot select network targets or OAuth and remain validation-only in v0.7.0; repository PR CI continues to use controlled localhost fixture gates separately rather than executing arbitrary suite manifests. Trusted real-client suites reference a target-specific `MCP_INTEROP_SUITE_ENDPOINT_*` variable and require a non-secret `deployment_id`. See [Suite manifest v1](docs/suite-manifest-v1.md) ([日本語](docs/suite-manifest-v1.ja.md)) and [Suite result set v1](docs/suite-result-set-v1.md) ([日本語](docs/suite-result-set-v1.ja.md)).
+Manifest v1 never stores a Remote MCP endpoint URL. Hosted fixture declarations cannot select network targets or OAuth and remain validation-only in v0.8.0; repository PR CI continues to use controlled localhost fixture gates separately rather than executing arbitrary suite manifests. Trusted real-client suites reference a target-specific `MCP_INTEROP_SUITE_ENDPOINT_*` variable and require a non-secret `deployment_id`. See [Suite manifest v1](docs/suite-manifest-v1.md) ([日本語](docs/suite-manifest-v1.ja.md)) and [Suite result set v1](docs/suite-result-set-v1.md) ([日本語](docs/suite-result-set-v1.ja.md)).
 
 Compare a baseline result set with one or more retained attempts:
 

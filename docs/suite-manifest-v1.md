@@ -2,7 +2,7 @@
 
 [English](suite-manifest-v1.md) | [日本語](suite-manifest-v1.ja.md)
 
-Suite manifest v1 is the declaration contract for the v0.7 repeatable regression workflow. The `suite` CLI validates the contract and can execute `trusted_real_client` manifests. Regression reporting is shipped through [Suite regression report v1](suite-regression-report-v1.md). `hosted_fixture` declarations remain validation-only in v0.7.0; repository CI runs its controlled localhost fixtures through a separate trusted path.
+Suite manifest v1 is the declaration contract for the v0.7 repeatable regression workflow. The `suite` CLI validates the contract and can execute `trusted_real_client` manifests. Regression reporting is shipped through [Suite regression report v1](suite-regression-report-v1.md). `hosted_fixture` declarations remain validation-only through v0.8.0; repository CI runs its controlled localhost fixtures through a separate trusted path.
 
 ## Validate
 
@@ -108,4 +108,4 @@ Client selection:
 - refuses to replace an existing output directory;
 - preserves non-PASS and missing-client results instead of dropping them.
 
-`hosted_fixture` declarations remain validation-only in v0.7.0. Repository pull-request CI uses controlled localhost fixture gates separately and does not execute arbitrary suite manifests on privileged runners. Retry/flake and regression semantics are defined by [Suite regression report v1](suite-regression-report-v1.md). The manifest intentionally contains no arbitrary command/hook mechanism for any later stage to execute.
+`hosted_fixture` declarations remain validation-only through v0.8.0. Repository pull-request CI uses controlled localhost fixture gates separately and does not execute arbitrary suite manifests on privileged runners. Retry/flake and regression semantics are defined by [Suite regression report v1](suite-regression-report-v1.md). The manifest intentionally contains no arbitrary command/hook mechanism for any later stage to execute.
