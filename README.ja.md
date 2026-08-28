@@ -105,7 +105,9 @@ mcp-interop --version
 | 1回のlive testを保存して後で比較 | `mcp-interop test --output` |
 | suiteファイルを実行せず検証 | `mcp-interop suite validate` |
 | 同じ宣言を複数クライアントで繰り返し実行 | `mcp-interop suite run` |
-| baselineと1回以上のattemptを比較 | `mcp-interop suite compare` |
+| raw result setと1回以上のattemptを比較 | `mcp-interop suite compare` |
+| immutable baselineをaccept | `mcp-interop baseline create` |
+| accept済みbaselineとretained attemptを比較 | `mcp-interop baseline compare` |
 | 実クライアントを動かさない事前診断 | `mcp-interop diagnose` |
 
 検出できるクライアントを確認:
@@ -212,6 +214,16 @@ mcp-interop suite compare baseline-results attempt-1 attempt-2 --fail-on-regress
 ```
 
 reportには全attemptを残します。最初のattemptがFAIL/UNKNOWNでretry後にPASSしてもclean PASSへ上書きせず、`regression_and_unstable`になります。gate指定時はregressionまたはunstable evidenceでexit `1`、cleanで`0`、invalid/unreadable inputで`2`です。詳細は[Suite regression report v1](docs/suite-regression-report-v1.ja.md)を参照してください。
+
+全declared runにcompleteなreal-client evidenceとexact client versionがあるresult setは、immutable baselineとしてacceptできます。
+
+```console
+mcp-interop baseline create suite-results --output-dir baselines/current
+mcp-interop baseline create suite-results-new --output-dir baselines/next --supersedes baselines/current
+mcp-interop baseline compare baselines/current attempt-1 attempt-2 --fail-on-regression
+```
+
+baseline作成は既存directoryを上書きしません。result set自体をbundleへコピーしdeterministic digestで固定し、baselineはpathで明示選択します。そのためretryやclient auto-updateでaccept済み基準が勝手に置換されません。supersede時も旧baselineを変更せずfingerprintを記録します。baseline比較ではmanifest、execution context、deployment fingerprint、platform mismatchをfail-closedにしつつ、出力はsuite regression report v1を維持します。詳細は[Suite baseline v1](docs/suite-baseline-v1.ja.md)を参照してください。
 
 self-hosted real-client GitHub Actionsは別のprivileged pathです。manual macOS workflowはmain-only、main-only Environment policy、exact run provenanceを使い、remote suite endpointやOAuth credentialを受け取りません。詳細は[Self-hosted real-client CI security boundary](docs/self-hosted-ci-security.ja.md)を参照してください。
 

@@ -4,6 +4,10 @@ All notable project changes will be summarized here. GitHub Releases remain the 
 
 ## Unreleased
 
+### Added
+
+- Added immutable suite baseline bundles with explicit acceptance/supersession, deterministic snapshot digests, no-overwrite output reservation, strict real-client/exact-version source requirements, and baseline-specific fail-closed comparison identity checks while preserving suite regression report v1.
+
 ## v0.7.0 — 2026-08-28
 
 ### Added
