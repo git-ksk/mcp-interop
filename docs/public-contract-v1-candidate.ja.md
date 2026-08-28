@@ -64,6 +64,8 @@ core live resultの意味は次を維持します。
 
 reason codeやdiagnostic変更だけでcore PASSを広げません。
 
+adapter identity、maturity、core PASS、capability、protocol-era meaningは[Interoperability semantics v1 candidate](semantic-contract-v1-candidate.ja.md)で定義します。
+
 ## Compatibility review rule
 
 public command、JSON field、exit-code meaning、既存reason codeを変更する前に、必ず次のいずれかへ分類します。
