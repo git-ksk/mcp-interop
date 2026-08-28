@@ -66,6 +66,8 @@ reason codeやdiagnostic変更だけでcore PASSを広げません。
 
 adapter identity、maturity、core PASS、capability、protocol-era meaningは[Interoperability semantics v1 candidate](semantic-contract-v1-candidate.ja.md)で定義します。
 
+security、privacy、credential isolation、cleanup、privileged CI、tagged-release guaranteeは[Security, privacy, cleanup, and release contract candidate](security-contract-v1-candidate.ja.md)で定義します。
+
 ## Compatibility review rule
 
 public command、JSON field、exit-code meaning、既存reason codeを変更する前に、必ず次のいずれかへ分類します。

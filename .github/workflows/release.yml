@@ -84,6 +84,7 @@ jobs:
           bash -n scripts/e2e-real-clients.sh
           bash -n scripts/guard-real-client-e2e.sh
           bash -n scripts/test-real-client-e2e-guard.sh
+          bash -n scripts/test-security-contract.sh
           bash -n scripts/e2e-cursor-oauth.sh
           bash -n scripts/e2e-antigravity-oauth.sh
           bash -n scripts/poc-vscode-agent-plugin.sh
@@ -93,6 +94,10 @@ jobs:
       - name: Self-hosted real-client trust guard gate
         shell: bash
         run: bash scripts/test-real-client-e2e-guard.sh
+
+      - name: Security contract gate
+        shell: bash
+        run: bash scripts/test-security-contract.sh
 
       - name: Tool OAuth fixture release gate
         run: go test ./internal/e2e/fixture -run '^TestToolOAuthInsufficientScopeReleaseGate$' -count=1
