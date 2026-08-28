@@ -32,7 +32,7 @@ v0.7.0で利用できる実クライアント向けアダプターは次のと�
 - **Cursor CLI（beta）** — MCP管理コマンドを使った認証不要の実ツール確認と、実CursorのMCPログイン経路を使うOAuth認証
 - **Antigravity CLI（beta / macOS）** — 隔離したPTYとツールキャッシュを使う認証不要の確認と、実`/mcp`マネージャーを使うOAuth認証
 
-v0.7.0では、v0.6.0で導入したprotocol-aware coreとschema v2 protected-path deployment identityを土台に、repeatable regression workflowのmilestoneを完了しました。secret-safe suite manifest、複数clientの`suite run`、retryの最初の失敗を消さないevidence-derived `suite compare`、main-only / manualのself-hosted real-client CI trust boundaryを追加しています。実クライアントだけをlive PASSの根拠にする境界は変えていません。
+v0.7.0では、単発のlive testだけでなく、同じRemote MCPを複数クライアントで繰り返し検証し、前回結果との退行まで確認できるようになりました。v0.6.0のprotocol-aware coreとprotected-path artifactを土台に、秘密情報をmanifestへ書かないsuite宣言、複数clientの一括実行、baselineとの比較、manual / main-onlyのself-hosted CI境界を追加しています。retry後にPASSしても最初の失敗は消えません。live PASSの意味自体は変えていません。
 
 v0.7.0以降は、client追加を急ぐ前にbaseline lifecycleと実測点だけで表すcompatibility envelopeを固めます。現在の保証は次のとおりです。
 
@@ -77,7 +77,7 @@ mcp-interop --version
 
 1. `reach` — 実クライアントが対象Remote MCPへ到達し、実通信が発生したことを確認できた
 2. `auth` — 必要な認証が完了した、またはツール発見によって認証不要と確認できた
-3. `init` — 実クライアントがMCP protocol readinessを確立した。legacyのliteral `initialize` handshakeだけに固定した意味ではない
+3. `init` — 実クライアントが、その後のMCP通信を続けられる準備状態まで到達した。旧protocolの`initialize` handshakeそのものを観測した、という意味に限定しない
 4. `tools` — クライアントがサーバーのツールを発見した
 
 **4段階すべてが`pass`の場合だけexit code `0`**です。
@@ -95,6 +95,18 @@ mcp-interop --version
 - テストしていない別クライアント・別バージョンでも動くこと
 
 ## 基本的な使い方
+
+どのコマンドを使えばよいか迷った場合は、まず次の使い分けで考えます。
+
+| やりたいこと | コマンド |
+| --- | --- |
+| 対応クライアントがインストールされているか確認 | `mcp-interop clients` |
+| 今すぐ1つまたは複数の実クライアントをテスト | `mcp-interop test` |
+| 1回のlive testを保存して後で比較 | `mcp-interop test --output` |
+| suiteファイルを実行せず検証 | `mcp-interop suite validate` |
+| 同じ宣言を複数クライアントで繰り返し実行 | `mcp-interop suite run` |
+| baselineと1回以上のattemptを比較 | `mcp-interop suite compare` |
+| 実クライアントを動かさない事前診断 | `mcp-interop diagnose` |
 
 検出できるクライアントを確認:
 
@@ -170,16 +182,16 @@ mcp-interop compare old.json new.json --fail-on-regression
 
 詳しい仕様は[Live interoperability result artifact schema v1](docs/live-result-schema-v1.ja.md)と[artifact schema v2 protected-path identity](docs/live-result-schema-v2.ja.md)を参照してください。
 
-## Repeatable suite workflow
+## 複数クライアントを繰り返し検証する（suite）
 
-v0.7 workflowの基盤として、strictかつsecret-safeなsuite宣言をvalidationできます。validationだけではclient起動やendpoint値の解決を行いません。
+複数クライアントを同じ条件で繰り返しテストしたい場合は、対象とクライアントを`suite.json`へ宣言します。まず`validate`で内容だけを確認でき、この段階ではクライアントを起動せず、endpointの値も読み込みません。
 
 ```console
 mcp-interop suite validate suite.json
 mcp-interop suite validate suite.json --json
 ```
 
-`trusted_real_client` manifestは、その後に宣言済みtarget/client matrixを実行してschema v2 artifact setへまとめられます。
+`trusted_real_client`形式なら、宣言した対象とクライアントの組み合わせをまとめて実行し、結果をschema v2のartifact setとして保存できます。
 
 ```console
 export MCP_INTEROP_SUITE_ENDPOINT_PRODUCTION_A='https://example.com/mcp/<protected-path>'
@@ -191,7 +203,7 @@ suiteは最初のclientを起動する前に全endpointを解決・検証し、�
 
 Manifest v1にはRemote MCP endpoint URL自体を保存しません。hosted fixture宣言は任意network targetやOAuthを指定できず、v0.7.0ではvalidation-onlyです。repositoryのPR CIは任意suite manifestを実行せず、controlled localhost fixture gateを別経路で使います。trusted real-client suiteはtarget固有の`MCP_INTEROP_SUITE_ENDPOINT_*`変数参照と非secret `deployment_id`を使います。詳細は[Suite manifest v1](docs/suite-manifest-v1.ja.md)と[Suite result set v1](docs/suite-result-set-v1.ja.md)を参照してください。
 
-baseline result setと保持したattempt群を比較できます。
+比較基準として保存した結果（baseline）と、その後の1回以上の実行結果（attempt）を比較できます。
 
 ```console
 mcp-interop suite compare baseline-results attempt-1 attempt-2

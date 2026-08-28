@@ -4,9 +4,9 @@
 
 > この文書は英語版`suite-manifest-v1.md`の日本語訳です。契約の正本は英語版です。
 
-Suite manifest v1は、v0.7のrepeatable regression workflowで使う宣言契約です。`suite` CLIはこの契約をvalidationし、`trusted_real_client` manifestを実行できます。regression reportとhosted CI fixture orchestrationは後続v0.7 Issueで追加します。
+Suite manifest v1は、v0.7の繰り返し検証で使う宣言形式です。`suite` CLIは内容を検証し、`trusted_real_client` manifestを実行できます。結果の比較方法は[Suite regression report v1](suite-regression-report-v1.ja.md)で定義済みです。`hosted_fixture`宣言はv0.7.0ではvalidation-onlyで、repository CIのcontrolled localhost fixtureは別の信頼済み経路で実行します。
 
-## Validate
+## 内容を検証する
 
 ```console
 mcp-interop suite validate suite.json
@@ -15,7 +15,7 @@ mcp-interop suite validate suite.json --json
 
 validationはstrictです。unknown field、未対応schema version、unknown live-client ID、安全でないexecution contextの組み合わせ、任意のendpoint環境変数参照はexit code `2`でrejectします。
 
-## Secret-safety境界
+## 秘密情報をmanifestへ入れない
 
 suite manifestにはRemote MCP endpoint URLそのものを保存しません。これは意図した設計です。
 
@@ -33,7 +33,7 @@ MCP_INTEROP_SUITE_ENDPOINT_PRODUCTION_A
 
 変数の**値**はtrusted suite executionでのみ解決し、manifestやsuite indexには含みません。
 
-## Hosted fixture例
+## hosted fixtureの例
 
 ```json
 {
@@ -54,7 +54,7 @@ MCP_INTEROP_SUITE_ENDPOINT_PRODUCTION_A
 
 `hosted_fixture`はunprivilegedな宣言形です。任意network endpointを選べず、OAuthにもopt-inできません。
 
-## Trusted real-client例
+## trusted real-clientの例
 
 ```json
 {
@@ -79,7 +79,7 @@ MCP_INTEROP_SUITE_ENDPOINT_PRODUCTION_A
 
 `oauth`はclientごとの明示指定で、`trusted_real_client` manifestだけが受け付けます。validation時には認証、endpoint変数値の読み込み、client起動を一切行いません。`suite run`は最初のclient起動前に宣言済みendpoint変数を全件解決・検証します。
 
-## Stable v1 field
+## v1で使えるフィールド
 
 Top level:
 
