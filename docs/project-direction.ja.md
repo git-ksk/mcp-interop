@@ -135,6 +135,8 @@ Stableは「外部clientが将来変わらない」という意味ではあり�
 
 canonicalなmachine/human-readable criteriaと現在のshipped-adapter decisionは[Adapter maturity contract](adapter-maturity.ja.md)で定義します。`mcp-interop maturity`はclientを検出・実行せず、そのdecisionをreportします。
 
+optional capability evidenceは独立した[Capability profile v1](capability-profile-v1.ja.md) contractを使います。capability stateでcore live PASSを広げず、indirect metadata/configuration/UI presenceはcapability PASSを満たせません。
+
 ## 優先順位
 
 ### P0 — PASSの正しさを守る

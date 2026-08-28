@@ -225,6 +225,8 @@ Baseline acceptanceはv0.9でもbaseline schema v1のlocal-firstを維持しま�
 
 明示的なv0.9 maturity reviewでは、現在Codex / Cursor / Antigravityをすべて`beta`と分類します。`tier=v1`はdelivery/roadmap designationのままで、stable evidence claimではありません。stable promotionは[Adapter maturity contract](adapter-maturity.ja.md)に記載するexact criterion gapでblockし、client version変更だけではmaturityを自動変更しません。
 
+Capability profile v1は独立したadditive evidence contractです。capability `pass` / `fail` / `unknown`にはaccepted real-client direct evidence surfaceが必須で、`unsupported` / `untested`は別stateとして保持します。このcontractだけで現在のshipped adapterへoptional-capability PASSは追加せず、core `reach/auth/init/tools` semanticsも変更しません。詳細は[Capability profile v1](capability-profile-v1.ja.md)を参照してください。
+
 優先順:
 
 1. Codex / Cursor / Antigravityを現実的な最新version横断で検証

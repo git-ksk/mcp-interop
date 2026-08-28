@@ -100,6 +100,7 @@ If you are not sure which command to start with:
 | Compare an accepted baseline with retained attempts | `mcp-interop baseline compare` |
 | Classify the installed exact client version from observed evidence | `mcp-interop compatibility query` |
 | Review evidence-based maturity for shipped adapters | `mcp-interop maturity` |
+| Validate separate optional-capability evidence | `mcp-interop capability validate` |
 | Run metadata-only preflight diagnostics | `mcp-interop diagnose` |
 
 Detect known clients on the local machine:
@@ -110,6 +111,8 @@ mcp-interop clients --json
 ```
 
 The `tier` shown by `clients` is roadmap/delivery placement, not evidence maturity. On current main, use the unreleased v0.9 `mcp-interop maturity` command for the separately reviewed `research_only` / `beta` / `stable` decision; this does not execute or detect a client. The published v0.8.0 binary does not contain this command.
+
+Capability profile v1 is also current-main unreleased v0.9 work. `mcp-interop capability validate` validates a separate evidence document and never changes core `reach/auth/init/tools` PASS. See [Capability profile v1](docs/capability-profile-v1.md) ([日本語](docs/capability-profile-v1.ja.md)).
 
 Run one live adapter:
 
