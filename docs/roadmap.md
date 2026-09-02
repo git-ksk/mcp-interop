@@ -313,7 +313,7 @@ There is no penalty for shipping `v0.12.0`, `v0.13.0`, or later instead of decla
 
 ## v1.0.0 — Stable-contract exit criteria
 
-`v1.0.0` ships only when all of the following categories are satisfied. The remaining representative real-client regression acceptance is tracked in [#162](https://github.com/git-ksk/mcp-interop/issues/162).
+`v1.0.0` ships only when all of the following categories are satisfied. The representative real-client regression acceptance is retained in [v1 real-client regression acceptance](v1-real-client-regression-acceptance.md) and tracked to completion in [#162](https://github.com/git-ksk/mcp-interop/issues/162).
 
 ### Evidence correctness
 
