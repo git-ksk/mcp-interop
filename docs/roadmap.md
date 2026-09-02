@@ -313,7 +313,7 @@ There is no penalty for shipping `v0.12.0`, `v0.13.0`, or later instead of decla
 
 ## v1.0.0 — Stable-contract exit criteria
 
-`v1.0.0` ships only when all of the following categories are satisfied.
+`v1.0.0` ships only when all of the following categories are satisfied. The remaining representative real-client regression acceptance is tracked in [#162](https://github.com/git-ksk/mcp-interop/issues/162).
 
 ### Evidence correctness
 
@@ -331,7 +331,7 @@ For every adapter declared stable:
 - exact version capture is bounded and deterministic;
 - timeout/cancellation and owned-process cleanup are bounded;
 - controlled fixtures prove the claimed measurement path;
-- compatibility evidence exists across enough realistic versions/platforms to justify the documented envelope;
+- the adapter satisfies every `stable` criterion in the [Adapter maturity contract](adapter-maturity.md) for its advertised scope;
 - client-surface changes fail conservatively rather than creating false PASS.
 
 The number of supported clients is **not** itself a v1 exit criterion.
@@ -347,7 +347,8 @@ The project provides a coherent local-first path for:
 - evidence-derived compatibility reports/matrices;
 - CI regression gating;
 - explicit retry/flake semantics;
-- trusted execution policy for self-hosted real-client runs.
+- trusted execution policy for self-hosted real-client runs;
+- at least one representative real-client regression workflow is exercised end-to-end on a release-candidate-equivalent build, covering baseline creation, a subsequent run, comparison, and regression gating without weakening retry/evidence semantics.
 
 ### Public stability
 
