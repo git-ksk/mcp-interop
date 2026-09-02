@@ -36,6 +36,8 @@ v0.9.0のevidence reviewでは、**Codex / Cursor / Antigravityの3adapterをす
 
 v0.10.0では、将来v1.xで維持する**public-contract candidate**を固定しました。documented CLI / JSON / exit code / reason code、schema evolution / migration rule、adapter / core / capability / protocol semantics、security / privacy / cleanup / releaseの最低保証を明文化し、contract regression testとCI/release security-drift gateを追加しています。既存live PASSを弱めず、beta adapterをstableへ自動昇格もしていません。詳細は[Public contract candidate](docs/public-contract-v1-candidate.ja.md)を参照してください。
 
+stable v1 contractは別文書として確定しています。[Public contract v1](docs/public-contract-v1.ja.md)、[Schema evolution v1](docs/schema-evolution-v1.ja.md)、[Interoperability semantics v1](docs/semantic-contract-v1.ja.md)、[Security / privacy / cleanup / release contract v1](docs/security-contract-v1.ja.md)を参照してください。v0.10 candidate文書はhistorical release recordとして保持します。
+
 v0.9.0では、新clientを弱い基準で増やさず、evidence品質を強化しました。exact observed coverage matrix、baselineのlocal-consistency verify、evidence-based adapter maturity、独立したoptional-capability evidence contract、将来real client向けのfail-closed共通graduation gateを追加しています。cross-runner chronologyとrunner/client architecture解釈もhardeningし、v0.8のlive-result schemaは変更していません。
 
 v0.7.0では、単発のlive testだけでなく、同じRemote MCPを複数クライアントで繰り返し検証し、前回結果との退行まで確認できるようになりました。v0.6.0のprotocol-aware coreとprotected-path artifactを土台に、秘密情報をmanifestへ書かないsuite宣言、複数clientの一括実行、baselineとの比較、manual / main-onlyのself-hosted CI境界を追加しています。retry後にPASSしても最初の失敗は消えません。live PASSの意味自体は変えていません。
@@ -493,7 +495,11 @@ MCP_INTEROP_CLIENTS=codex,cursor bash scripts/e2e-real-clients.sh
 
 Apache License 2.0です。`LICENSE`を参照してください。
 
-- [Public contract candidate](docs/public-contract-v1-candidate.ja.md) — v0.10のCLI/JSON/exit/reason互換性review
+- [Public contract v1](docs/public-contract-v1.ja.md) — stable v1 CLI/JSON/exit/reason互換性contract
+- [Schema evolution v1](docs/schema-evolution-v1.ja.md) — stable portable evidence/versioning/deprecation policy
+- [Interoperability semantics v1](docs/semantic-contract-v1.ja.md) — stable adapter/core/capability/protocol semantics
+- [Security / privacy / cleanup / release contract v1](docs/security-contract-v1.ja.md) — stable secret/CI/release guarantee
+- [Public contract candidate](docs/public-contract-v1-candidate.ja.md) — historical v0.10 CLI/JSON/exit/reason互換性review
 - [Schema evolution v1 candidate](docs/schema-evolution-v1-candidate.ja.md) — portable evidence/versioning/deprecation policy
 - [Interoperability semantics v1 candidate](docs/semantic-contract-v1-candidate.ja.md) — adapter/core/capability/protocol semantics
 - [Security, privacy, cleanup, and release contract candidate](docs/security-contract-v1-candidate.ja.md) — secret/CI/release guarantee
