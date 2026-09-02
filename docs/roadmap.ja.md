@@ -284,6 +284,8 @@ Capability profile v1は独立したadditive evidence contractです。capabilit
 
 ## v1.0.0 — Stable contractの完了条件
 
+`v1.0.0`は以下のcategoryをすべて満たした場合だけreleaseします。残る代表的real-client regression acceptanceは[#162](https://github.com/git-ksk/mcp-interop/issues/162)で追跡します。
+
 ### 証拠の正しさ
 
 - core live PASSの意味が明確
@@ -300,7 +302,7 @@ stableとする各アダプターで:
 - version取得がbounded / deterministic
 - timeout / cancellation / process cleanupがbounded
 - fixtureが測定経路を証明
-- 現実的なversion / platform範囲の証拠がある
+- advertised scopeについて[Adapter maturity contract](adapter-maturity.ja.md)の`stable` criteriaをすべて満たす
 - client変更時にfalse PASSではなく保守的なfailure / unknownになる
 
 対応クライアント数そのものはv1条件にしません。
@@ -317,6 +319,7 @@ stableとする各アダプターで:
 - CI regression gate
 - retry / flake semantics
 - self-hosted real-client向けtrusted execution policy
+- release candidate相当buildで、少なくとも1つの代表的real-client regression workflowをbaseline作成 → 後続run → compare → regression gateまでend-to-endで実行し、retry / evidence semanticsを弱めず成立する
 
 ### 公開契約の安定性
 
