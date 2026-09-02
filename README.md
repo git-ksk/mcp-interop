@@ -30,6 +30,8 @@ The v0.9.0 evidence review classifies **Codex, Cursor, and Antigravity as beta a
 
 v0.10.0 freezes the project's **public-contract candidate** for future v1.x stability: documented CLI/JSON/exit-code/reason-code behavior, explicit schema evolution and migration rules, adapter/core/capability/protocol semantics, and minimum security/privacy/cleanup/release guarantees. It adds contract regression tests and a CI/release security-drift gate without weakening the existing live PASS or promoting any beta adapter to stable. See [Public contract candidate](docs/public-contract-v1-candidate.md) ([日本語](docs/public-contract-v1-candidate.ja.md)).
 
+The stable v1 contract set is now finalized separately: [Public contract v1](docs/public-contract-v1.md), [Schema evolution v1](docs/schema-evolution-v1.md), [Interoperability semantics v1](docs/semantic-contract-v1.md), and [Security, privacy, cleanup, and release contract v1](docs/security-contract-v1.md). The v0.10 candidate documents remain as historical release records.
+
 v0.9.0 deepens evidence quality without adding a weaker or speculative client path. It adds an exact observed coverage matrix, local-consistency baseline verification, evidence-reviewed adapter maturity, a separate optional-capability evidence contract, and one fail-closed graduation gate for future real clients. Cross-runner chronology and runner/client architecture interpretation are also hardened without changing the v0.8 live-result schemas.
 
 v0.7.0 turns one-off live checks into a repeatable regression workflow. Building on v0.6.0's protocol-aware core and protected-path artifact identity, it can now declare a secret-safe suite, run the same Remote MCP target across multiple real clients, compare a baseline with every retained attempt, and gate privileged self-hosted CI behind a manual main-only path. A retry cannot erase an earlier failure, and the meaning of a live PASS is unchanged.
@@ -459,7 +461,11 @@ The runner is expected to have the real Codex, Cursor, and Antigravity CLIs inst
 - [Architecture](docs/architecture.md) ([日本語](docs/architecture.ja.md))
 - [Project direction](docs/project-direction.md) ([日本語](docs/project-direction.ja.md))
 - [Roadmap to a stable interoperability contract](docs/roadmap.md) ([日本語](docs/roadmap.ja.md))
-- [Public contract candidate](docs/public-contract-v1-candidate.md) ([日本語](docs/public-contract-v1-candidate.ja.md)) — v0.10 review of CLI/JSON/exit/reason compatibility
+- [Public contract v1](docs/public-contract-v1.md) ([日本語](docs/public-contract-v1.ja.md)) — stable v1 CLI/JSON/exit/reason compatibility contract
+- [Schema evolution v1](docs/schema-evolution-v1.md) ([日本語](docs/schema-evolution-v1.ja.md)) — stable portable evidence/versioning/deprecation policy
+- [Interoperability semantics v1](docs/semantic-contract-v1.md) ([日本語](docs/semantic-contract-v1.ja.md)) — stable adapter/core/capability/protocol semantics
+- [Security, privacy, cleanup, and release contract v1](docs/security-contract-v1.md) ([日本語](docs/security-contract-v1.ja.md)) — stable secret/CI/release guarantees
+- [Public contract candidate](docs/public-contract-v1-candidate.md) ([日本語](docs/public-contract-v1-candidate.ja.md)) — historical v0.10 review of CLI/JSON/exit/reason compatibility
 - [Schema evolution v1 candidate](docs/schema-evolution-v1-candidate.md) ([日本語](docs/schema-evolution-v1-candidate.ja.md)) — portable evidence/versioning/deprecation policy
 - [Interoperability semantics v1 candidate](docs/semantic-contract-v1-candidate.md) ([日本語](docs/semantic-contract-v1-candidate.ja.md)) — adapter/core/capability/protocol semantics
 - [Security, privacy, cleanup, and release contract candidate](docs/security-contract-v1-candidate.md) ([日本語](docs/security-contract-v1-candidate.ja.md)) — secret/CI/release guarantees

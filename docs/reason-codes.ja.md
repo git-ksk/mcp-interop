@@ -175,4 +175,4 @@ registration URLを推測してDCR対応を判定しません。
 
 ## Compatibility policy
 
-Reason codeは既存値をstableに保つopen string enumです。stable major line内では既存codeをrename・削除・別意味へ再利用せず、新しいdirect evidenceには新codeを追加できます。consumerは未知のnon-empty codeを許容し、free-form messageから代替codeを推測してはいけません。詳細は[Public contract candidate](public-contract-v1-candidate.ja.md)を参照してください。
+Reason codeは既存値をstableに保つopen string enumです。stable major line内では既存codeをrename・削除・別意味へ再利用せず、新しいdirect evidenceには新codeを追加できます。consumerは未知のnon-empty codeを許容し、free-form messageから代替codeを推測してはいけません。詳細は[Public contract v1](public-contract-v1.ja.md)を参照してください。

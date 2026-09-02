@@ -131,7 +131,7 @@ For example, a request may first fail with `TOKEN_AUTH_METHOD_MISMATCH` and also
 
 ## Compatibility policy
 
-Reason codes are an open string enum with stable existing values. Existing codes are not renamed, removed, or repurposed within a stable major line; new codes may be added for new direct evidence. Consumers must tolerate unknown non-empty codes and must not derive a replacement code from free-form messages. See [Public contract candidate](public-contract-v1-candidate.md).
+Reason codes are an open string enum with stable existing values. Existing codes are not renamed, removed, or repurposed within a stable major line; new codes may be added for new direct evidence. Consumers must tolerate unknown non-empty codes and must not derive a replacement code from free-form messages. See [Public contract v1](public-contract-v1.md).
 
 ## Security boundary
 
