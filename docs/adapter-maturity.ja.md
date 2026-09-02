@@ -34,6 +34,12 @@ unknown criterion、重複evidence reference、未記載beta blocker、non-`met`
 
 project age、人気、release回数、近いclient versionはmaturity evidenceにしません。
 
+## Project v1 stabilityとadapter maturity
+
+project-level contract stabilityとadapter maturityは別のrelease axisです。mcp-interop本体がstable `v1.x`をreleaseしても、1つ以上のadapterが`beta`のままshipできます。v1公開だけでadapterを自動promoteしたり、tested version/platform coverageを広げたり、`tier=v1`をstable maturityへ読み替えたりしません。
+
+各adapterはadvertised scopeのstable criterionをすべて満たし、evidence-backed maturity decisionを明示的にreviewした場合だけpromoteします。
+
 ## Beta gate
 
 beta adapterは次のcriteriaがすべて`met`でなければなりません。
