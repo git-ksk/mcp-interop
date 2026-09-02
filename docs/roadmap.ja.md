@@ -284,7 +284,7 @@ Capability profile v1は独立したadditive evidence contractです。capabilit
 
 ## v1.0.0 — Stable contractの完了条件
 
-`v1.0.0`は以下のcategoryをすべて満たした場合だけreleaseします。残る代表的real-client regression acceptanceは[#162](https://github.com/git-ksk/mcp-interop/issues/162)で追跡します。
+`v1.0.0`は以下のcategoryをすべて満たした場合だけreleaseします。代表的real-client regression acceptanceは[v1 real-client regression acceptance](v1-real-client-regression-acceptance.ja.md)へ証拠を保持し、[#162](https://github.com/git-ksk/mcp-interop/issues/162)で完了まで追跡します。
 
 ### 証拠の正しさ
 
