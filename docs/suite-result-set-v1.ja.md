@@ -74,4 +74,4 @@ result-set readerはregular fileの`index.json`、`artifacts/`配下のclean rel
 
 ## 現在のscope
 
-v0.9.0でも、このschemaから`hosted_fixture` suite executionを有効化しません。repository CIではcontrolled localhost fixture executionと任意suite manifestを分離し、trusted / untrusted runner境界は[Self-hosted real-client CI security](self-hosted-ci-security.ja.md)で定義しています。suite regression / retry aggregationは[Suite regression report v1](suite-regression-report-v1.ja.md)で定義します。
+このschemaでは`hosted_fixture` suite executionを有効化しません。repository CIではcontrolled localhost fixture executionと任意suite manifestを分離し、trusted / untrusted runner境界は[Self-hosted real-client CI security](self-hosted-ci-security.ja.md)で定義しています。suite regression / retry aggregationは[Suite regression report v1](suite-regression-report-v1.ja.md)で定義します。

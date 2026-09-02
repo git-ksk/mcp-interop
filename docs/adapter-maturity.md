@@ -34,6 +34,12 @@ Unknown criteria, duplicate evidence references, undocumented beta blockers, and
 
 Project age, popularity, release count, and nearby client versions are never maturity evidence.
 
+## Project v1 stability and adapter maturity
+
+Project-level contract stability and adapter maturity are separate release axes. A stable `v1.x` project release may ship one or more `beta` adapters. Publishing v1 does not auto-promote an adapter, broaden tested version/platform coverage, or turn `tier=v1` into stable maturity.
+
+Each adapter is promoted only after every stable criterion is met for its advertised scope and the evidence-backed maturity decision is explicitly reviewed.
+
 ## Beta gate
 
 Every beta adapter must have all of these criteria at `met`:
