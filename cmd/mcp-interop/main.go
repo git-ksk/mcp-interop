@@ -70,8 +70,8 @@ Compare options:
 
 Current live adapters:
   codex        Codex CLI stable for the macOS arm64 non-OAuth core path; OAuth/other platforms remain outside stable scope.
-  cursor       Cursor CLI beta via mcp login/list/list-tools with isolated OAuth opt-in.
-  antigravity  Antigravity CLI beta via isolated macOS PTY/tool-cache observation and opt-in MCP OAuth manager.
+  cursor       Cursor CLI stable on macOS arm64 core path via mcp login/list/list-tools; OAuth opt-in remains outside the stable scope.
+  antigravity  Antigravity CLI stable on macOS arm64 core path via isolated PTY/tool-cache observation; OAuth remains outside the stable scope.
 `
 
 func main() {

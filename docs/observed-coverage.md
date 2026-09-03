@@ -18,8 +18,11 @@ The E2E harness deletes its temporary result directory after the run, so these 2
 | --- | --- | --- | --- | --- | --- |
 | Codex CLI | `codex-cli 0.133.0` | macOS 26.5 (25F71), arm64 | controlled localhost, non-OAuth core path | `reach/auth/init/tools=PASS` | `docs/protocol-era-observations.md`, [PR #108](https://github.com/git-ksk/mcp-interop/pull/108) |
 | Codex CLI | `codex-cli 0.152.1` | macOS 26.5 (25F71), arm64 | controlled localhost, non-OAuth core path | `reach/auth/init/tools=PASS`; user config/Keychain/process/session cleanup PASS; `tools/call` avoided | [Issue #170](https://github.com/git-ksk/mcp-interop/issues/170) acceptance run on current main |
+| Cursor CLI | `2026.08.04-aaa8809` | macOS 26.5 (25F71), arm64 | controlled localhost, non-OAuth core path | `reach/auth/init/tools=PASS` | `docs/cursor-stable-acceptance.md`, issue #172 |
 | Cursor CLI | `2026.08.25-3e8eec8` | macOS 26.5 (25F71), arm64 | controlled localhost, non-OAuth core path | `reach/auth/init/tools=PASS` | `docs/protocol-era-observations.md`, [PR #108](https://github.com/git-ksk/mcp-interop/pull/108) |
-| Antigravity CLI | `1.1.22` | macOS 26.5 (25F71), arm64 | controlled localhost, non-OAuth core path | `reach/auth/init/tools=PASS` | `docs/protocol-era-observations.md`, [PR #108](https://github.com/git-ksk/mcp-interop/pull/108) |
+| Cursor CLI | `2026.09.02-c22c1a3` | macOS 26.5 (25F71), arm64 | controlled localhost, non-OAuth core path | `reach/auth/init/tools=PASS` | `docs/cursor-stable-acceptance.md`, issue #172 |
+| Antigravity CLI | `1.1.22` | macOS 26.5 (25F71), arm64 | controlled localhost, non-OAuth core path | `reach/auth/init/tools=PASS` | `docs/protocol-era-observations.md`, [PR #108](https://github.com/git-ksk/mcp-interop/pull/108), `docs/antigravity-stable-acceptance.md` |
+| Antigravity CLI | `1.1.24` | macOS 26.5 (25F71), arm64 | controlled localhost, non-OAuth core path | `reach/auth/init/tools=PASS` | `docs/antigravity-stable-acceptance.md`, issue #173 |
 
 Those rows are exact points only. For example, the Cursor observation does not imply support for an earlier or later `2026.08.*` build.
 

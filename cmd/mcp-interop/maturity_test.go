@@ -24,7 +24,7 @@ func TestRunMaturityJSONSeparatesTierFromEvidenceMaturity(t *testing.T) {
 	if len(report.Decisions) != 3 {
 		t.Fatalf("decisions=%d", len(report.Decisions))
 	}
-	want := map[string]client.Maturity{"codex": client.MaturityStable, "cursor": client.MaturityBeta, "antigravity": client.MaturityBeta}
+	want := map[string]client.Maturity{"codex": client.MaturityStable, "cursor": client.MaturityStable, "antigravity": client.MaturityStable}
 	for _, decision := range report.Decisions {
 		if decision.Tier != client.TierV1 || decision.Maturity != want[decision.ClientID] {
 			t.Fatalf("tier/maturity unexpected: %#v", decision)
@@ -37,19 +37,18 @@ func TestRunMaturityJSONSeparatesTierFromEvidenceMaturity(t *testing.T) {
 	}
 }
 
-func TestRunMaturityHumanShowsCurrentBlockers(t *testing.T) {
+func TestRunMaturityHumanShowsCurrentStableAdapters(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	if rc := runMaturity(nil, &stdout, &stderr); rc != 0 {
 		t.Fatalf("rc=%d stderr=%s", rc, stderr.String())
 	}
-	for _, want := range []string{
-		"Codex CLI", "Cursor CLI", "Antigravity CLI", "beta",
-		client.CriterionAdvertisedPlatformCoverage,
-		client.CriterionMeasurementSurfaceStability,
-	} {
+	for _, want := range []string{"Codex CLI", "Cursor CLI", "Antigravity CLI", "stable"} {
 		if !strings.Contains(stdout.String(), want) {
 			t.Fatalf("maturity output missing %q:\n%s", want, stdout.String())
 		}
+	}
+	if strings.Contains(stdout.String(), client.CriterionAdvertisedPlatformCoverage) || strings.Contains(stdout.String(), client.CriterionMeasurementSurfaceStability) {
+		t.Fatalf("stable adapters unexpectedly expose blockers:\n%s", stdout.String())
 	}
 }
 

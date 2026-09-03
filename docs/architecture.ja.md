@@ -126,7 +126,7 @@ reportへBearer token、authorization code、client secret、cookie、credential
 
 を使います。
 
-### Cursor CLI（beta）
+### Cursor CLI（macOS arm64 core pathでstable）
 
 一時`HOME`とworkspaceを使い、実Cursor CLIの`mcp enable`、`mcp list`、`mcp list-tools`で確認します。
 
@@ -134,7 +134,7 @@ reportへBearer token、authorization code、client secret、cookie、credential
 
 callback addressはバージョン依存であり、固定portを仕様として決め打ちしません。
 
-### Antigravity CLI（beta / macOS）
+### Antigravity CLI（macOS arm64 core pathでstable）
 
 一時`HOME`とPTYを使う実クライアント経路です。
 
