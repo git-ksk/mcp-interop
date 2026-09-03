@@ -10,7 +10,7 @@ func TestCurrentShippedMaturityDecisionsAreValidAndConservative(t *testing.T) {
 		t.Fatalf("decisions=%d want 3", len(decisions))
 	}
 	want := map[string]Maturity{
-		"codex":       MaturityBeta,
+		"codex":       MaturityStable,
 		"cursor":      MaturityBeta,
 		"antigravity": MaturityBeta,
 	}
@@ -54,13 +54,13 @@ func TestStableMaturityRequiresEveryStableCriterion(t *testing.T) {
 }
 
 func TestBetaMaturityRequiresAllBetaCriteriaAndDocumentedBlocker(t *testing.T) {
-	decision := MaturityDecisions()[0]
+	decision := MaturityDecisions()[1]
 	decision.Blockers = nil
 	if err := ValidateMaturityDecision(decision); err == nil {
 		t.Fatal("beta maturity without a stable blocker was accepted")
 	}
 
-	decision = MaturityDecisions()[0]
+	decision = MaturityDecisions()[1]
 	for i := range decision.Criteria {
 		if decision.Criteria[i].ID == CriterionSecretSafety {
 			decision.Criteria[i].Status = MaturityCriterionLimited

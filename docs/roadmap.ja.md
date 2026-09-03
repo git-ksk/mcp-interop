@@ -225,7 +225,7 @@ Tested:
 
 Baseline acceptanceはv0.9でもbaseline schema v1のlocal-firstを維持します。digest/fingerprintが証明するのは内部content consistencyであり、authenticated acceptanceではありません。team/CIでauthenticityが必要な場合はexact baseline fingerprintを外部のreview/signature/attestation recordへbindします。将来native signed provenanceを追加する場合も、baseline-v1 metadataの意味を変えず別versioned envelopeを使います。
 
-明示的なv0.9 maturity reviewでは、現在Codex / Cursor / Antigravityをすべて`beta`と分類します。`tier=v1`はdelivery/roadmap designationのままで、stable evidence claimではありません。stable promotionは[Adapter maturity contract](adapter-maturity.ja.md)に記載するexact criterion gapでblockし、client version変更だけではmaturityを自動変更しません。
+v1直前maturity reviewでは、exact `0.133.0` と `0.152.1` の反復acceptanceを根拠に、Codexをevidence-backed macOS arm64 non-OAuth core pathに限って`stable`へ昇格します。Cursor / Antigravityは`beta`のままです。`tier=v1`はevidence maturityとは別のdelivery/roadmap designationで、version rangeや未観測platformを意味しません。
 
 Capability profile v1は独立したadditive evidence contractです。capability `pass` / `fail` / `unknown`にはaccepted real-client direct evidence surfaceが必須で、`unsupported` / `untested`は別stateとして保持します。このcontractだけで現在のshipped adapterへoptional-capability PASSは追加せず、core `reach/auth/init/tools` semanticsも変更しません。詳細は[Capability profile v1](capability-profile-v1.ja.md)を参照してください。
 

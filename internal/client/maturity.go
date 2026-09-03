@@ -87,7 +87,7 @@ func MaturityDecisions() []MaturityDecision {
 			ClientID:    "codex",
 			DisplayName: "Codex CLI",
 			Tier:        TierV1,
-			Maturity:    MaturityBeta,
+			Maturity:    MaturityStable,
 			Criteria: maturityCriteria(map[string]MaturityCriterionStatus{
 				CriterionDirectRealClientBoundary:    MaturityCriterionMet,
 				CriterionIsolation:                   MaturityCriterionMet,
@@ -96,18 +96,16 @@ func MaturityDecisions() []MaturityDecision {
 				CriterionFailureSemantics:            MaturityCriterionMet,
 				CriterionFixtureE2E:                  MaturityCriterionMet,
 				CriterionExactVersionPlatform:        MaturityCriterionMet,
-				CriterionRepeatPathVersionCoverage:   MaturityCriterionLimited,
-				CriterionAdvertisedPlatformCoverage:  MaturityCriterionLimited,
+				CriterionRepeatPathVersionCoverage:   MaturityCriterionMet,
+				CriterionAdvertisedPlatformCoverage:  MaturityCriterionMet,
 				CriterionMeasurementSurfaceStability: MaturityCriterionMet,
 				CriterionMaintenancePath:             MaturityCriterionMet,
 			}),
-			Blockers: []string{
-				CriterionRepeatPathVersionCoverage,
-				CriterionAdvertisedPlatformCoverage,
-			},
 			EvidenceRefs: []string{
 				"docs/observed-coverage.md",
+				"docs/codex-stable-acceptance.md",
 				"github:pr/108",
+				"github:issue/170",
 			},
 		},
 		{

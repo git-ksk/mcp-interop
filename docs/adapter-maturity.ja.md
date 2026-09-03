@@ -73,11 +73,11 @@ stableでもsemantic-version support rangeは作りません。stable adapterで
 
 ## 現在のshipped adapter decision
 
-v0.9 reviewでは3つのshipped adapterをすべて**beta**に維持します。これは保守的なadapter-level maturity classificationであり、regression resultでもversion changeによる自動降格でもありません。
+v1直前reviewでは、**Codex CLIを明示されたmacOS arm64 core pathに限ってstableへ昇格**します。CursorとAntigravityはbetaのままです。adapter maturityはevidence reviewであり、regression resultでもversion changeの自動帰結でもありません。
 
 | Adapter | Decision | betaを支えるevidence | Stable blocker |
 | --- | --- | --- | --- |
-| Codex CLI | `beta` | isolated app-server real-client boundary、exact Codex CLI `0.133.0`（PR #108）のretained controlled core evidence、cleanup/secret/failure gate | `repeat_path_version_coverage`、`advertised_platform_coverage`: stable gate向けにrepositoryが保持するcurrent core PASS pointは1 exact versionで、real-client coverageもmacOS arm64中心 |
+| Codex CLI | `stable` | isolated app-server real-client boundary、macOS arm64上のexact `0.133.0` と `0.152.1` におけるretained controlled non-OAuth core PASS evidence、cleanup/secret/failure gate、regression maintenance path | advertised stable scopeではなし。stable claimはdocumented macOS arm64 non-OAuth core pathに明示的に限定し、Linux/Windows/macOS amd64やOAuthのstableを意味しない |
 | Cursor CLI | `beta` | isolated supported MCP management/login path、exact `2026.08.04-aaa8809`のOAuth evidence（PR #39）、exact `2026.08.25-3e8eec8`のcontrolled core evidence（PR #108） | `repeat_path_version_coverage`、`advertised_platform_coverage`、`measurement_surface_stability`: 2 versionが別path mode、real-client OS evidenceが狭い、MCP management outputが専用machine contractではなくhuman-readable |
 | Antigravity CLI | `beta` | isolated PTY/no-account boundary、exact `agy 1.1.11`のOAuth evidence（PR #40）、exact `agy 1.1.22`のcontrolled core evidence（PR #108） | `repeat_path_version_coverage`、`advertised_platform_coverage`、`measurement_surface_stability`: OAuth/coreのversionが異なる、retained macOS evidenceはarm64のみ、no-auth tool discoveryがboundedなobserved client cache surfaceに依存 |
 

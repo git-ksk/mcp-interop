@@ -19,9 +19,14 @@ func TestV1CandidateShippedAdapterIDsAndLifecycleStatesRemainStable(t *testing.T
 	if GraduationResearchOnly != "research_only" || GraduationEligibleBeta != "eligible_for_beta" {
 		t.Fatalf("graduation state identity changed: %q %q", GraduationResearchOnly, GraduationEligibleBeta)
 	}
+	wantMaturity := map[string]Maturity{
+		"codex":       MaturityStable,
+		"cursor":      MaturityBeta,
+		"antigravity": MaturityBeta,
+	}
 	for _, decision := range MaturityDecisions() {
-		if decision.Maturity != MaturityBeta {
-			t.Fatalf("v0.10 contract audit expected current shipped adapter %s to remain beta, got %s", decision.ClientID, decision.Maturity)
+		if decision.Maturity != wantMaturity[decision.ClientID] {
+			t.Fatalf("unexpected shipped adapter maturity for %s: got %s want %s", decision.ClientID, decision.Maturity, wantMaturity[decision.ClientID])
 		}
 	}
 }

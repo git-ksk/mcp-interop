@@ -28,11 +28,11 @@ Release: [v0.10.0](https://github.com/git-ksk/mcp-interop/releases/tag/v0.10.0)
 
 v0.10.0で利用できる実クライアント向けアダプターは次のとおりです。
 
-- **Codex CLI（beta）** — 実クライアントのMCP一覧確認と、明示的に指定した場合だけ実行するOAuth認証
+- **Codex CLI（stable: macOS arm64 non-OAuth core path）** — evidence-backed core pathの実クライアントMCP確認はstable。明示的opt-in OAuthは利用可能だがstable scope外
 - **Cursor CLI（beta）** — MCP管理コマンドを使った認証不要の実ツール確認と、実CursorのMCPログイン経路を使うOAuth認証
 - **Antigravity CLI（beta / macOS）** — 隔離したPTYとツールキャッシュを使う認証不要の確認と、実`/mcp`マネージャーを使うOAuth認証
 
-v0.9.0のevidence reviewでは、**Codex / Cursor / Antigravityの3adapterをすべてbeta**と分類します。既存client metadataの`tier=v1`はdelivery/roadmap tierであり、stable maturityの主張ではありません。詳細は[Adapter maturity contract](docs/adapter-maturity.ja.md)を参照してください。
+v1直前のevidence reviewでは、**CodexをmacOS arm64 non-OAuth core pathに限ってstable**とし、Cursor / Antigravityはbetaのままです。既存client metadataの`tier=v1`はdelivery/roadmap tierで、evidence maturityとは別axisです。詳細は[Adapter maturity contract](docs/adapter-maturity.ja.md)を参照してください。
 
 v0.10.0では、将来v1.xで維持する**public-contract candidate**を固定しました。documented CLI / JSON / exit code / reason code、schema evolution / migration rule、adapter / core / capability / protocol semantics、security / privacy / cleanup / releaseの最低保証を明文化し、contract regression testとCI/release security-drift gateを追加しています。既存live PASSを弱めず、beta adapterをstableへ自動昇格もしていません。詳細は[Public contract candidate](docs/public-contract-v1-candidate.ja.md)を参照してください。
 
@@ -367,7 +367,7 @@ Preflight、Runtime Evidence、実クライアント相互運用テストは**�
 
 ## アダプターの仕組み
 
-### Codex CLI（beta）
+### Codex CLI（macOS arm64 core pathでstable）
 
 Codexアダプターは次の流れで動きます。
 

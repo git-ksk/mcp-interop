@@ -69,7 +69,7 @@ Compare options:
   --fail-on-regression  Exit 1 when a regression or baseline evidence loss is detected.
 
 Current live adapters:
-  codex        Codex CLI beta via its app-server MCP inventory surface.
+  codex        Codex CLI stable for the macOS arm64 non-OAuth core path; OAuth/other platforms remain outside stable scope.
   cursor       Cursor CLI beta via mcp login/list/list-tools with isolated OAuth opt-in.
   antigravity  Antigravity CLI beta via isolated macOS PTY/tool-cache observation and opt-in MCP OAuth manager.
 `
