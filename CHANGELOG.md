@@ -15,6 +15,7 @@ All notable project changes will be summarized here. GitHub Releases remain the 
 
 ### Changed
 
+- Reworked the English/Japanese README entry path around a first-run Quick Start so ordinary users can go directly from install to `clients` to `test`, with OAuth and advanced regression/evidence workflows introduced only when needed.
 - Promoted Codex, Cursor, and Antigravity to evidence-reviewed `stable` maturity only for their explicitly documented macOS arm64 non-OAuth core paths. OAuth, unobserved client versions, and unobserved platforms remain outside those stable adapter scopes.
 - Kept GitHub Copilot CLI, VS Code, ChatGPT, and Claude web/Desktop as research-only or blocked candidates; v1 does not graduate them into shipped real-client adapters.
 - Revalidated current-main OAuth paths for Codex and Cursor without widening the stable adapter claim. Cursor now accepts the real client's exact `http://localhost:8787/callback` loopback redirect while continuing to reject non-loopback auto-authorization targets.
