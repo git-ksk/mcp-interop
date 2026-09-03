@@ -73,13 +73,13 @@ stableでもsemantic-version support rangeは作りません。stable adapterで
 
 ## 現在のshipped adapter decision
 
-v1直前reviewでは、**Codex CLIを明示されたmacOS arm64 core pathに限ってstableへ昇格**します。CursorとAntigravityはbetaのままです。adapter maturityはevidence reviewであり、regression resultでもversion changeの自動帰結でもありません。
+v1直前reviewでは、**Codex / Cursor / Antigravityを、それぞれ明示されたmacOS arm64 non-OAuth core pathに限ってstableへ昇格**します。adapter maturityはevidence reviewであり、regression resultでもversion changeの自動帰結でもありません。
 
 | Adapter | Decision | betaを支えるevidence | Stable blocker |
 | --- | --- | --- | --- |
 | Codex CLI | `stable` | isolated app-server real-client boundary、macOS arm64上のexact `0.133.0` と `0.152.1` におけるretained controlled non-OAuth core PASS evidence、cleanup/secret/failure gate、regression maintenance path | advertised stable scopeではなし。stable claimはdocumented macOS arm64 non-OAuth core pathに明示的に限定し、Linux/Windows/macOS amd64やOAuthのstableを意味しない |
-| Cursor CLI | `beta` | isolated supported MCP management/login path、exact `2026.08.04-aaa8809`のOAuth evidence（PR #39）、exact `2026.08.25-3e8eec8`のcontrolled core evidence（PR #108） | `repeat_path_version_coverage`、`advertised_platform_coverage`、`measurement_surface_stability`: 2 versionが別path mode、real-client OS evidenceが狭い、MCP management outputが専用machine contractではなくhuman-readable |
-| Antigravity CLI | `beta` | isolated PTY/no-account boundary、exact `agy 1.1.11`のOAuth evidence（PR #40）、exact `agy 1.1.22`のcontrolled core evidence（PR #108） | `repeat_path_version_coverage`、`advertised_platform_coverage`、`measurement_surface_stability`: OAuth/coreのversionが異なる、retained macOS evidenceはarm64のみ、no-auth tool discoveryがboundedなobserved client cache surfaceに依存 |
+| Cursor CLI | `stable` | isolated supported MCP management surface、macOS arm64上のexact `2026.08.04-aaa8809` と `2026.09.02-c22c1a3`で同じnon-OAuth core PASS、`2026.08.25-3e8eec8`のretained core evidence、安全/回帰gate | advertised stable scopeではなし。OAuthとnon-macOS/macOS amd64はstable claim外 |
+| Antigravity CLI | `stable` | isolated PTY/no-account boundary、macOS arm64上のexact `1.1.22` と `1.1.24`で同じnon-OAuth core PASS、bounded tool-cache surfaceの反復evidence、安全/回帰gate | advertised stable scopeではなし。OAuth、non-macOS、modern `server/discover` tool discovery成功はstable claim外 |
 
 現在のexact coverage tableは[Exact observed client coverage](observed-coverage.ja.md)で管理します。historical PR evidenceは、そのPRが明示したexact path/version claimだけに使い、近いversionをtestedへ広げません。
 

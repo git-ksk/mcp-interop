@@ -21,8 +21,8 @@ func TestV1CandidateShippedAdapterIDsAndLifecycleStatesRemainStable(t *testing.T
 	}
 	wantMaturity := map[string]Maturity{
 		"codex":       MaturityStable,
-		"cursor":      MaturityBeta,
-		"antigravity": MaturityBeta,
+		"cursor":      MaturityStable,
+		"antigravity": MaturityStable,
 	}
 	for _, decision := range MaturityDecisions() {
 		if decision.Maturity != wantMaturity[decision.ClientID] {

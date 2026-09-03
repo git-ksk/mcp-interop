@@ -91,13 +91,13 @@ The current stable release is v0.10.0. The Cursor and Antigravity OAuth paths we
 
 The Codex adapter is currently the most complete implementation. Its stable maturity claim is deliberately limited to the macOS arm64 non-OAuth core path with repeated exact-version real-client evidence; OAuth and other platforms remain outside that stable scope. It uses an isolated `CODEX_HOME`, the real `codex app-server` MCP status surface, and an explicit opt-in OAuth flow. OAuth credentials are forced into file storage inside the temporary home rather than the normal keyring path.
 
-### Cursor CLI (beta)
+### Cursor CLI (stable on macOS arm64 core path)
 
 The Cursor adapter uses an isolated temporary `HOME` and workspace plus the real CLI MCP management commands (`mcp enable`, `mcp list`, and `mcp list-tools`). It supports live no-auth interoperability testing without model prompts.
 
 In v0.4.0, explicit `--oauth` invokes the real Cursor MCP login path inside the isolated session. The controlled OAuth fixture verifies DCR, Authorization Code + PKCE, token exchange, bearer-authenticated MCP, and authenticated `mcp list-tools`. A successful authenticated `mcp list-tools` directly proves `reach/auth/init/tools` for the tested Cursor CLI surface. Callback addresses remain version-specific and are not hard-coded.
 
-### Antigravity CLI (beta, macOS)
+### Antigravity CLI (stable on macOS arm64 core path)
 
 The Antigravity adapter uses an isolated temporary `HOME`, the current `~/.gemini/config/mcp_config.json` format, and a PTY-based real-client path. Before launching `agy`, it also writes `modelProvider: "gemini"` into the isolated `~/.gemini/antigravity-cli/settings.json`, removes ambient Gemini API-key/base-URL overrides, and injects a fixed non-secret `GEMINI_API_KEY` sentinel. This selects Antigravity's documented Gemini API-key mode, which does not establish an Antigravity account session, so the adapter does not depend on a normal-user macOS Keychain session. The no-auth mode then observes machine-readable tool-cache state produced by the real client and reaps only descendants of the test PTY wrapper before session cleanup.
 

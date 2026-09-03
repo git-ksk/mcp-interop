@@ -29,10 +29,10 @@ Release: [v0.10.0](https://github.com/git-ksk/mcp-interop/releases/tag/v0.10.0)
 v0.10.0で利用できる実クライアント向けアダプターは次のとおりです。
 
 - **Codex CLI（stable: macOS arm64 non-OAuth core path）** — evidence-backed core pathの実クライアントMCP確認はstable。明示的opt-in OAuthは利用可能だがstable scope外
-- **Cursor CLI（beta）** — MCP管理コマンドを使った認証不要の実ツール確認と、実CursorのMCPログイン経路を使うOAuth認証
-- **Antigravity CLI（beta / macOS）** — 隔離したPTYとツールキャッシュを使う認証不要の確認と、実`/mcp`マネージャーを使うOAuth認証
+- **Cursor CLI（macOS arm64 core pathでstable）** — MCP管理コマンドを使った認証不要の実ツール確認と、実CursorのMCPログイン経路を使うOAuth認証
+- **Antigravity CLI（macOS arm64 core pathでstable）** — 隔離したPTYとツールキャッシュを使う認証不要の確認と、実`/mcp`マネージャーを使うOAuth認証
 
-v1直前のevidence reviewでは、**CodexをmacOS arm64 non-OAuth core pathに限ってstable**とし、Cursor / Antigravityはbetaのままです。既存client metadataの`tier=v1`はdelivery/roadmap tierで、evidence maturityとは別axisです。詳細は[Adapter maturity contract](docs/adapter-maturity.ja.md)を参照してください。
+v1直前のevidence reviewでは、**Codex / Cursor / Antigravityを、それぞれ明示されたmacOS arm64 non-OAuth core pathに限ってstable**とします。既存client metadataの`tier=v1`はdelivery/roadmap tierで、evidence maturityとは別axisです。詳細は[Adapter maturity contract](docs/adapter-maturity.ja.md)を参照してください。
 
 v0.10.0では、将来v1.xで維持する**public-contract candidate**を固定しました。documented CLI / JSON / exit code / reason code、schema evolution / migration rule、adapter / core / capability / protocol semantics、security / privacy / cleanup / releaseの最低保証を明文化し、contract regression testとCI/release security-drift gateを追加しています。既存live PASSを弱めず、beta adapterをstableへ自動昇格もしていません。詳細は[Public contract candidate](docs/public-contract-v1-candidate.ja.md)を参照してください。
 
@@ -383,11 +383,11 @@ Codexアダプターは次の流れで動きます。
 
 モデルへのプロンプトは送りません。
 
-### Cursor CLI（beta）
+### Cursor CLI（macOS arm64 core pathでstable）
 
 一時`HOME`とworkspaceを作り、実Cursor CLIの`mcp enable`、`mcp list`、`mcp list-tools`を使います。OAuth時も通常ユーザーの設定や認証情報を使わず、一時環境に閉じ込めます。
 
-### Antigravity CLI（beta / macOS）
+### Antigravity CLI（macOS arm64 core pathでstable）
 
 一時`HOME`とworkspaceを作り、実`agy`をPTYで起動します。起動前に一時settingsへ`modelProvider: "gemini"`を書き、ambientなGemini credential / endpoint overrideを除去し、固定の非秘密`GEMINI_API_KEY` sentinelを注入します。これによりAntigravityのdocumented no-account modeを使い、通常ユーザーのKeychain account sessionへ依存しません。model promptは送りません。
 

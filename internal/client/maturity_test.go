@@ -11,8 +11,8 @@ func TestCurrentShippedMaturityDecisionsAreValidAndConservative(t *testing.T) {
 	}
 	want := map[string]Maturity{
 		"codex":       MaturityStable,
-		"cursor":      MaturityBeta,
-		"antigravity": MaturityBeta,
+		"cursor":      MaturityStable,
+		"antigravity": MaturityStable,
 	}
 	for _, decision := range decisions {
 		if err := ValidateMaturityDecision(decision); err != nil {
@@ -55,12 +55,17 @@ func TestStableMaturityRequiresEveryStableCriterion(t *testing.T) {
 
 func TestBetaMaturityRequiresAllBetaCriteriaAndDocumentedBlocker(t *testing.T) {
 	decision := MaturityDecisions()[1]
+	decision.Maturity = MaturityBeta
+	decision.Criteria[7].Status = MaturityCriterionLimited
 	decision.Blockers = nil
 	if err := ValidateMaturityDecision(decision); err == nil {
 		t.Fatal("beta maturity without a stable blocker was accepted")
 	}
 
 	decision = MaturityDecisions()[1]
+	decision.Maturity = MaturityBeta
+	decision.Criteria[7].Status = MaturityCriterionLimited
+	decision.Blockers = []string{CriterionRepeatPathVersionCoverage}
 	for i := range decision.Criteria {
 		if decision.Criteria[i].ID == CriterionSecretSafety {
 			decision.Criteria[i].Status = MaturityCriterionLimited
@@ -74,7 +79,10 @@ func TestBetaMaturityRequiresAllBetaCriteriaAndDocumentedBlocker(t *testing.T) {
 
 func TestBetaMaturityMustExposeEveryLimitedOrMissingCriterionAsBlocker(t *testing.T) {
 	decision := MaturityDecisions()[1]
-	decision.Blockers = decision.Blockers[:1]
+	decision.Maturity = MaturityBeta
+	decision.Criteria[7].Status = MaturityCriterionLimited
+	decision.Criteria[8].Status = MaturityCriterionLimited
+	decision.Blockers = []string{CriterionRepeatPathVersionCoverage}
 	if err := ValidateMaturityDecision(decision); err == nil {
 		t.Fatal("beta maturity hid limited stable criteria from blocker list")
 	}
