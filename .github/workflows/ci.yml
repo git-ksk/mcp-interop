@@ -98,14 +98,22 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: go test ./internal/e2e/fixture -run '^TestToolOAuthInsufficientScopeReleaseGate$' -count=1
 
-      - name: Release build smoke
-        if: matrix.os == 'ubuntu-latest'
+  release-artifacts:
+    name: build release archives
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Build release archives
         shell: bash
         run: |
-          bash scripts/build-release.sh \
-            v0.0.0-test \
-            0123456789abcdef0123456789abcdef01234567 \
-            1970-01-01T00:00:00Z
+          bash scripts/build-release.sh v0.0.0-test 0123456789abcdef0123456789abcdef01234567 1970-01-01T00:00:00Z
           test -f dist/mcp-interop_0.0.0-test_darwin_amd64.tar.gz
           test -f dist/mcp-interop_0.0.0-test_darwin_arm64.tar.gz
           test -f dist/mcp-interop_0.0.0-test_linux_amd64.tar.gz
@@ -113,8 +121,45 @@ jobs:
           test -f dist/mcp-interop_0.0.0-test_windows_amd64.zip
           test -f dist/mcp-interop_0.0.0-test_windows_arm64.zip
           test -s dist/checksums.txt
-          mkdir -p /tmp/mcp-interop-release-smoke
-          tar -xzf dist/mcp-interop_0.0.0-test_linux_amd64.tar.gz \
-            -C /tmp/mcp-interop-release-smoke
-          /tmp/mcp-interop-release-smoke/mcp-interop version | grep -F 'v0.0.0-test'
-          bash scripts/cli-regression-smoke.sh /tmp/mcp-interop-release-smoke/mcp-interop
+      - name: Upload exact release archives
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ci-release-dist
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 1
+
+  native-archive-smoke:
+    name: native archive smoke (${{ matrix.label }})
+    needs: release-artifacts
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { label: linux-amd64, os: ubuntu-latest, archive: mcp-interop_0.0.0-test_linux_amd64.tar.gz, binary: mcp-interop }
+          - { label: darwin-arm64, os: macos-latest, archive: mcp-interop_0.0.0-test_darwin_arm64.tar.gz, binary: mcp-interop }
+          - { label: darwin-amd64, os: macos-15-intel, archive: mcp-interop_0.0.0-test_darwin_amd64.tar.gz, binary: mcp-interop }
+          - { label: windows-amd64, os: windows-latest, archive: mcp-interop_0.0.0-test_windows_amd64.zip, binary: mcp-interop.exe }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Download exact release archives
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: ci-release-dist
+          path: dist
+      - name: Native packaged archive smoke
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          mkdir -p native-smoke
+          tar -xzf "dist/${{ matrix.archive }}" -C native-smoke
+          bash scripts/native-release-smoke.sh "native-smoke/${{ matrix.binary }}" v0.0.0-test
+      - name: Native packaged archive smoke (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Expand-Archive -Path "dist/${{ matrix.archive }}" -DestinationPath native-smoke
+          ./scripts/native-release-smoke.ps1 -Binary "$PWD/native-smoke/${{ matrix.binary }}" -ExpectedVersion v0.0.0-test

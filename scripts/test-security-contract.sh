@@ -71,7 +71,12 @@ require "$ci" 'contents: read'
 require "$ci" 'govulncheck'
 require "$ci" 'bash scripts/test-real-client-e2e-guard.sh'
 require "$ci" 'bash scripts/test-security-contract.sh'
-require "$ci" 'Release build smoke'
+require "$ci" 'native archive smoke ('
+require "$ci" 'macos-15-intel'
+require "$ci" 'windows-amd64'
+require "$release" 'needs: [build, native-smoke]'
+require "$release" 'macos-15-intel'
+require "$release" 'Download natively verified release archives'
 forbid "$ci" 'pull_request_target:'
 require_pinned_actions "$ci"
 
