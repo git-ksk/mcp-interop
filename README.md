@@ -14,6 +14,38 @@
 
 It also includes profile-based **preflight diagnostics** for client surfaces that do not yet expose a safe headless real-client automation boundary. Preflight results are deliberately kept separate from live interoperability PASS results.
 
+## Quick Start
+
+For the common case, use this three-step path. Prerequisites: **Go 1.24+** and at least one supported MCP client installed.
+
+1. Install the newest published version:
+
+```console
+go install github.com/git-ksk/mcp-interop/cmd/mcp-interop@latest
+```
+
+2. See which supported real clients are available on this machine:
+
+```console
+mcp-interop clients
+```
+
+3. Test your Remote MCP endpoint with one installed client:
+
+```console
+mcp-interop test https://example.com/mcp --client codex
+```
+
+A complete success means the output `STATUS` column reports **PASS for all four stages: `reach`, `auth`, `init`, and `tools`**. Any `FAIL`, `SKIP`, or `UNKNOWN` is intentionally non-success so incomplete evidence is not mistaken for interoperability.
+
+If the MCP server requires OAuth, opt in explicitly:
+
+```console
+mcp-interop test https://example.com/mcp --client cursor --oauth
+```
+
+Most users can stop here. Use `suite`, `baseline`, and `compatibility` only when you need repeatable regression evidence, and use `diagnose` when you need metadata/OAuth preflight rather than a real-client PASS. The exact supported scope and evidence boundaries are documented below.
+
 ## Status
 
 **v1.0.0 is the release candidate documented by this branch. The currently published GitHub release remains v0.10.0 until the explicit v1 tag/release action.**
@@ -89,9 +121,11 @@ A test exits with code `0` only when **all four stages are `pass`**. `fail`, `sk
 
 A `diagnose` command has a different contract: it produces `PREFLIGHT PASS` / `PREFLIGHT FAIL` from published server/client metadata and never substitutes that result for a real-client interoperability PASS.
 
-## Current CLI
+## Choose a command
 
-If you are not sure which command to start with:
+For ordinary use, start with `clients` and `test`. The remaining commands are for regression, evidence, maturity, or preflight workflows.
+
+If you are not sure which command to use:
 
 | Goal | Command |
 | --- | --- |

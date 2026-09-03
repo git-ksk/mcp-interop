@@ -20,6 +20,38 @@ MCP仕様への適合性は公式のMCP Conformance Test Frameworkが担当し�
 
 安全に自動操作できるクライアント向けインターフェースがまだ無い場合は、製品ごとの事前診断（preflight）も提供します。ただし、事前診断の成功を実クライアントでの相互運用PASSとして扱うことはありません。
 
+## Quick Start
+
+通常利用はこの3ステップで始められます。前提は **Go 1.24以降** と、対応MCPクライアントが1つ以上インストールされていることです。
+
+1. 現在公開されている最新版をインストール:
+
+```console
+go install github.com/git-ksk/mcp-interop/cmd/mcp-interop@latest
+```
+
+2. このMacで利用できる対応クライアントを確認:
+
+```console
+mcp-interop clients
+```
+
+3. インストール済みクライアントでRemote MCPをテスト:
+
+```console
+mcp-interop test https://example.com/mcp --client codex
+```
+
+完全に成功した場合は、出力の`STATUS`列で **`reach` / `auth` / `init` / `tools` の4段階すべてが`PASS`** になります。`FAIL` / `SKIP` / `UNKNOWN`のどれかがあれば、証拠不足を成功扱いしないため意図的にnon-successです。
+
+MCPサーバーがOAuthを必要とする場合だけ、明示的に`--oauth`を付けます。
+
+```console
+mcp-interop test https://example.com/mcp --client cursor --oauth
+```
+
+通常の確認はここまでで十分です。繰り返しregression evidenceが必要な場合だけ`suite` / `baseline` / `compatibility`を使い、実クライアントPASSではなくmetadata/OAuthの事前診断が必要な場合は`diagnose`を使います。対応scopeとevidence境界の厳密な定義は後段にまとめています。
+
 ## 現在の状態
 
 このブランチでは **v1.0.0** のリリース文面を準備済みです。明示的なv1 tag/release操作を行うまでは、GitHub上の現在の公開リリースは **v0.10.0** のままです。
@@ -101,9 +133,11 @@ v1.0.0の明示的tag/release後は、macOS / Linux / Windows向けamd64 / arm64
 - AIモデルが適切なツールを選ぶこと
 - テストしていない別クライアント・別バージョンでも動くこと
 
-## 基本的な使い方
+## コマンドの選び方
 
-どのコマンドを使えばよいか迷った場合は、まず次の使い分けで考えます。
+通常利用では`clients`と`test`から始めてください。それ以外はregression、evidence、maturity、preflight向けの機能です。
+
+迷った場合は、次の使い分けで考えます。
 
 | やりたいこと | コマンド |
 | --- | --- |
