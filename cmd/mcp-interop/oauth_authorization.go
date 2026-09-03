@@ -81,7 +81,11 @@ func validateAutoAuthorizeLoopbackURL(raw string) error {
 	if err != nil || u.Scheme != "http" || u.User != nil || u.Fragment != "" || u.Host == "" {
 		return fmt.Errorf("E2E auto-authorization requires a plain HTTP loopback authorization URL")
 	}
-	ip := net.ParseIP(u.Hostname())
+	host := strings.ToLower(u.Hostname())
+	if host == "localhost" {
+		return nil
+	}
+	ip := net.ParseIP(host)
 	if ip == nil || !ip.IsLoopback() {
 		return fmt.Errorf("E2E auto-authorization refuses non-loopback host %q", u.Hostname())
 	}

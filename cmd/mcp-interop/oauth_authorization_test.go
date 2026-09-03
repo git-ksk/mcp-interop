@@ -60,4 +60,7 @@ func TestValidateAutoAuthorizeLoopbackURLRejectsUnsafeForms(t *testing.T) {
 	if err := validateAutoAuthorizeLoopbackURL("http://[::1]:8080/authorize"); err != nil {
 		t.Fatalf("expected IPv6 loopback HTTP URL to pass: %v", err)
 	}
+	if err := validateAutoAuthorizeLoopbackURL("http://localhost:8787/callback"); err != nil {
+		t.Fatalf("expected localhost loopback HTTP URL to pass: %v", err)
+	}
 }
