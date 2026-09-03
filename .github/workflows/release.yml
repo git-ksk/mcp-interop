@@ -20,7 +20,7 @@ env:
   GOVULNCHECK_VERSION: v1.6.0
 
 jobs:
-  release:
+  build:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -28,59 +28,32 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-
       - name: Validate release tag and provenance
         shell: bash
         run: |
           set -euo pipefail
-
           if [[ ! "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$ ]]; then
-            echo "unsupported release tag: $GITHUB_REF_NAME" >&2
-            exit 1
+            echo "unsupported release tag: $GITHUB_REF_NAME" >&2; exit 1
           fi
-
           git fetch --no-tags origin main:refs/remotes/origin/main
-          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
-            echo "release tag $GITHUB_REF_NAME points to $GITHUB_SHA, which is not contained in origin/main" >&2
-            exit 1
-          fi
-
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main || { echo "release tag is not contained in origin/main" >&2; exit 1; }
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: ${{ env.RELEASE_GO_VERSION }}
           cache: true
-
-      - name: Format source
+      - name: Source and security gates
         shell: bash
         run: |
-          unformatted="$(gofmt -l .)"
-          if [[ -n "$unformatted" ]]; then
-            echo "$unformatted"
-            exit 1
-          fi
-
-      - name: Vet source
-        run: go vet ./...
-
-      - name: Test source
-        run: go test ./...
-
-      - name: Race tests
-        run: go test -race ./...
-
-      - name: Install govulncheck
-        run: env GOFLAGS= go install golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION}
-
-      - name: Vulnerability check
-        run: |
+          unformatted="$(gofmt -l .)"; [[ -z "$unformatted" ]] || { echo "$unformatted"; exit 1; }
+          go vet ./...
+          go test ./...
+          go test -race ./...
+          env GOFLAGS= go install golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION}
           "$(go env GOPATH)/bin/govulncheck" ./...
-
-      - name: Shell syntax gates
-        shell: bash
-        run: |
           bash -n scripts/build-release.sh
           bash -n scripts/cli-regression-smoke.sh
+          bash -n scripts/native-release-smoke.sh
           bash -n scripts/e2e-real-clients.sh
           bash -n scripts/guard-real-client-e2e.sh
           bash -n scripts/test-real-client-e2e-guard.sh
@@ -90,40 +63,72 @@ jobs:
           bash -n scripts/poc-vscode-agent-plugin.sh
           bash -n scripts/poc-copilot-cli-mcp.sh
           bash -n scripts/poc-copilot-cli-startup.sh
-
-      - name: Self-hosted real-client trust guard gate
-        shell: bash
-        run: bash scripts/test-real-client-e2e-guard.sh
-
-      - name: Security contract gate
-        shell: bash
-        run: bash scripts/test-security-contract.sh
-
-      - name: Tool OAuth fixture release gate
-        run: go test ./internal/e2e/fixture -run '^TestToolOAuthInsufficientScopeReleaseGate$' -count=1
-
+          bash scripts/test-real-client-e2e-guard.sh
+          bash scripts/test-security-contract.sh
+          go test ./internal/e2e/fixture -run '^TestToolOAuthInsufficientScopeReleaseGate$' -count=1
       - name: Build release archives
         shell: bash
-        run: |
-          bash scripts/build-release.sh \
-            "$GITHUB_REF_NAME" \
-            "$GITHUB_SHA" \
-            "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+        run: bash scripts/build-release.sh "$GITHUB_REF_NAME" "$GITHUB_SHA" "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+      - name: Upload exact release archives
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-dist
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 1
 
-      - name: Verify embedded version and CLI regression smoke
+  native-smoke:
+    name: native archive smoke (${{ matrix.label }})
+    needs: build
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { label: linux-amd64, os: ubuntu-latest, suffix: linux_amd64.tar.gz, binary: mcp-interop }
+          - { label: darwin-arm64, os: macos-latest, suffix: darwin_arm64.tar.gz, binary: mcp-interop }
+          - { label: darwin-amd64, os: macos-15-intel, suffix: darwin_amd64.tar.gz, binary: mcp-interop }
+          - { label: windows-amd64, os: windows-latest, suffix: windows_amd64.zip, binary: mcp-interop.exe }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Download exact release archives
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: release-dist
+          path: dist
+      - name: Native packaged archive smoke
+        if: runner.os != 'Windows'
         shell: bash
         run: |
-          mkdir -p /tmp/mcp-interop-release-check
-          tar -xzf "dist/mcp-interop_${GITHUB_REF_NAME#v}_linux_amd64.tar.gz" \
-            -C /tmp/mcp-interop-release-check
-          /tmp/mcp-interop-release-check/mcp-interop version | grep -F "$GITHUB_REF_NAME"
-          bash scripts/cli-regression-smoke.sh /tmp/mcp-interop-release-check/mcp-interop
+          mkdir -p native-smoke
+          tar -xzf "dist/mcp-interop_${GITHUB_REF_NAME#v}_${{ matrix.suffix }}" -C native-smoke
+          bash scripts/native-release-smoke.sh "native-smoke/${{ matrix.binary }}" "$GITHUB_REF_NAME"
+      - name: Native packaged archive smoke (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $archiveVersion = $env:GITHUB_REF_NAME.TrimStart('v')
+          Expand-Archive -Path "dist/mcp-interop_${archiveVersion}_${{ matrix.suffix }}" -DestinationPath native-smoke
+          ./scripts/native-release-smoke.ps1 -Binary "$PWD/native-smoke/${{ matrix.binary }}" -ExpectedVersion $env:GITHUB_REF_NAME
 
+  publish:
+    needs: [build, native-smoke]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Download natively verified release archives
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: release-dist
+          path: dist
       - name: Attest release artifacts
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-path: dist/*
-
       - name: Create GitHub release
         shell: bash
         env:
@@ -132,9 +137,5 @@ jobs:
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
             gh release upload "$GITHUB_REF_NAME" dist/* --clobber
           else
-            gh release create "$GITHUB_REF_NAME" \
-              dist/* \
-              --verify-tag \
-              --generate-notes \
-              --title "$GITHUB_REF_NAME"
+            gh release create "$GITHUB_REF_NAME" dist/* --verify-tag --generate-notes --title "$GITHUB_REF_NAME"
           fi

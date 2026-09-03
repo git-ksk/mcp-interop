@@ -72,7 +72,7 @@ A tagged release must retain all of these gates:
 - format, vet, unit, race, and `govulncheck` gates;
 - real-client trust-guard and controlled OAuth fixture gates;
 - deterministic six-target archive build plus checksums;
-- embedded-version/packaged CLI smoke verification;
+- native-runner embedded-version/packaged CLI smoke for Linux amd64, macOS arm64, macOS amd64, and Windows amd64; Linux/Windows arm64 remain explicitly cross-built/checksummed without native execution;
 - GitHub artifact attestation using OIDC permission;
 - verified-tag GitHub Release creation.
 

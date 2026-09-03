@@ -72,7 +72,7 @@ Tagged releaseでは次を維持します。
 - format / vet / unit / race / `govulncheck`
 - real-client trust guardとcontrolled OAuth fixture gate
 - deterministic 6-target archive build + checksums
-- embedded-version / packaged CLI smoke
+- native runner上でのembedded-version / packaged CLI smoke（Linux amd64、macOS arm64、macOS amd64、Windows amd64。arm64 Linux/Windowsはcross-build + checksumのまま明示的に未native-smoke）
 - OIDC permissionを使うGitHub artifact attestation
 - verified-tag GitHub Release作成
 
