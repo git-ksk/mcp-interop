@@ -55,7 +55,11 @@ grep -F '"artifact_type": "mcp-interop/adapter-maturity"' "$workdir/maturity.jso
 grep -F '"client_id": "codex"' "$workdir/maturity.json" >/dev/null
 grep -F '"client_id": "cursor"' "$workdir/maturity.json" >/dev/null
 grep -F '"client_id": "antigravity"' "$workdir/maturity.json" >/dev/null
-grep -F '"maturity": "beta"' "$workdir/maturity.json" >/dev/null
+test "$(grep -c -F '"maturity": "stable"' "$workdir/maturity.json")" -eq 3
+if grep -F '"maturity": "beta"' "$workdir/maturity.json" >/dev/null; then
+  echo "shipped adapter unexpectedly remained beta" >&2
+  exit 1
+fi
 
 cat >"$workdir/capability-profile.json" <<'CAPABILITY'
 {
