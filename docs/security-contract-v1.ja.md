@@ -87,3 +87,5 @@ local baseline/result fingerprintはschema contractに記載したcontent identi
 ## Security-driven compatibility exception
 
 既存accepted input/behaviorにcredential exposure、untrusted privileged execution、その他具体的security defectが見つかった場合、stable releaseでもmajor versionを待たずtighten/rejectできます。その変更はrelease noteへ明示しfail closedにします。unsafe old evidenceを黙ってvalid PASSへ読み替えません。
+Repository-level `main` protection is an external GitHub setting; the maintained policy is documented in [Repository protection policy](repository-protection.ja.md).
+

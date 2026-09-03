@@ -87,3 +87,5 @@ Local baseline and result fingerprints retain the narrower content identity/cons
 ## Security-driven compatibility exception
 
 If an existing accepted input or behavior is shown to expose credentials, enable untrusted privileged execution, or create another concrete security defect, a stable release may tighten/reject that behavior without waiting for a major version. Such a change must be explicit in release notes and must fail closed; unsafe old evidence is never silently reinterpreted as valid PASS.
+Repository-level `main` protection is an external GitHub setting; the maintained policy is documented in [Repository protection policy](repository-protection.md).
+
