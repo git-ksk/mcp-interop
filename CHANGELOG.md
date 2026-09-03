@@ -4,6 +4,27 @@ All notable project changes will be summarized here. GitHub Releases remain the 
 
 ## Unreleased
 
+## v1.0.0 — 2026-09-03
+
+### Added
+
+- Finalized the stable v1 public contract for documented CLI/JSON/exit-code/reason-code behavior, schema evolution and migration, interoperability semantics, and security/privacy/cleanup/release guarantees.
+- Retained a representative release-candidate real-client regression acceptance covering live Codex `reach/auth/init/tools`, immutable baseline creation, repeat execution, regression comparison, and exact-version compatibility classification.
+- Added native packaged-archive smoke coverage for Ubuntu amd64, macOS arm64/amd64, and Windows amd64, while retaining build/checksum/attestation coverage for the wider release matrix.
+- Documented and enforced the protected `main` release boundary with required CI checks, pull-request review flow, squash-only merging, and no bypass actors.
+
+### Changed
+
+- Promoted Codex, Cursor, and Antigravity to evidence-reviewed `stable` maturity only for their explicitly documented macOS arm64 non-OAuth core paths. OAuth, unobserved client versions, and unobserved platforms remain outside those stable adapter scopes.
+- Kept GitHub Copilot CLI, VS Code, ChatGPT, and Claude web/Desktop as research-only or blocked candidates; v1 does not graduate them into shipped real-client adapters.
+- Revalidated current-main OAuth paths for Codex and Cursor without widening the stable adapter claim. Cursor now accepts the real client's exact `http://localhost:8787/callback` loopback redirect while continuing to reject non-loopback auto-authorization targets.
+
+### Release evidence
+
+- Final v1 exit audit: [`docs/v1-final-exit-audit.md`](docs/v1-final-exit-audit.md).
+- Representative real-client regression acceptance tracked by #162: [`docs/v1-real-client-regression-acceptance.md`](docs/v1-real-client-regression-acceptance.md).
+- Stable contract set: [`public-contract-v1.md`](docs/public-contract-v1.md), [`schema-evolution-v1.md`](docs/schema-evolution-v1.md), [`semantic-contract-v1.md`](docs/semantic-contract-v1.md), and [`security-contract-v1.md`](docs/security-contract-v1.md).
+
 ## v0.10.0 — 2026-08-28
 
 ### Added

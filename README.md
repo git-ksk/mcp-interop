@@ -8,7 +8,7 @@
 
 **Live interoperability testing for Remote MCP servers across real MCP clients.**
 
-`mcp-interop` is an experimental, cross-client test runner for Remote Model Context Protocol (MCP) servers. It is designed to answer a practical question that protocol conformance alone cannot answer:
+`mcp-interop` is a cross-client test runner for Remote Model Context Protocol (MCP) servers. It is designed to answer a practical question that protocol conformance alone cannot answer:
 
 > Does this Remote MCP deployment actually reach a usable protocol path, satisfy authentication when required, and expose tools in the real clients my users run?
 
@@ -16,21 +16,20 @@ It also includes profile-based **preflight diagnostics** for client surfaces tha
 
 ## Status
 
-**v0.10.0 is the current published release.**
+**v1.0.0 is the release candidate documented by this branch. The currently published GitHub release remains v0.10.0 until the explicit v1 tag/release action.**
 
-Release: [v0.10.0](https://github.com/git-ksk/mcp-interop/releases/tag/v0.10.0)
+Current published release: [v0.10.0](https://github.com/git-ksk/mcp-interop/releases/tag/v0.10.0) · Prepared release: **v1.0.0** (not tagged yet)
 
-The live adapters in v0.10.0 are:
+The shipped live adapters prepared for v1.0.0 are:
 
 - **Codex CLI (stable: macOS arm64 non-OAuth core path)** — live inventory is stable for the evidence-backed core path; explicit opt-in OAuth remains available but outside the stable scope.
 - **Cursor CLI (stable on macOS arm64 core path)** — live no-auth inventory plus explicit opt-in OAuth through the real Cursor MCP login path; authenticated `mcp list-tools` has been validated with the controlled fixture.
 - **Antigravity CLI (stable on macOS arm64 core path)** — live no-auth inventory plus explicit opt-in OAuth through the real `/mcp` manager in an isolated PTY. Authentication can be proven independently of client-side tool-cache observation, so generic `init/tools` may conservatively remain `unknown` while controlled E2E proves the authenticated MCP exchange.
 
-The pre-v1 evidence review now classifies **Codex, Cursor, and Antigravity as stable for their explicitly documented macOS arm64 non-OAuth core paths**. The existing `tier=v1` client metadata remains a delivery/roadmap tier, separate from evidence maturity. See [Adapter maturity contract](docs/adapter-maturity.md) ([日本語](docs/adapter-maturity.ja.md)).
+The v1 evidence review classifies **Codex, Cursor, and Antigravity as stable for their explicitly documented macOS arm64 non-OAuth core paths**. The existing `tier=v1` client metadata remains a delivery/roadmap tier, separate from evidence maturity. See [Adapter maturity contract](docs/adapter-maturity.md) ([日本語](docs/adapter-maturity.ja.md)).
 
-v0.10.0 freezes the project's **public-contract candidate** for future v1.x stability: documented CLI/JSON/exit-code/reason-code behavior, explicit schema evolution and migration rules, adapter/core/capability/protocol semantics, and minimum security/privacy/cleanup/release guarantees. It adds contract regression tests and a CI/release security-drift gate without weakening the existing live PASS or promoting any beta adapter to stable. See [Public contract candidate](docs/public-contract-v1-candidate.md) ([日本語](docs/public-contract-v1-candidate.ja.md)).
+v1.0.0 promotes the reviewed contract set—not unobserved client behavior—to the project's stable compatibility boundary. The stable documents are [Public contract v1](docs/public-contract-v1.md), [Schema evolution v1](docs/schema-evolution-v1.md), [Interoperability semantics v1](docs/semantic-contract-v1.md), and [Security, privacy, cleanup, and release contract v1](docs/security-contract-v1.md). The retained [representative real-client regression acceptance](docs/v1-real-client-regression-acceptance.md) and [final v1 exit audit](docs/v1-final-exit-audit.md) record the operational release evidence. The v0.10 candidate documents remain historical records.
 
-The stable v1 contract set is now finalized separately: [Public contract v1](docs/public-contract-v1.md), [Schema evolution v1](docs/schema-evolution-v1.md), [Interoperability semantics v1](docs/semantic-contract-v1.md), and [Security, privacy, cleanup, and release contract v1](docs/security-contract-v1.md). The v0.10 candidate documents remain as historical release records.
 
 v0.9.0 deepens evidence quality without adding a weaker or speculative client path. It adds an exact observed coverage matrix, local-consistency baseline verification, evidence-reviewed adapter maturity, a separate optional-capability evidence contract, and one fail-closed graduation gate for future real clients. Cross-runner chronology and runner/client architecture interpretation are also hardened without changing the v0.8 live-result schemas.
 
@@ -53,10 +52,10 @@ ChatGPT real-client support remains intentionally blocked ([#20](https://github.
 
 ## Install
 
-With Go 1.24 or newer, install the current stable release explicitly:
+With Go 1.24 or newer, after v1.0.0 is published install it explicitly with:
 
 ```console
-go install github.com/git-ksk/mcp-interop/cmd/mcp-interop@v0.10.0
+go install github.com/git-ksk/mcp-interop/cmd/mcp-interop@v1.0.0
 ```
 
 To track the newest published module version instead:
@@ -73,7 +72,7 @@ mcp-interop version
 mcp-interop --version
 ```
 
-The [v0.10.0 GitHub Release](https://github.com/git-ksk/mcp-interop/releases/tag/v0.10.0) provides checksummed archives for macOS, Linux, and Windows on both amd64 and arm64.
+The v1.0.0 release workflow will publish checksummed archives for macOS, Linux, and Windows on amd64 and arm64 after the explicit tag/release action. Until then, use the current published [v0.10.0 GitHub Release](https://github.com/git-ksk/mcp-interop/releases/tag/v0.10.0).
 
 ## What a test proves
 

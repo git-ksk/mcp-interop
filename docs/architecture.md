@@ -85,7 +85,7 @@ Process ownership follows the same rule: an adapter may reap only processes it c
 
 ## Shipped adapters
 
-The current stable release is v0.10.0. The Cursor and Antigravity OAuth paths were introduced in v0.4.0.
+The v1.0.0 release surface is prepared but not tagged yet; v0.10.0 remains the currently published release until that explicit release action. Cursor and Antigravity OAuth paths were introduced in v0.4.0 and remain outside the adapters’ stable non-OAuth core scopes.
 
 ### Codex CLI (stable: macOS arm64 non-OAuth core path)
 

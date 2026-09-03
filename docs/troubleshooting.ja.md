@@ -6,7 +6,7 @@
 
 このページでは、`mcp-interop`を実クライアントで動かしたときによく起きる問題と、`diagnose`による事前診断の読み方をまとめます。
 
-英語正本に記載されているstable releaseはv0.10.0です。以下のCursor / Antigravity OAuth対応はv0.4.0で導入されました。
+v1.0.0のrelease surfaceは準備済みですが、まだtagしていません。明示的なrelease操作まではv0.10.0が現在の公開版です。以下のCursor / Antigravity OAuth対応はv0.4.0で導入され、stable non-OAuth adapter scope外のままです。
 
 ## まずクライアントが検出されているか確認する
 
