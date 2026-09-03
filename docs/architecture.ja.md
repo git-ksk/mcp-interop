@@ -113,7 +113,7 @@ reportへBearer token、authorization code、client secret、cookie、credential
 
 ## 提供中のアダプター
 
-英語正本で記載している現在のstable releaseはv0.10.0です。Cursor / Antigravity OAuth経路はv0.4.0で導入されました。
+v1.0.0のrelease surfaceは準備済みですが、まだtagしていません。明示的なrelease操作まではv0.10.0が現在の公開版です。Cursor / Antigravity OAuth経路はv0.4.0で導入され、adapterのstable non-OAuth core scope外のままです。
 
 ### Codex CLI（stable: macOS arm64 non-OAuth core path）
 

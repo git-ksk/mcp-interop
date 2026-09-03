@@ -22,21 +22,20 @@ MCP仕様への適合性は公式のMCP Conformance Test Frameworkが担当し�
 
 ## 現在の状態
 
-現在の公開リリースは **v0.10.0** です。
+このブランチでは **v1.0.0** のリリース文面を準備済みです。明示的なv1 tag/release操作を行うまでは、GitHub上の現在の公開リリースは **v0.10.0** のままです。
 
-Release: [v0.10.0](https://github.com/git-ksk/mcp-interop/releases/tag/v0.10.0)
+現在の公開リリース: [v0.10.0](https://github.com/git-ksk/mcp-interop/releases/tag/v0.10.0) · 準備済みリリース: **v1.0.0**（未tag）
 
-v0.10.0で利用できる実クライアント向けアダプターは次のとおりです。
+v1.0.0向けに準備済みの実クライアントアダプターは次のとおりです。
 
 - **Codex CLI（stable: macOS arm64 non-OAuth core path）** — evidence-backed core pathの実クライアントMCP確認はstable。明示的opt-in OAuthは利用可能だがstable scope外
 - **Cursor CLI（macOS arm64 core pathでstable）** — MCP管理コマンドを使った認証不要の実ツール確認と、実CursorのMCPログイン経路を使うOAuth認証
 - **Antigravity CLI（macOS arm64 core pathでstable）** — 隔離したPTYとツールキャッシュを使う認証不要の確認と、実`/mcp`マネージャーを使うOAuth認証
 
-v1直前のevidence reviewでは、**Codex / Cursor / Antigravityを、それぞれ明示されたmacOS arm64 non-OAuth core pathに限ってstable**とします。既存client metadataの`tier=v1`はdelivery/roadmap tierで、evidence maturityとは別axisです。詳細は[Adapter maturity contract](docs/adapter-maturity.ja.md)を参照してください。
+v1 evidence reviewでは、**Codex / Cursor / Antigravityを、それぞれ明示されたmacOS arm64 non-OAuth core pathに限ってstable**とします。既存client metadataの`tier=v1`はdelivery/roadmap tierで、evidence maturityとは別axisです。詳細は[Adapter maturity contract](docs/adapter-maturity.ja.md)を参照してください。
 
-v0.10.0では、将来v1.xで維持する**public-contract candidate**を固定しました。documented CLI / JSON / exit code / reason code、schema evolution / migration rule、adapter / core / capability / protocol semantics、security / privacy / cleanup / releaseの最低保証を明文化し、contract regression testとCI/release security-drift gateを追加しています。既存live PASSを弱めず、beta adapterをstableへ自動昇格もしていません。詳細は[Public contract candidate](docs/public-contract-v1-candidate.ja.md)を参照してください。
+v1.0.0では、未観測のclient挙動ではなく、review済みcontract setをprojectのstable compatibility boundaryへ昇格します。[Public contract v1](docs/public-contract-v1.ja.md)、[Schema evolution v1](docs/schema-evolution-v1.ja.md)、[Interoperability semantics v1](docs/semantic-contract-v1.ja.md)、[Security / privacy / cleanup / release contract v1](docs/security-contract-v1.ja.md)がstable contractです。[代表real-client regression acceptance](docs/v1-real-client-regression-acceptance.ja.md)と[final v1 exit audit](docs/v1-final-exit-audit.ja.md)にrelease evidenceを保持します。v0.10 candidate文書はhistorical recordとして残します。
 
-stable v1 contractは別文書として確定しています。[Public contract v1](docs/public-contract-v1.ja.md)、[Schema evolution v1](docs/schema-evolution-v1.ja.md)、[Interoperability semantics v1](docs/semantic-contract-v1.ja.md)、[Security / privacy / cleanup / release contract v1](docs/security-contract-v1.ja.md)を参照してください。v0.10 candidate文書はhistorical release recordとして保持します。
 
 v0.9.0では、新clientを弱い基準で増やさず、evidence品質を強化しました。exact observed coverage matrix、baselineのlocal-consistency verify、evidence-based adapter maturity、独立したoptional-capability evidence contract、将来real client向けのfail-closed共通graduation gateを追加しています。cross-runner chronologyとrunner/client architecture解釈もhardeningし、v0.8のlive-result schemaは変更していません。
 
@@ -57,10 +56,10 @@ VS CodeとGitHub Copilot CLIは調査段階です。ChatGPTは、公式にサポ
 
 Go 1.24以降が必要です。
 
-現在の安定版を固定してインストールする場合:
+v1.0.0公開後に固定してインストールする場合:
 
 ```console
-go install github.com/git-ksk/mcp-interop/cmd/mcp-interop@v0.10.0
+go install github.com/git-ksk/mcp-interop/cmd/mcp-interop@v1.0.0
 ```
 
 最新公開版を使う場合:
@@ -77,7 +76,7 @@ mcp-interop version
 mcp-interop --version
 ```
 
-[v0.10.0 GitHub Release](https://github.com/git-ksk/mcp-interop/releases/tag/v0.10.0)には、macOS / Linux / Windows向けのamd64 / arm64アーカイブと`checksums.txt`があります。
+v1.0.0の明示的tag/release後は、macOS / Linux / Windows向けamd64 / arm64アーカイブと`checksums.txt`をrelease workflowから公開します。それまでは現在公開中の[v0.10.0 GitHub Release](https://github.com/git-ksk/mcp-interop/releases/tag/v0.10.0)を利用してください。
 
 ## 何を検証するのか
 
