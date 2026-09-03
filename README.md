@@ -22,11 +22,11 @@ Release: [v0.10.0](https://github.com/git-ksk/mcp-interop/releases/tag/v0.10.0)
 
 The live adapters in v0.10.0 are:
 
-- **Codex CLI (beta)** — live inventory and explicit opt-in OAuth flow.
+- **Codex CLI (stable: macOS arm64 non-OAuth core path)** — live inventory is stable for the evidence-backed core path; explicit opt-in OAuth remains available but outside the stable scope.
 - **Cursor CLI (beta)** — live no-auth inventory plus explicit opt-in OAuth through the real Cursor MCP login path; authenticated `mcp list-tools` has been validated with the controlled fixture.
 - **Antigravity CLI (beta, macOS)** — live no-auth inventory plus explicit opt-in OAuth through the real `/mcp` manager in an isolated PTY. Authentication can be proven independently of client-side tool-cache observation, so generic `init/tools` may conservatively remain `unknown` while controlled E2E proves the authenticated MCP exchange.
 
-The v0.9.0 evidence review classifies **Codex, Cursor, and Antigravity as beta adapters**. The existing `tier=v1` client metadata is a delivery/roadmap tier, not a stable-maturity claim. See [Adapter maturity contract](docs/adapter-maturity.md) ([日本語](docs/adapter-maturity.ja.md)).
+The pre-v1 evidence review now classifies **Codex as stable for the macOS arm64 non-OAuth core path**, while Cursor and Antigravity remain beta. The existing `tier=v1` client metadata remains a delivery/roadmap tier, separate from evidence maturity. See [Adapter maturity contract](docs/adapter-maturity.md) ([日本語](docs/adapter-maturity.ja.md)).
 
 v0.10.0 freezes the project's **public-contract candidate** for future v1.x stability: documented CLI/JSON/exit-code/reason-code behavior, explicit schema evolution and migration rules, adapter/core/capability/protocol semantics, and minimum security/privacy/cleanup/release guarantees. It adds contract regression tests and a CI/release security-drift gate without weakening the existing live PASS or promoting any beta adapter to stable. See [Public contract candidate](docs/public-contract-v1-candidate.md) ([日本語](docs/public-contract-v1-candidate.ja.md)).
 
@@ -324,7 +324,7 @@ mcp-interop evidence merge authorization.json resource.json tool.json -o runtime
 
 `summary` prints only structural coverage (section names and supplied-field counts), never observed values or metadata URLs. `merge` fails on conflicting observations instead of using last-write-wins and emits canonical schema v3 JSON. Unknown fields remain rejected, so these commands do not create a second path for ingesting tokens, authorization codes, raw client assertions, cookies, or other credentials.
 
-## Codex adapter (beta)
+## Codex adapter (stable: macOS arm64 non-OAuth core path)
 
 The Codex adapter:
 

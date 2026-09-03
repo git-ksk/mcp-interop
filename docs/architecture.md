@@ -87,9 +87,9 @@ Process ownership follows the same rule: an adapter may reap only processes it c
 
 The current stable release is v0.10.0. The Cursor and Antigravity OAuth paths were introduced in v0.4.0.
 
-### Codex CLI (beta)
+### Codex CLI (stable: macOS arm64 non-OAuth core path)
 
-The Codex adapter is currently the most complete implementation. It uses an isolated `CODEX_HOME`, the real `codex app-server` MCP status surface, and an explicit opt-in OAuth flow. OAuth credentials are forced into file storage inside the temporary home rather than the normal keyring path.
+The Codex adapter is currently the most complete implementation. Its stable maturity claim is deliberately limited to the macOS arm64 non-OAuth core path with repeated exact-version real-client evidence; OAuth and other platforms remain outside that stable scope. It uses an isolated `CODEX_HOME`, the real `codex app-server` MCP status surface, and an explicit opt-in OAuth flow. OAuth credentials are forced into file storage inside the temporary home rather than the normal keyring path.
 
 ### Cursor CLI (beta)
 

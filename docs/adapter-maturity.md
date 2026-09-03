@@ -73,15 +73,15 @@ Stable does **not** create a semantic-version support range. A stable adapter ca
 
 ## Current shipped-adapter decisions
 
-The v0.9 review keeps all three shipped adapters at **beta**. This is a conservative adapter-level maturity classification, not a regression result and not an automatic consequence of a version change.
+The pre-v1 review promotes **Codex CLI to stable for the explicitly documented macOS arm64 core path**. Cursor and Antigravity remain beta. Adapter maturity is an evidence review, not a regression result and not an automatic consequence of a version change.
 
 | Adapter | Decision | Evidence supporting beta | Stable blockers |
 | --- | --- | --- | --- |
-| Codex CLI | `beta` | isolated app-server real-client boundary; retained controlled core evidence at exact Codex CLI `0.133.0` (PR #108); cleanup/secret/failure gates | `repeat_path_version_coverage`, `advertised_platform_coverage`: the repository retains one exact current core PASS point for the stable gate, and real-client coverage is still centered on macOS arm64 rather than every platform on which the shipped adapter can run |
+| Codex CLI | `stable` | isolated app-server real-client boundary; retained controlled non-OAuth core PASS evidence at exact `0.133.0` and `0.152.1` on macOS arm64; cleanup/secret/failure gates; regression maintenance path | none for the advertised stable scope. The stable claim is intentionally limited to the documented macOS arm64 non-OAuth core path and does not imply Linux/Windows/macOS amd64 or OAuth stability. |
 | Cursor CLI | `beta` | isolated supported MCP management/login path; OAuth evidence at exact `2026.08.04-aaa8809` (PR #39); controlled core evidence at exact `2026.08.25-3e8eec8` (PR #108) | `repeat_path_version_coverage`, `advertised_platform_coverage`, `measurement_surface_stability`: the two exact versions cover different path modes, real-client OS evidence is narrow, and MCP management output remains human-readable rather than a dedicated machine contract |
 | Antigravity CLI | `beta` | isolated PTY/no-account boundary; OAuth evidence at exact `agy 1.1.11` (PR #40); controlled core evidence at exact `agy 1.1.22` (PR #108) | `repeat_path_version_coverage`, `advertised_platform_coverage`, `measurement_surface_stability`: OAuth/core versions differ, retained macOS evidence is arm64-only, and no-auth tool discovery relies on a bounded observed client cache surface |
 
-The current exact coverage table is maintained in [Exact observed client coverage](observed-coverage.md). Historical PR evidence is retained only for the exact path/version claim stated by that PR; it does not turn nearby versions into tested points.
+The current exact coverage table is maintained in [Exact observed client coverage](observed-coverage.md). The Codex stable promotion evidence is retained in [Codex stable-adapter acceptance](codex-stable-acceptance.md). Historical PR evidence is retained only for the exact path/version claim stated by that PR; it does not turn nearby versions into tested points.
 
 ## Client version changes
 

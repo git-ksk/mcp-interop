@@ -24,9 +24,10 @@ func TestRunMaturityJSONSeparatesTierFromEvidenceMaturity(t *testing.T) {
 	if len(report.Decisions) != 3 {
 		t.Fatalf("decisions=%d", len(report.Decisions))
 	}
+	want := map[string]client.Maturity{"codex": client.MaturityStable, "cursor": client.MaturityBeta, "antigravity": client.MaturityBeta}
 	for _, decision := range report.Decisions {
-		if decision.Tier != client.TierV1 || decision.Maturity != client.MaturityBeta {
-			t.Fatalf("tier/maturity conflated: %#v", decision)
+		if decision.Tier != client.TierV1 || decision.Maturity != want[decision.ClientID] {
+			t.Fatalf("tier/maturity unexpected: %#v", decision)
 		}
 	}
 	for _, forbidden := range []string{"executable", "path", "version", "installed"} {

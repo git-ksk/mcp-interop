@@ -115,7 +115,7 @@ reportへBearer token、authorization code、client secret、cookie、credential
 
 英語正本で記載している現在のstable releaseはv0.10.0です。Cursor / Antigravity OAuth経路はv0.4.0で導入されました。
 
-### Codex CLI（beta）
+### Codex CLI（stable: macOS arm64 non-OAuth core path）
 
 最も完成度の高いアダプターです。
 

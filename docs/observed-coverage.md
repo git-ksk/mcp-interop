@@ -17,18 +17,19 @@ The E2E harness deletes its temporary result directory after the run, so these 2
 | Client | Exact version | Runner platform | Scope | Core result | Retained evidence |
 | --- | --- | --- | --- | --- | --- |
 | Codex CLI | `codex-cli 0.133.0` | macOS 26.5 (25F71), arm64 | controlled localhost, non-OAuth core path | `reach/auth/init/tools=PASS` | `docs/protocol-era-observations.md`, [PR #108](https://github.com/git-ksk/mcp-interop/pull/108) |
+| Codex CLI | `codex-cli 0.152.1` | macOS 26.5 (25F71), arm64 | controlled localhost, non-OAuth core path | `reach/auth/init/tools=PASS`; user config/Keychain/process/session cleanup PASS; `tools/call` avoided | [Issue #170](https://github.com/git-ksk/mcp-interop/issues/170) acceptance run on current main |
 | Cursor CLI | `2026.08.25-3e8eec8` | macOS 26.5 (25F71), arm64 | controlled localhost, non-OAuth core path | `reach/auth/init/tools=PASS` | `docs/protocol-era-observations.md`, [PR #108](https://github.com/git-ksk/mcp-interop/pull/108) |
 | Antigravity CLI | `1.1.22` | macOS 26.5 (25F71), arm64 | controlled localhost, non-OAuth core path | `reach/auth/init/tools=PASS` | `docs/protocol-era-observations.md`, [PR #108](https://github.com/git-ksk/mcp-interop/pull/108) |
 
 Those rows are exact points only. For example, the Cursor observation does not imply support for an earlier or later `2026.08.*` build.
 
-Adapter-level beta/stable decisions are a separate review layer; see [Adapter maturity contract](adapter-maturity.md). An exact version becoming untested does not by itself rewrite adapter maturity.
+Adapter-level beta/stable decisions are a separate review layer; see [Adapter maturity contract](adapter-maturity.md). Codex stable maturity is scoped to the retained macOS arm64 non-OAuth core path and does not create a version range. An exact version becoming untested does not by itself rewrite adapter maturity.
 
 ## OS/platform coverage state
 
 | Client | macOS arm64 | macOS amd64 | Linux | Windows |
 | --- | --- | --- | --- | --- |
-| Codex CLI | observed exact point above | untested | untested | untested |
+| Codex CLI | observed exact points `0.133.0`, `0.152.1`; stable adapter scope is limited here | untested | untested | untested |
 | Cursor CLI | observed exact point above | untested | untested | untested |
 | Antigravity CLI | observed exact point above | untested | unsupported by the shipped live adapter | unsupported by the shipped live adapter |
 
