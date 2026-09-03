@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -176,10 +177,12 @@ func (s *server) protectedResourceMetadata(w http.ResponseWriter) {
 }
 
 func (s *server) authorizationServerMetadata(w http.ResponseWriter) {
+	tokenEndpoint := s.baseURL + "/token"
+	s.recordObservation(map[string]string{"event": "as_metadata", "token_endpoint_sha256": fingerprint(tokenEndpoint)})
 	writeJSON(w, http.StatusOK, map[string]any{
 		"issuer":                                s.baseURL,
 		"authorization_endpoint":                s.baseURL + "/authorize",
-		"token_endpoint":                        s.baseURL + "/token",
+		"token_endpoint":                        tokenEndpoint,
 		"registration_endpoint":                 s.baseURL + "/register",
 		"code_challenge_methods_supported":      []string{"S256"},
 		"token_endpoint_auth_methods_supported": []string{"none"},
@@ -220,6 +223,12 @@ func (s *server) register(w http.ResponseWriter, r *http.Request) {
 	s.mu.Lock()
 	s.clients[clientID] = append([]string(nil), input.RedirectURIs...)
 	s.mu.Unlock()
+	for _, raw := range input.RedirectURIs {
+		if safeLoopbackRedirect(raw) {
+			u, _ := url.Parse(raw)
+			s.recordObservation(map[string]string{"event": "dcr_redirect", "redirect_uri_sha256": fingerprint(raw), "callback_host": u.Hostname(), "callback_port": u.Port(), "callback_path": u.EscapedPath()})
+		}
+	}
 	writeJSON(w, http.StatusCreated, map[string]any{
 		"client_id":                  clientID,
 		"redirect_uris":              input.RedirectURIs,
@@ -244,6 +253,8 @@ func (s *server) authorize(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "only a registered loopback redirect URI may be authorized by fixture", http.StatusBadRequest)
 		return
 	}
+	u, _ := url.Parse(redirectURI)
+	s.recordObservation(map[string]string{"event": "authorize_redirect", "redirect_uri_sha256": fingerprint(redirectURI), "callback_host": u.Hostname(), "callback_port": u.Port(), "callback_path": u.EscapedPath()})
 	code := "fixture-code-" + randomValue()
 	s.mu.Lock()
 	s.codes[code] = authorizationCode{clientID: clientID, redirectURI: redirectURI, codeChallenge: challenge}
@@ -353,8 +364,17 @@ func (s *server) mcp(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) record(path, method string) {
-	entry, _ := json.Marshal(map[string]string{"path": path, "method": method})
+	s.recordObservation(map[string]string{"path": path, "method": method})
+}
+
+func (s *server) recordObservation(fields map[string]string) {
+	entry, _ := json.Marshal(fields)
 	_, _ = s.log.Write(append(entry, '\n'))
+}
+
+func fingerprint(value string) string {
+	sum := sha256.Sum256([]byte(value))
+	return hex.EncodeToString(sum[:])
 }
 
 func safeLoopbackRedirect(raw string) bool {
