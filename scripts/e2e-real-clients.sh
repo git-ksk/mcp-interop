@@ -72,6 +72,7 @@ snapshot_user_state() {
   snapshot_file '~/.gemini/antigravity/mcp_oauth_tokens.json' "$HOME/.gemini/antigravity/mcp_oauth_tokens.json" "$output"
   snapshot_file '~/.gemini/antigravity-cli/mcp_oauth_tokens.json' "$HOME/.gemini/antigravity-cli/mcp_oauth_tokens.json" "$output"
   snapshot_file '~/.gemini/antigravity-cli/settings.json' "$HOME/.gemini/antigravity-cli/settings.json" "$output"
+  snapshot_file '~/.gemini/antigravity-cli/cache/onboarding.json' "$HOME/.gemini/antigravity-cli/cache/onboarding.json" "$output"
 
   if [[ -d "$HOME/.cursor/projects" ]]; then
     while IFS= read -r path; do

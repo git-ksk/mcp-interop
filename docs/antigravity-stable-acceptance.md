@@ -19,3 +19,20 @@ Stable gate assessment:
 - all other stable criteria remain **met**.
 
 This does **not** claim OAuth stability, non-macOS support, successful modern `server/discover` tool discovery, or a semantic-version range. Unobserved versions remain `untested` until measured.
+
+## Startup hardening follow-up (2026-09-08)
+
+On `fix/antigravity-stability`, the installed `1.1.25` passed the non-OAuth
+four-stage path on macOS 26.5 arm64 using `MCP_INTEROP_CLIENTS=antigravity bash
+scripts/e2e-real-clients.sh`. The fixture observed `server/discover` followed by
+legacy `initialize`, `notifications/initialized`, and `tools/list`. User state,
+login Keychain DB, process cleanup, session cleanup, and no `tools/call` gates
+passed. This is branch evidence, not evidence of a published release.
+
+Startup now copies only three boolean onboarding flags into the isolated HOME
+when the normal CLI state explicitly says onboarding is complete. Missing or
+incomplete state is not treated as completion; invalid, oversized, or symlinked
+state is rejected. No account/token state is copied. The PTY starts at 40 rows
+by 120 columns. Regression tests exercise these settings at the child-process
+boundary and cover invalid onboarding input. Fresh-user onboarding and OAuth
+remain outside this additional stable evidence.
