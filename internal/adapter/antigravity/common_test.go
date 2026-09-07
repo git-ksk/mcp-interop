@@ -130,3 +130,114 @@ func TestCountValidToolCacheFilesMissingRoot(t *testing.T) {
 		t.Fatalf("cache count = %d, want 0", count)
 	}
 }
+
+func TestCopyCompletedOnboardingStateCopiesOnlyValidatedFlags(t *testing.T) {
+	sourceHome := t.TempDir()
+	isolatedHome := t.TempDir()
+	sourceDir := filepath.Join(sourceHome, ".gemini", "antigravity-cli", "cache")
+	if err := os.MkdirAll(sourceDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	source := filepath.Join(sourceDir, "onboarding.json")
+	if err := os.WriteFile(source, []byte(`{"consumerOnboardingComplete":true,"enterpriseOnboardingComplete":false,"onboardingComplete":true,"unknownSecret":"must-not-copy"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := copyCompletedOnboardingState(sourceHome, isolatedHome); err != nil {
+		t.Fatal(err)
+	}
+	destination := filepath.Join(isolatedHome, ".gemini", "antigravity-cli", "cache", "onboarding.json")
+	content, err := os.ReadFile(destination)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(content)
+	if !strings.Contains(text, `"onboardingComplete": true`) || strings.Contains(text, "unknownSecret") {
+		t.Fatalf("unexpected sanitized onboarding state: %s", text)
+	}
+	if runtime.GOOS != "windows" {
+		info, err := os.Stat(destination)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := info.Mode().Perm(); got != 0o600 {
+			t.Fatalf("onboarding permissions = %o, want 600", got)
+		}
+	}
+}
+
+func TestCopyCompletedOnboardingStateDoesNotSynthesizeCompletion(t *testing.T) {
+	sourceHome := t.TempDir()
+	isolatedHome := t.TempDir()
+	sourceDir := filepath.Join(sourceHome, ".gemini", "antigravity-cli", "cache")
+	if err := os.MkdirAll(sourceDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(sourceDir, "onboarding.json"), []byte(`{"onboardingComplete":false}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := copyCompletedOnboardingState(sourceHome, isolatedHome); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(isolatedHome, ".gemini", "antigravity-cli", "cache", "onboarding.json")); !os.IsNotExist(err) {
+		t.Fatalf("incomplete onboarding state was synthesized: %v", err)
+	}
+}
+
+func TestCopyCompletedOnboardingStateRefusesSymlink(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink semantics differ on Windows")
+	}
+	sourceHome := t.TempDir()
+	isolatedHome := t.TempDir()
+	sourceDir := filepath.Join(sourceHome, ".gemini", "antigravity-cli", "cache")
+	if err := os.MkdirAll(sourceDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	target := filepath.Join(t.TempDir(), "state.json")
+	if err := os.WriteFile(target, []byte(`{"onboardingComplete":true}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(target, filepath.Join(sourceDir, "onboarding.json")); err != nil {
+		t.Fatal(err)
+	}
+	if err := copyCompletedOnboardingState(sourceHome, isolatedHome); err == nil {
+		t.Fatal("symlink onboarding state was accepted")
+	}
+}
+
+func TestCopyCompletedOnboardingStateInputBoundaries(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		content   string
+		missing   bool
+		wantError bool
+	}{
+		{name: "missing", missing: true},
+		{name: "empty", wantError: true},
+		{name: "malformed", content: `{`, wantError: true},
+		{name: "wrong flag type", content: `{"onboardingComplete":"true"}`, wantError: true},
+		{name: "oversize", content: strings.Repeat(" ", (16<<10)+1), wantError: true},
+		{name: "null", content: `null`},
+		{name: "no completion flag", content: `{"consumerOnboardingComplete":true}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			sourceHome, isolatedHome := t.TempDir(), t.TempDir()
+			relative := filepath.Join(".gemini", "antigravity-cli", "cache", "onboarding.json")
+			source := filepath.Join(sourceHome, relative)
+			if !tc.missing {
+				if err := os.MkdirAll(filepath.Dir(source), 0o700); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(source, []byte(tc.content), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err := copyCompletedOnboardingState(sourceHome, isolatedHome); (err != nil) != tc.wantError {
+				t.Fatalf("error = %v, want error %v", err, tc.wantError)
+			}
+			if _, err := os.Stat(filepath.Join(isolatedHome, relative)); !os.IsNotExist(err) {
+				t.Fatalf("unexpected destination state: %v", err)
+			}
+		})
+	}
+}

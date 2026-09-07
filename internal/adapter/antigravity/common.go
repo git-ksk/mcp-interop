@@ -150,6 +150,50 @@ func writeConfig(home, endpoint string) error {
 	return nil
 }
 
+type onboardingState struct {
+	ConsumerOnboardingComplete   bool `json:"consumerOnboardingComplete"`
+	EnterpriseOnboardingComplete bool `json:"enterpriseOnboardingComplete"`
+	OnboardingComplete           bool `json:"onboardingComplete"`
+}
+
+func copyCompletedOnboardingState(sourceHome, isolatedHome string) error {
+	source := filepath.Join(sourceHome, ".gemini", "antigravity-cli", "cache", "onboarding.json")
+	info, err := os.Lstat(source)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("inspect Antigravity onboarding state: %w", err)
+	}
+	if !info.Mode().IsRegular() || info.Size() <= 0 || info.Size() > 16<<10 {
+		return fmt.Errorf("refuse unsafe Antigravity onboarding state file")
+	}
+	raw, err := os.ReadFile(source)
+	if err != nil {
+		return fmt.Errorf("read Antigravity onboarding state: %w", err)
+	}
+	var state onboardingState
+	if err := json.Unmarshal(raw, &state); err != nil {
+		return fmt.Errorf("parse Antigravity onboarding state: %w", err)
+	}
+	if !state.OnboardingComplete {
+		return nil
+	}
+	cacheDir := filepath.Join(isolatedHome, ".gemini", "antigravity-cli", "cache")
+	if err := os.MkdirAll(cacheDir, 0o700); err != nil {
+		return fmt.Errorf("create isolated Antigravity cache directory: %w", err)
+	}
+	encoded, err := json.MarshalIndent(state, "", "  ")
+	if err != nil {
+		return fmt.Errorf("encode Antigravity onboarding state: %w", err)
+	}
+	encoded = append(encoded, '\n')
+	if err := os.WriteFile(filepath.Join(cacheDir, "onboarding.json"), encoded, 0o600); err != nil {
+		return fmt.Errorf("write isolated Antigravity onboarding state: %w", err)
+	}
+	return nil
+}
+
 func toolCacheRoot(home string) string {
 	return filepath.Join(home, ".gemini", "antigravity-cli", "mcp", testServerName)
 }

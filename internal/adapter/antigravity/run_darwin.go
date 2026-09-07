@@ -33,6 +33,7 @@ const (
 // input; the adapter never records authorization URLs, codes, or token bytes.
 func (a *Adapter) Run(ctx context.Context, target interop.Target, session *interop.Session) (interop.Result, error) {
 	result := newResult(a.version, target.Endpoint)
+	normalHome, _ := os.UserHomeDir()
 	if a.executable == "" {
 		skipAll(&result, "Antigravity CLI is not installed")
 		return result, nil
@@ -54,6 +55,11 @@ func (a *Adapter) Run(ctx context.Context, target interop.Target, session *inter
 	}
 	if err := writeConfig(home, target.Endpoint); err != nil {
 		return result, err
+	}
+	if normalHome != "" {
+		if err := copyCompletedOnboardingState(normalHome, home); err != nil {
+			return result, err
+		}
 	}
 
 	if a.oauthEnabled {
@@ -203,7 +209,7 @@ func (a *Adapter) startPTY(workspace, home string, output io.Writer) (*exec.Cmd,
 	// wrapper before descendants are snapshotted, allowing agy to be reparented to
 	// PID 1 and continue writing into the temporary HOME.
 	childPIDPath := filepath.Join(workspace, ".mcp-interop-pty-child.pid")
-	cmd := exec.Command("/usr/bin/script", "-q", "/dev/null", "/bin/sh", "-c", `printf '%s\n' "$$" > "$MCP_INTEROP_PTY_CHILD_PID_FILE"; exec "$MCP_INTEROP_AGY_EXECUTABLE"`)
+	cmd := exec.Command("/usr/bin/script", "-q", "/dev/null", "/bin/sh", "-c", `printf '%s\n' "$$" > "$MCP_INTEROP_PTY_CHILD_PID_FILE"; stty rows 40 cols 120 2>/dev/null || true; exec "$MCP_INTEROP_AGY_EXECUTABLE"`)
 	cmd.Dir = workspace
 	env := replaceEnv(os.Environ(), "HOME", home)
 	env = replaceEnv(env, "MCP_INTEROP_AGY_EXECUTABLE", a.executable)

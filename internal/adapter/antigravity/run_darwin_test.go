@@ -17,9 +17,25 @@ import (
 )
 
 func TestRunPassesWhenPTYChildMaterializesToolCache(t *testing.T) {
+	// Exercise the actual child boundary: startup must receive a usable PTY
+	// and only the completed onboarding flags from the normal home.
+	sourceHome := t.TempDir()
+	t.Setenv("HOME", sourceHome)
+	onboardingDir := filepath.Join(sourceHome, ".gemini", "antigravity-cli", "cache")
+	if err := os.MkdirAll(onboardingDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(onboardingDir, "onboarding.json"), []byte(`{"onboardingComplete":true,"unknownSecret":"must-not-copy"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
 	script := filepath.Join(t.TempDir(), "fake-agy")
 	content := `#!/bin/sh
 set -eu
+[ "$(stty size)" = "40 120" ]
+[ "$GEMINI_API_KEY" = "mcp-interop-no-model" ]
+state="$HOME/.gemini/antigravity-cli/cache/onboarding.json"
+grep -q '"onboardingComplete": true' "$state"
+if grep -q 'unknownSecret' "$state"; then exit 1; fi
 root="$HOME/.gemini/antigravity-cli/mcp/mcp-interop-target"
 mkdir -p "$root"
 printf '%s\n' '{"name":"ping"}' > "$root/ping.json"

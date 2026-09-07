@@ -19,3 +19,20 @@ Stable gate評価:
 - その他stable criteriaもすべて **met**
 
 OAuth、non-macOS、modern `server/discover`でのtool discovery成功、semantic-version rangeのstable claimではありません。未観測versionは実測されるまで`untested`です。
+
+## 起動安定化の追加検証（2026-09-08）
+
+`fix/antigravity-stability`で、インストール済み`1.1.25`の非OAuth経路が
+macOS 26.5 arm64上で4段階PASSしました。実行コマンドは
+`MCP_INTEROP_CLIENTS=antigravity bash scripts/e2e-real-clients.sh`です。
+fixtureでは`server/discover`の後にlegacyの`initialize`、
+`notifications/initialized`、`tools/list`を観測しました。
+通常ユーザーの状態・login Keychain DB不変、process/session cleanup、
+`tools/call`なしのgateもPASSしています。公開版ではなく、このブランチの検証結果です。
+
+通常環境で初期設定が完了している場合だけ、3つのbooleanフラグを一時HOMEへ
+引き継ぎます。ファイルなし・未完了を完了扱いにはせず、不正な形式・サイズ超過・
+シンボリックリンクは拒否します。アカウント・token stateはコピーしません。
+PTYは40行×120列で起動します。子プロセスに設定が届くことと、初期設定の
+異常入力を回帰テストで確認します。初回利用者のオンボーディングとOAuthは、
+今回追加したstable evidenceの対象外です。
