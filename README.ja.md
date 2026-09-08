@@ -4,535 +4,144 @@
 [![Release](https://img.shields.io/github/v/release/git-ksk/mcp-interop)](https://github.com/git-ksk/mcp-interop/releases/latest)
 [![License](https://img.shields.io/github/license/git-ksk/mcp-interop)](LICENSE)
 
-[English](README.md) | **日本語**
+[English](README.md) | [日本語](README.ja.md)
 
-> この文書は英語版READMEの日本語訳です。内容に差がある場合は英語版を正とします。
+**あなたのRemote MCPサーバーは、ユーザーの使うクライアントで動く？**
 
-**Remote MCPサーバーが、実際のMCPクライアントから本当に使えるかを検証する相互運用性テストランナーです。**
+同じエンドポイントを、実際のCodex・Cursor・Antigravity CLIでテスト。どの段階で接続が止まるかを確認し、結果を保存して、サーバーのデプロイやクライアント更新後の不具合を見つけられます。ホスト型サービスへの登録は不要で、ローカルで動きます。
 
-`mcp-interop` は、公開済みのRemote MCPエンドポイントを、実際にインストールされたMCPクライアントでブラックボックス検証します。
-
-確認したいのは、単に「MCP仕様に適合しているか」ではありません。
-
-> このRemote MCPは、ユーザーが実際に使っているクライアントから到達でき、必要な認証を通過し、MCPセッションを成立させ、ツール一覧まで取得できるか？
-
-MCP仕様への適合性は公式のMCP Conformance Test Frameworkが担当します。`mcp-interop` は、その上で**特定のデプロイ × 特定のクライアント製品 × 特定のバージョン**という実運用の組み合わせを検証します。
-
-安全に自動操作できるクライアント向けインターフェースがまだ無い場合は、製品ごとの事前診断（preflight）も提供します。ただし、事前診断の成功を実クライアントでの相互運用PASSとして扱うことはありません。
-
-## Quick Start
-
-通常利用はこの3ステップで始められます。前提は **Go 1.24以降** と、対応MCPクライアントが1つ以上インストールされていることです。
-
-1. 現在公開されている最新版をインストール:
-
-```console
-go install github.com/git-ksk/mcp-interop/cmd/mcp-interop@latest
-```
-
-2. このMacで利用できる対応クライアントを確認:
-
-```console
-mcp-interop clients
-```
-
-3. インストール済みクライアントでRemote MCPをテスト:
-
-```console
-mcp-interop test https://example.com/mcp --client codex
-```
-
-完全に成功した場合は、出力の`STATUS`列で **`reach` / `auth` / `init` / `tools` の4段階すべてが`PASS`** になります。`FAIL` / `SKIP` / `UNKNOWN`のどれかがあれば、証拠不足を成功扱いしないため意図的にnon-successです。
-
-MCPサーバーがOAuthを必要とする場合だけ、明示的に`--oauth`を付けます。
-
-```console
-mcp-interop test https://example.com/mcp --client cursor --oauth
-```
-
-通常の確認はここまでで十分です。繰り返しregression evidenceが必要な場合だけ`suite` / `baseline` / `compatibility`を使い、実クライアントPASSではなくmetadata/OAuthの事前診断が必要な場合は`diagnose`を使います。対応scopeとevidence境界の厳密な定義は後段にまとめています。
-
-## 現在の状態
-
-このブランチでは **v1.0.0** のリリース文面を準備済みです。明示的なv1 tag/release操作を行うまでは、GitHub上の現在の公開リリースは **v0.10.0** のままです。
-
-現在の公開リリース: [v0.10.0](https://github.com/git-ksk/mcp-interop/releases/tag/v0.10.0) · 準備済みリリース: **v1.0.0**（未tag）
-
-v1.0.0向けに準備済みの実クライアントアダプターは次のとおりです。
-
-- **Codex CLI（stable: macOS arm64 non-OAuth core path）** — evidence-backed core pathの実クライアントMCP確認はstable。明示的opt-in OAuthは利用可能だがstable scope外
-- **Cursor CLI（macOS arm64 core pathでstable）** — MCP管理コマンドを使った認証不要の実ツール確認と、実CursorのMCPログイン経路を使うOAuth認証
-- **Antigravity CLI（macOS arm64 core pathでstable）** — 隔離したPTYとツールキャッシュを使う認証不要の確認と、実`/mcp`マネージャーを使うOAuth認証
-
-v1 evidence reviewでは、**Codex / Cursor / Antigravityを、それぞれ明示されたmacOS arm64 non-OAuth core pathに限ってstable**とします。既存client metadataの`tier=v1`はdelivery/roadmap tierで、evidence maturityとは別axisです。詳細は[Adapter maturity contract](docs/adapter-maturity.ja.md)を参照してください。
-
-v1.0.0では、未観測のclient挙動ではなく、review済みcontract setをprojectのstable compatibility boundaryへ昇格します。[Public contract v1](docs/public-contract-v1.ja.md)、[Schema evolution v1](docs/schema-evolution-v1.ja.md)、[Interoperability semantics v1](docs/semantic-contract-v1.ja.md)、[Security / privacy / cleanup / release contract v1](docs/security-contract-v1.ja.md)がstable contractです。[代表real-client regression acceptance](docs/v1-real-client-regression-acceptance.ja.md)と[final v1 exit audit](docs/v1-final-exit-audit.ja.md)にrelease evidenceを保持します。v0.10 candidate文書はhistorical recordとして残します。
-
-
-v0.9.0では、新clientを弱い基準で増やさず、evidence品質を強化しました。exact observed coverage matrix、baselineのlocal-consistency verify、evidence-based adapter maturity、独立したoptional-capability evidence contract、将来real client向けのfail-closed共通graduation gateを追加しています。cross-runner chronologyとrunner/client architecture解釈もhardeningし、v0.8のlive-result schemaは変更していません。
-
-v0.7.0では、単発のlive testだけでなく、同じRemote MCPを複数クライアントで繰り返し検証し、前回結果との退行まで確認できるようになりました。v0.6.0のprotocol-aware coreとprotected-path artifactを土台に、秘密情報をmanifestへ書かないsuite宣言、複数clientの一括実行、baselineとの比較、manual / main-onlyのself-hosted CI境界を追加しています。retry後にPASSしても最初の失敗は消えません。live PASSの意味自体は変えていません。
-
-v0.8.0では、v0.7の繰り返しregression workflowにimmutable baselineのaccept/supersedeとexact observed-point compatibility分類を追加しました。auto-updateされた未観測versionは観測されるまで`untested`のまま、stale evidenceは明示され、version変更だけでregressionにはなりません。公開版の保証は次のとおりです。
-
-- 実クライアントの4段階すべてを確認できた場合だけlive PASSにする
-- 診断用メタデータとRuntime Evidenceを、実クライアントのPASS証拠から分離する
-- 秘密情報を含む値は、出力前に拒否またはマスクする
-- 終了処理では、今回のテストが所有している一時状態・プロセスだけを対象にする
-- クライアントの正確なバージョンを含む結果をローカルファイルへ保存し、バージョン間の退行を比較できるようにする
-- CI / releaseではformat、vet、unit、race、脆弱性検査、fixture、release archiveを可能な範囲で検証する
-
-VS CodeとGitHub Copilot CLIは調査段階です。ChatGPTは、公式にサポートされた自動操作可能なMCPアプリ管理インターフェースが利用できるまで実クライアントアダプターを意図的にBLOCKEDとしています。通常のClaude web/Desktop Remote MCP connectorも#68でresearch-onlyとし、Claude Codeとは別candidateとして扱います。
-
-## インストール
-
-Go 1.24以降が必要です。
-
-v1.0.0公開後に固定してインストールする場合:
-
-```console
-go install github.com/git-ksk/mcp-interop/cmd/mcp-interop@v1.0.0
-```
-
-最新公開版を使う場合:
-
-```console
-go install github.com/git-ksk/mcp-interop/cmd/mcp-interop@latest
-```
-
-バージョン確認:
-
-```console
-mcp-interop version
-# または
-mcp-interop --version
-```
-
-v1.0.0の明示的tag/release後は、macOS / Linux / Windows向けamd64 / arm64アーカイブと`checksums.txt`をrelease workflowから公開します。それまでは現在公開中の[v0.10.0 GitHub Release](https://github.com/git-ksk/mcp-interop/releases/tag/v0.10.0)を利用してください。
-
-## 何を検証するのか
-
-1つのクライアントに対するlive testは、次の4段階で構成されます。
-
-1. `reach` — 実クライアントが対象Remote MCPへ到達し、実通信が発生したことを確認できた
-2. `auth` — 必要な認証が完了した、またはツール発見によって認証不要と確認できた
-3. `init` — 実クライアントが、その後のMCP通信を続けられる準備状態まで到達した。旧protocolの`initialize` handshakeそのものを観測した、という意味に限定しない
-4. `tools` — クライアントがサーバーのツールを発見した
-
-**4段階すべてが`pass`の場合だけexit code `0`**です。
-
-`fail`だけでなく、`skip`や`unknown`もnon-zeroになります。これは「証拠が足りないのにCIだけ成功する」状態を防ぐためです。
-
-`diagnose`は別の診断機能です。公開メタデータから`PREFLIGHT PASS` / `PREFLIGHT FAIL`を返しますが、実クライアントの`reach/auth/init/tools`を代替しません。
-
-また、`mcp-interop`のPASSは次を保証しません。
-
-- MCPサーバー自体が安全であること
-- 各ツール実装が正しいこと
-- 破壊的操作が安全であること
-- AIモデルが適切なツールを選ぶこと
-- テストしていない別クライアント・別バージョンでも動くこと
-
-## コマンドの選び方
-
-通常利用では`clients`と`test`から始めてください。それ以外はregression、evidence、maturity、preflight向けの機能です。
-
-迷った場合は、次の使い分けで考えます。
-
-| やりたいこと | コマンド |
-| --- | --- |
-| 対応クライアントがインストールされているか確認 | `mcp-interop clients` |
-| 今すぐ1つまたは複数の実クライアントをテスト | `mcp-interop test` |
-| 1回のlive testを保存して後で比較 | `mcp-interop test --output` |
-| suiteファイルを実行せず検証 | `mcp-interop suite validate` |
-| 同じ宣言を複数クライアントで繰り返し実行 | `mcp-interop suite run` |
-| raw result setと1回以上のattemptを比較 | `mcp-interop suite compare` |
-| immutable baselineをaccept | `mcp-interop baseline create` |
-| accept済みbaselineとretained attemptを比較 | `mcp-interop baseline compare` |
-| インストール済みexact client versionを実測evidenceで分類 | `mcp-interop compatibility query` |
-| shipped adapterのevidence-based maturityを確認 | `mcp-interop maturity` |
-| research clientのgraduation blockerを確認 | `mcp-interop graduation` |
-| optional capabilityの独立evidenceをvalidate | `mcp-interop capability validate` |
-| 実クライアントを動かさない事前診断 | `mcp-interop diagnose` |
-
-検出できるクライアントを確認:
-
-```console
-mcp-interop clients
-mcp-interop clients --json
-```
-
-`clients`に出る`tier`はroadmap/delivery placementであり、evidence maturityではありません。v0.9.0では`mcp-interop maturity`で`research_only` / `beta` / `stable`のreview済みdecisionを確認します。このcommandはclientの検出・実行を行いません。
-
-Capability profile v1もv0.9.0に含まれます。`mcp-interop capability validate`は独立evidence documentをvalidateするだけで、core `reach/auth/init/tools` PASSを変更しません。詳細は[Capability profile v1](docs/capability-profile-v1.ja.md)を参照してください。
-
-v0.9.0では`mcp-interop graduation`も追加します。clientを実行しない共通gateで、Copilot CLI / VS Code / ChatGPT / Claude web/Desktopはいずれも`research_only`のまま、現在eligibleな新clientは0件です。live test / suite / compatibilityのclient選択はvalidated shipped-adapter maturity catalogへ接続し、research candidateが別allowlistから入る経路を作りません。詳細は[Real-client adapter graduation gate](docs/adapter-graduation-gate.ja.md)を参照してください。
-
-1クライアントをテスト:
-
-```console
-mcp-interop test https://example.com/mcp --client codex
-mcp-interop test https://example.com/mcp --client cursor
-mcp-interop test https://example.com/mcp --client antigravity
-```
-
-複数クライアントを順番にテスト:
+[まず試す](#まず試す) · [対応クライアント](#対応クライアント) · [利用ガイド](docs/usage.ja.md) · [開発に参加する](CONTRIBUTING.ja.md)
 
 ```console
 mcp-interop test https://example.com/mcp --client codex,cursor,antigravity
 ```
 
-複数クライアント時のテキスト出力は、たとえば次のようになります。
+出力形式のイメージです。バージョン欄は仮置きで、対応範囲を示すものではありません。
 
 ```text
 SUMMARY
 CLIENT           REACH  AUTH  INIT  TOOLS  VERSION
-Codex CLI        PASS   PASS  PASS  PASS   codex-cli 0.133.0
-Cursor CLI       PASS   PASS  PASS  PASS   2026.08.04-aaa8809
-Antigravity CLI  PASS   PASS  PASS  PASS   1.1.11
+Codex CLI        PASS   PASS  PASS  PASS   <exact version>
+Cursor CLI       PASS   PASS  PASS  PASS   <exact version>
+Antigravity CLI  PASS   PASS  PASS  PASS   <exact version>
 ```
 
-`--json`を指定した場合は配列を返します。既存JSON契約へartifact用のフィールドを勝手に追加しません。
+## こんなときに
 
-## 実行結果を保存・比較する
+- **Remote MCPサーバーを公開する前に：** 実クライアントが接続し、必要な認証を済ませ、ツールを発見できるか確認する。
+- **クライアントが更新されたら：** 保存した結果と比較して、挙動の変化を見つける。バージョン番号が変わっただけでは不具合扱いにしません。
+- **「つながらない」と報告されたら：** 到達・認証・プロトコル準備・ツール発見のどこで止まるかを絞り込む。
+- **リリース前の確認を定型化したいときに：** 同じテストを複数クライアントで繰り返し、失敗した試行も含めて記録する。
 
-同じlive runを、既存の結果shapeを変えずに、バージョン付き・秘密情報を含まないローカルartifactへ保存できます。
+プロトコルへの適合と、実クライアントでの動作は、それぞれ確認する対象が異なります。既存の適合性テストに加えて、ユーザー側の接続結果を確認できます。[適合性テストとの使い分け →](docs/conformance-vs-interop.ja.md)
+
+## まず試す
+
+最初は、3アダプターのstable範囲として実測済みの **Apple Silicon搭載Mac** で試してください。**Go 1.24以降**と、対応クライアントの実行ファイルが少なくとも1つ必要です（`codex`、`cursor-agent`、`agy`のいずれかを`PATH`へ追加）。
+
+### 1. インストール
 
 ```console
-mcp-interop test https://example.com/mcp --client codex --output result.json
+go install github.com/git-ksk/mcp-interop/cmd/mcp-interop@latest
 ```
 
-このdefaultは従来どおりartifact schema v1です。実際に検出したクライアントバージョン、`mcp-interop` runner/processのOS / architecture、runner/runtime context、認証モード、証拠の出所、4段階の結果とreason codeを保存します。`platform.arch`はreal client binary architectureの証明ではありません。新しいportable evidenceを出力する前に、取得可能なMach-O / ELF / PE executable metadataだけを非侵襲に確認し、runner/client architectureの既知mismatchはfail-closedにします。script/wrapper launcherはhost architectureから推測せず、明示的にunknownのまま扱います。raw endpoint URLは保存せず、query値を除外した識別情報を使います。
+バイナリで使う場合は、[GitHub Releases](https://github.com/git-ksk/mcp-interop/releases/latest)からOS・CPUに合うアーカイブをダウンロードし、`checksums.txt`と照合して、実行ファイルを`PATH`へ配置してください。Goが必要なのはソースからインストールする場合です。
 
-endpoint path自体にcredentialが含まれる場合はv1をexportせず、schema v2 protected-path identityを使います。
+Goでインストールしたコマンドが見つからない場合は、`$(go env GOPATH)/bin`（`GOBIN`を設定している場合はその場所）を`PATH`へ追加してください。
+
+**公開版：[v0.10.0](https://github.com/git-ksk/mcp-interop/releases/tag/v0.10.0)。** `main`にはv1.0.0の準備とその後の修正が含まれていますが、v1.0.0は未公開です。`@latest`で入るのは公開済みモジュールであり、現在のチェックアウトではありません。変更履歴は[CHANGELOG](CHANGELOG.md)へ。
+
+### 2. クライアントを確認
 
 ```console
-mcp-interop test 'https://example.com/mcp/<protected-path>' \
-  --client codex \
-  --output result.json \
-  --deployment-id production-a
+mcp-interop version
+mcp-interop clients
 ```
 
-deployment IDはそのまま保存されるため、operatorが決めた安定した非secret labelでなければなりません。protected pathから派生させてはいけません。このmodeではcanonical originとdeployment IDだけをartifactへ保存し、path/query/userinfo/fragmentは保存もhashもしません。通常のtext/JSON出力でもprotected pathを再表示しません。v1↔v2比較はidentity mappingを推測せず明示的にrejectします。
+### 3. エンドポイントをテスト
 
-結果を比較:
+URLを自分のRemote MCPエンドポイントへ置き換え、インストール済みのクライアントを指定します。
 
 ```console
-mcp-interop compare old.json new.json
-mcp-interop compare old.json new.json --json
-mcp-interop compare old.json new.json --fail-on-regression
+mcp-interop test https://example.com/mcp --client codex
 ```
 
-比較では、たとえば次を区別します。
+**4段階すべてがPASSなら成功**し、終了コードは`0`です。
 
-- `PASS_TO_FAIL`
-- `PASS_TO_UNKNOWN`
-- `PASS_TO_SKIP`
-- reason codeの変化
-- baselineにあった証拠の消失
+| 段階 | 実クライアントから確認すること |
+| --- | --- |
+| `reach` | エンドポイントと実際に通信できた |
+| `auth` | 必要な認証が完了した、または認証なしでツール発見できた |
+| `init` | MCPのやり取りを続けられるプロトコル状態になった |
+| `tools` | サーバーのツールを発見できた |
 
-クライアントのバージョンが変わっただけでは退行扱いにしません。
+`FAIL`・`SKIP`・`UNKNOWN`があれば終了コードは非ゼロです。`UNKNOWN`は、結果を確定する証拠が足りない状態を示し、原因を調べる手がかりになります。[トラブルシューティング →](docs/troubleshooting.ja.md)
 
-詳しい仕様は[Live interoperability result artifact schema v1](docs/live-result-schema-v1.ja.md)と[artifact schema v2 protected-path identity](docs/live-result-schema-v2.ja.md)を参照してください。
-
-## 複数クライアントを繰り返し検証する（suite）
-
-複数クライアントを同じ条件で繰り返しテストしたい場合は、対象とクライアントを`suite.json`へ宣言します。まず`validate`で内容だけを確認でき、この段階ではクライアントを起動せず、endpointの値も読み込みません。
+OAuthが必要なサーバーでは、対話的な認証を明示的に開始します。
 
 ```console
-mcp-interop suite validate suite.json
-mcp-interop suite validate suite.json --json
-```
-
-`trusted_real_client`形式なら、宣言した対象とクライアントの組み合わせをまとめて実行し、結果をschema v2のartifact setとして保存できます。
-
-```console
-export MCP_INTEROP_SUITE_ENDPOINT_PRODUCTION_A='https://example.com/mcp/<protected-path>'
-mcp-interop suite run suite.json --output-dir suite-results
-mcp-interop suite run suite.json --output-dir suite-results-json --json
-```
-
-suiteは最初のclientを起動する前に全endpointを解決・検証し、各runを`mcp-interop test`と同じlive-test経路で実行します。出力は`index.json`とrunごとのprotected-path schema v2 artifactです。indexへendpoint URLやendpoint環境変数名は保存しません。non-PASSや未インストールclientもsetから落とさず、commandはexit `1`になります。manifest不正、endpoint未解決、既存output directoryはclient起動前にexit `2`です。
-
-Manifest v1にはRemote MCP endpoint URL自体を保存しません。hosted fixture宣言は任意network targetやOAuthを指定できず、v0.9.0でもvalidation-onlyです。repositoryのPR CIは任意suite manifestを実行せず、controlled localhost fixture gateを別経路で使います。trusted real-client suiteはtarget固有の`MCP_INTEROP_SUITE_ENDPOINT_*`変数参照と非secret `deployment_id`を使います。詳細は[Suite manifest v1](docs/suite-manifest-v1.ja.md)と[Suite result set v1](docs/suite-result-set-v1.ja.md)を参照してください。
-
-比較基準として保存した結果（baseline）と、その後の1回以上の実行結果（attempt）を比較できます。
-
-```console
-mcp-interop suite compare baseline-results attempt-1 attempt-2
-mcp-interop suite compare baseline-results attempt-1 attempt-2 --json
-mcp-interop suite compare baseline-results attempt-1 attempt-2 --fail-on-regression
-```
-
-reportには全attemptを残します。最初のattemptがFAIL/UNKNOWNでretry後にPASSしてもclean PASSへ上書きせず、`regression_and_unstable`になります。gate指定時はregressionまたはunstable evidenceでexit `1`、cleanで`0`、invalid/unreadable inputで`2`です。詳細は[Suite regression report v1](docs/suite-regression-report-v1.ja.md)を参照してください。
-
-全declared runにcompleteなreal-client evidenceとexact client versionがあるresult setは、immutable baselineとしてacceptできます。
-
-```console
-mcp-interop baseline create suite-results --output-dir baselines/current
-mcp-interop baseline create suite-results-new --output-dir baselines/next --supersedes baselines/current
-mcp-interop baseline compare baselines/current attempt-1 attempt-2 --fail-on-regression
-```
-
-compatibilityはexact client-version/platformの実測pointだけで表します。未観測versionは`untested`のままで、version変更だけをregressionにはしません。`tested` / `untested` / `stale` / `known_broken` / `regressed` / `unknown`の意味は[Compatibility envelope v1](docs/compatibility-envelope-v1.ja.md)を参照してください。
-
-保持したresult set / baseline全体からexact version/OS matrixを列挙する場合は`mcp-interop compatibility matrix`を使います。retryとevidence gapも保持されます。現在repositoryに保持している実測範囲は[Exact observed client coverage](docs/observed-coverage.ja.md)を参照してください。
-既存`clients --json` schemaを変更せず、現在インストール済みのexact client versionを分類できます。
-
-```console
-mcp-interop compatibility query --client codex --target production-a --deployment-id production-a --baseline baselines/current --observation attempt-1 --json
-```
-
-version-change staleでは、繰り返した`--observation`をwall-clockで並べ替えず、oldest -> newestの明示collection orderとして扱います。age-based staleには`--max-age-seconds N --trust-executed-at-clock`が必須で、未来timestampは保守的にstale扱いします。
-
-baseline作成は既存directoryを上書きしません。result set自体をbundleへコピーしdeterministic digestで固定し、baselineはpathで明示選択します。そのためretryやclient auto-updateでaccept済み基準が勝手に置換されません。これはworkflow-localなimmutability / tamper consistencyであり、**cryptographic authenticityではありません**。`mcp-interop baseline verify`でbundleを再検証し、明示predecessor linkも確認できますがauthenticated provenanceは主張しません。supersede時も旧baselineを変更せずfingerprintを記録します。baseline比較ではmanifest、execution context、deployment fingerprint、platform mismatchをfail-closedにしつつ、出力はsuite regression report v1を維持します。詳細は[Suite baseline v1](docs/suite-baseline-v1.ja.md)を参照してください。
-
-self-hosted real-client GitHub Actionsは別のprivileged pathです。manual macOS workflowはmain-only、main-only Environment policy、exact run provenanceを使い、remote suite endpointやOAuth credentialを受け取りません。詳細は[Self-hosted real-client CI security boundary](docs/self-hosted-ci-security.ja.md)を参照してください。
-
-## OAuth認証
-
-OAuthは**必ず明示的に指定した場合だけ**開始します。
-
-```console
-mcp-interop test https://example.com/mcp --client codex --oauth
 mcp-interop test https://example.com/mcp --client cursor --oauth
-mcp-interop test https://example.com/mcp --client antigravity --oauth
 ```
 
-### Codex
+OAuthは指定時だけ開始し、非OAuth経路のstable判定には含まれません。[OAuthの詳細 →](docs/usage.ja.md#oauth認証)
 
-Codex自身のOAuth経路を使います。authorization URLはstderrへ表示されます。URLには短時間有効なOAuth `state`が含まれるため、共有しないでください。
+## 対応クライアント
 
-### Cursor
+現在の`main`では、3アダプターを共通の基準で判定しています。
 
-一時的な`HOME`とworkspaceの中で、実Cursor MCPログイン経路を使います。認証後の`mcp list-tools`成功を、実クライアントがツールを発見した証拠として扱います。
+| クライアント | 実クライアントの観測方法 | stableの範囲 |
+| --- | --- | --- |
+| Codex CLI | `codex app-server`のMCP状態・ツール一覧 | macOS arm64、非OAuthの基本経路 |
+| Cursor CLI | `mcp list-tools`などのMCP管理コマンド | macOS arm64、非OAuthの基本経路 |
+| Antigravity CLI | 隔離したPTYとクライアント生成のツールキャッシュ | macOS arm64、非OAuthの基本経路 |
 
-callback addressはクライアントバージョン依存として扱い、固定portを仕様として決め打ちしません。
+stableは、確認済みのアダプターの範囲を示します。すべてのバージョン・接続先を保証するものではありません。[実測バージョン一覧](docs/observed-coverage.ja.md)と[判定基準](docs/adapter-maturity.ja.md)を参照してください。あるOS用のバイナリが存在することと、そのOSで実クライアントを検証済みであることも別です。
 
-### Antigravity
+VS Code・GitHub Copilot CLI・ChatGPT・Claude web/Desktopは調査段階です。ChatGPT向けにはメタデータを使う`diagnose --profile chatgpt`がありますが、その診断成功は実ChatGPTでの接続成功を意味しません。[対応に向けた調査状況 →](docs/adapter-graduation-gate.ja.md)
 
-隔離したPTY内で実`/mcp`マネージャーを操作します。OAuth tokenは一時`HOME`内に閉じ込めます。
+## 一度の確認から、継続的な比較へ
 
-`mcp-interop`はtokenファイルの内容を読みません。ファイルが存在するかなどのメタデータだけを確認します。
-
-詳細は[Antigravity OAuth live-test boundary](docs/antigravity-oauth.ja.md)を参照してください。
-
-## ChatGPT向けの接続診断
-
-Remote MCPが公開しているOAuthメタデータに、ChatGPTとの既知の不整合がないか確認できます。
+変更前の結果を保存し、変更後にもう一度実行して比較します。
 
 ```console
-mcp-interop diagnose https://example.com/mcp --profile chatgpt
+mcp-interop test https://example.com/mcp --client codex --output before.json
+# サーバーを変更するか、クライアントを更新してから再実行。
+mcp-interop test https://example.com/mcp --client codex --output after.json
+mcp-interop compare before.json after.json --fail-on-regression
 ```
 
-主に次を確認します。
+PASSから`FAIL`・`UNKNOWN`・`SKIP`への変化など、成功の証拠が失われたことを検出できます。URLのパスに認証情報が含まれる場合は、[`--deployment-id`による保護された結果保存](docs/usage.ja.md#saved-results)を使ってください。
 
-- HTTPS endpoint
-- Protected Resource Metadata
-- Authorization Server Metadata
-- CIMD / DCR
-- token endpoint authentication method
-- PKCE `S256`
-- `offline_access`
-- protected resourceの`resource`整合性
+複数の接続先やクライアントを継続的に確認するなら、[suiteと固定した比較基準](docs/usage.ja.md#suites)を利用できます。再試行で成功しても、その前の失敗は記録に残ります。
 
-ChatGPTがCIMDを利用できるため、`registration_endpoint`が無いだけではFAILにしません。
+## 結果を信頼するために
 
-実ChatGPTの認証要求から、秘密情報ではない`client_id`と`redirect_uri`を取得できる場合は、さらに厳密に照合できます。
+- **実クライアントから確認する。** 基本テストではモデルにプロンプトを送らず、サーバーのツールも呼び出さずに、インストール済みクライアントを観測します。
+- **テスト環境を隔離する。** 設定・認証状態は一時領域で扱い、テストが所有するプロセスとファイルを時間制限付きで片付けます。
+- **不明な結果をそのまま伝える。** メタデータ、サーバー側の観測、部分的な証拠から接続成功を推測しません。
+- **比較できる結果を残す。** バージョン付きの形式で保存し、秘密情報を含む値は[セキュリティ仕様](docs/security-contract-v1.ja.md)に従って拒否・マスクします。
 
-```console
-mcp-interop diagnose https://example.com/mcp \
-  --profile chatgpt \
-  --client-id 'https://chatgpt.com/oauth/.../client.json' \
-  --redirect-uri 'https://chatgpt.com/connector/oauth/...'
-```
+確認するのは接続とツール発見です。ツールの処理内容、モデルのツール選択、サーバー全体の安全性は、それぞれ別のテストで確認してください。
 
-この診断はChatGPT UIを操作せず、OAuthを完了させず、実ChatGPTクライアントのPASSを主張しません。
+## 次に読む
 
-詳細は[ChatGPT接続診断](docs/chatgpt-diagnostics.ja.md)を参照してください。
+| やりたいこと | ドキュメント |
+| --- | --- |
+| コマンド・OAuth・接続診断を使いこなす | [利用ガイド](docs/usage.ja.md) |
+| 予想と違う結果の原因を調べる | [トラブルシューティング](docs/troubleshooting.ja.md) · [Reason code](docs/reason-codes.ja.md) |
+| 対応バージョンと証拠を確認する | [実測範囲](docs/observed-coverage.ja.md) · [アダプターの成熟度](docs/adapter-maturity.ja.md) |
+| CIへ継続的な確認を組み込む | [Suite manifest](docs/suite-manifest-v1.ja.md) · [Self-hosted CI](docs/self-hosted-ci-security.ja.md) |
+| 実装を理解・拡張する | [アーキテクチャ](docs/architecture.ja.md) · [プロジェクト方針](docs/project-direction.ja.md) |
+| 仕様・スキーマ・調査資料を探す | [ドキュメント一覧](docs/README.ja.md) |
 
-## Runtime Evidence
+## 一緒に、クライアント間の接続を確かに
 
-Authorization ServerやResource Serverで観測した情報を、**値そのものではなく「存在したか」「一致したか」だけ**に変換して診断へ渡せます。
+再現できる接続レポート、わかりやすい使用例、日英ドキュメントの修正も、このプロジェクトを支える貢献です。新しいアダプターを実装する以外にも参加方法があります。
 
-```console
-mcp-interop diagnose https://example.com/mcp \
-  --profile chatgpt \
-  --runtime-evidence runtime-evidence.json
-```
+[接続の問題を報告する](https://github.com/git-ksk/mcp-interop/issues/new/choose)際は、クライアントのバージョン・OS・コマンド・秘密情報を除いた段階別の結果を添えてください。コード変更は[コントリビューションガイド](CONTRIBUTING.ja.md)、質問は[サポート](SUPPORT.ja.md)、今後の計画は[ロードマップ](docs/roadmap.ja.md)へ。
 
-たとえば次のような情報を扱います。
-
-```json
-{
-  "schema_version": 3,
-  "registration": {
-    "strategy": "cimd",
-    "client_metadata_url": "https://chatgpt.com/oauth/.../client.json"
-  },
-  "token_request": {
-    "resource_matches": true,
-    "client_assertion_present": false
-  },
-  "resource_request": {
-    "bearer_present": true,
-    "signature_valid": true,
-    "audience_matches": true
-  }
-}
-```
-
-未観測の項目は推測せず`WARN / unknown`です。未知フィールドは拒否します。
-
-access token、refresh token、authorization code、PKCE verifier、raw client assertion、cookieなどの秘密情報は入力しないでください。
-
-補助コマンド:
-
-```console
-mcp-interop evidence validate runtime-evidence.json
-mcp-interop evidence summary runtime-evidence.json
-mcp-interop evidence merge authorization.json resource.json tool.json -o runtime-evidence.json
-```
-
-`summary`はセクション名と入力されたフィールド数だけを表示します。`merge`は競合した観測値を勝手に上書きせず、エラーにします。
-
-Preflight、Runtime Evidence、実クライアント相互運用テストは**別々の証拠層**です。`PREFLIGHT PASS`でもRuntime EvidenceがFAILになることがありますし、両方PASSでも実ChatGPTのlive PASSにはなりません。
-
-## アダプターの仕組み
-
-### Codex CLI（macOS arm64 core pathでstable）
-
-Codexアダプターは次の流れで動きます。
-
-1. 一時`CODEX_HOME`を作る
-2. OAuth credential storageを一時HOME内のファイルへ限定する
-3. 対象Remote MCPだけを一時設定へ登録する
-4. 実`codex app-server`を起動する
-5. app-serverのcontrol connectionを初期化する
-6. `mcpServerStatus/list`でMCP状態・ツール一覧を確認する
-7. `--oauth`指定時だけCodex自身のOAuthを実行する
-8. 実Codexが観測した結果だけを報告する
-9. 一時セッションを削除する
-
-モデルへのプロンプトは送りません。
-
-### Cursor CLI（macOS arm64 core pathでstable）
-
-一時`HOME`とworkspaceを作り、実Cursor CLIの`mcp enable`、`mcp list`、`mcp list-tools`を使います。OAuth時も通常ユーザーの設定や認証情報を使わず、一時環境に閉じ込めます。
-
-### Antigravity CLI（macOS arm64 core pathでstable）
-
-一時`HOME`とworkspaceを作り、実`agy`をPTYで起動します。起動前に一時settingsへ`modelProvider: "gemini"`を書き、ambientなGemini credential / endpoint overrideを除去し、固定の非秘密`GEMINI_API_KEY` sentinelを注入します。これによりAntigravityのdocumented no-account modeを使い、通常ユーザーのKeychain account sessionへ依存しません。model promptは送りません。
-
-認証不要の経路ではクライアント自身が生成したツールキャッシュを観測し、OAuthでは実`/mcp`マネージャーを利用します。Remote MCP OAuth tokenは一時HOMEへ閉じ込め、通常ユーザーaccount認証とは分離します。
-
-Keychainのbefore/after比較は非変更gateであり、それ単独では非利用の証明にはしません。通常ユーザーcredential非再利用はdocumented no-account modeと実クライアントE2Eで担保し、core pathは`agy 1.1.22`で再検証しています。
-
-証拠が足りない場合は、認証成功だけを根拠に`init/tools=pass`へ昇格せず`unknown`を維持します。
-
-## 安全性と隔離
-
-- **実クライアントを使う。** クライアントを模倣しただけの結果をinterop成功にしない
-- **モデル評価と混ぜない。** 相互運用性の証拠をモデルのツール選択に依存させない
-- **通常のユーザー設定を変更しない。** 安全に隔離できなければ`skip` / `unknown`
-- **一時状態を保護する。** POSIX環境ではowner-only権限を使う
-- **秘密情報を出力しない。** Bearer/OAuth情報やcredential-like URL parameterを拒否・マスクする
-- **OAuthは明示的に開始する。** 対応済みアダプターで`--oauth`を指定した場合だけ実行する
-- **Preflightをlive PASSにしない。** メタデータ互換性は実クライアントの証拠ではない
-- **hosted backendを必須にしない。** コア機能はローカル・CIだけで利用できる
-
-## macOSでの実クライアントE2E
-
-リポジトリには、localhostだけで動くMCP fixtureとrelease-gate用ランナーがあります。
-
-```console
-bash scripts/e2e-real-clients.sh
-```
-
-デフォルトではCodex / Cursor / Antigravityを検証します。
-
-```console
-MCP_INTEROP_CLIENTS=codex,cursor bash scripts/e2e-real-clients.sh
-```
-
-ハーネスは主に次を確認します。
-
-- current checkoutをbuild/testする
-- `127.0.0.1`だけにbindするfixtureを起動する
-- 各クライアントを別のfixture pathで動かす
-- `initialize` / `notifications/initialized` / `tools/list`を確認する
-- `tools/call`が発生したらFAIL
-- 一般的なモデル/APIキー環境変数を子プロセスから除外する
-- ユーザー設定・認証情報のメタデータを実行前後で比較する
-- 新しく残ったクライアントプロセスや一時ディレクトリを検出する
-
-通常のGitHub-hosted CIには外部MCPクライアントをインストールしません。実クライアントE2Eはself-hosted macOS ARM64向けmanual workflowとして分離しています。
-
-## ドキュメント
-
-- [Architecture / アーキテクチャ](docs/architecture.ja.md)
-- [Project direction / プロジェクト方針](docs/project-direction.ja.md)
-- [Roadmap / ロードマップ](docs/roadmap.ja.md)
-- [MCP Conformanceとの違い](docs/conformance-vs-interop.ja.md)
-- [Live result artifact schema v1](docs/live-result-schema-v1.ja.md)
-- [Live result artifact schema v2](docs/live-result-schema-v2.ja.md)
-- [Suite manifest v1](docs/suite-manifest-v1.ja.md)
-- [Suite result set v1](docs/suite-result-set-v1.ja.md)
-- [現行real-clientのprotocol-era観測](docs/protocol-era-observations.ja.md)
-- [トラブルシューティング](docs/troubleshooting.ja.md)
-- [Reason code](docs/reason-codes.ja.md)
-- [ChatGPT接続診断](docs/chatgpt-diagnostics.ja.md)
-- [Antigravity OAuth](docs/antigravity-oauth.ja.md)
-- [GitHub Copilot CLI PoC](docs/copilot-cli-poc.ja.md) — 調査用
-- [VS Code Agent Plugin MCP PoC](docs/vscode-agent-plugin-poc.ja.md) — 実験的調査
-- [コントリビューションガイド](CONTRIBUTING.ja.md)
-- [サポート](SUPPORT.ja.md)
-- [セキュリティポリシー](SECURITY.ja.md)
-- [行動規範](CODE_OF_CONDUCT.ja.md)
-- [CHANGELOG](CHANGELOG.md) — リリース履歴の正本は英語
-
-## リリースとロードマップ
-
-リリース用アーカイブは`scripts/build-release.sh`で生成します。`v*`タグをpushするとrelease workflowが起動し、タグと`main`の関係、source quality/security gate、埋め込みバージョン、アーカイブ、checksums、artifact attestationを確認してからGitHub Releasesへ公開します。
-
-ロードマップの詳細は[Stable interoperability contractに向けたロードマップ](docs/roadmap.ja.md)を参照してください。
-
-現在の想定順序:
-
-- **v0.6.x** — protocol-aware core + deployment identity privacy
-- **v0.7.x** — repeatable suite / regression workflow + CI trust boundary
-- **v0.8.x** — baseline lifecycle + observed compatibility envelope
-- **v0.9.x** — coverage / capability profile / safe client graduation
-- **v0.10.x** — public contract candidate
-- **v0.11.x+** — 必要なだけstabilization
-- **v1.0.0** — exit criteriaを満たした場合だけstable contract化
-
-ロードマップに書かれた将来機能は、現在利用できる機能を意味しません。現在の挙動はコード、リリース文書、バージョン付きschemaを正とします。
-
-## 現在の非目標
-
-- MCPセキュリティスキャナー
-- ツール品質やLLMのツール選択ベンチマーク
-- ランタイムサンドボックス
-- 権限・capability governance
-- 新しいOAuth/MCP適合仕様の策定
-- 実際に動かしていないクライアントの互換性保証
-
-## コントリビューションとセキュリティ
-
-開発への参加は[CONTRIBUTING.ja.md](CONTRIBUTING.ja.md)を参照してください。利用方法や不具合報告は[SUPPORT.ja.md](SUPPORT.ja.md)、プロジェクト参加時の基本ルールは[CODE_OF_CONDUCT.ja.md](CODE_OF_CONDUCT.ja.md)にまとめています。
-
-セキュリティ上の問題は公開Issueへ書かず、[SECURITY.ja.md](SECURITY.ja.md)に従ってPrivate Vulnerability Reportingを利用してください。
+脆弱性は[セキュリティポリシー](SECURITY.ja.md)に従って非公開で報告してください。参加時のルールは[行動規範](CODE_OF_CONDUCT.ja.md)にまとめています。
 
 ## ライセンス
 
-Apache License 2.0です。`LICENSE`を参照してください。
-
-- [Public contract v1](docs/public-contract-v1.ja.md) — stable v1 CLI/JSON/exit/reason互換性contract
-- [Schema evolution v1](docs/schema-evolution-v1.ja.md) — stable portable evidence/versioning/deprecation policy
-- [Interoperability semantics v1](docs/semantic-contract-v1.ja.md) — stable adapter/core/capability/protocol semantics
-- [Security / privacy / cleanup / release contract v1](docs/security-contract-v1.ja.md) — stable secret/CI/release guarantee
-- [Public contract candidate](docs/public-contract-v1-candidate.ja.md) — historical v0.10 CLI/JSON/exit/reason互換性review
-- [Schema evolution v1 candidate](docs/schema-evolution-v1-candidate.ja.md) — portable evidence/versioning/deprecation policy
-- [Interoperability semantics v1 candidate](docs/semantic-contract-v1-candidate.ja.md) — adapter/core/capability/protocol semantics
-- [Security, privacy, cleanup, and release contract candidate](docs/security-contract-v1-candidate.ja.md) — secret/CI/release guarantee
+[Apache License 2.0](LICENSE)。

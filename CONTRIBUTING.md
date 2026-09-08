@@ -4,6 +4,17 @@
 
 Thanks for helping improve real-client MCP interoperability testing.
 
+## Your first contribution
+
+Useful contributions come in many sizes:
+
+- Improve a confusing example or keep the English/Japanese docs in sync.
+- Report a reproducible connection problem with the exact client version and sanitized stage results.
+- Add a focused regression test for a confirmed bug.
+- Investigate a new client's observable MCP surface before proposing an adapter.
+
+Browse [existing issues](https://github.com/git-ksk/mcp-interop/issues) or [open a report or question](https://github.com/git-ksk/mcp-interop/issues/new/choose). For a small documentation fix, a focused PR is enough; broader behavior changes benefit from an issue first.
+
 ## Before opening a pull request
 
 1. Search existing issues and pull requests for related work.
@@ -18,15 +29,27 @@ Requirements:
 
 - Go version declared in `go.mod`
 
+Clone the repository and create a branch:
+
+```console
+git clone https://github.com/git-ksk/mcp-interop.git
+cd mcp-interop
+git switch -c docs/your-change
+```
+
+Choose a branch name that describes your change.
+
 Run the same basic checks required by CI:
 
 ```console
-gofmt -w .
-git diff --exit-code
+gofmt -l .
+git diff --check
 go vet ./...
 go test ./...
 go build ./cmd/mcp-interop
 ```
+
+`gofmt -l .` should print no filenames. Format any files it lists before submitting. Basic build/unit checks do not require installed MCP clients or production credentials.
 
 For changes involving process lifecycle, OAuth, shared state, or release gates, also run:
 

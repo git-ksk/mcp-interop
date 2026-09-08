@@ -8,6 +8,17 @@
 
 このプロジェクトで最も重要なのは、対応クライアントの数ではなく、**相互運用性PASSの意味を信頼できる状態に保つこと**です。
 
+## 最初のコントリビューション
+
+小さな改善から参加できます。
+
+- わかりにくい使用例を直す、日英ドキュメントの内容を揃える。
+- 接続の問題を、正確なクライアントバージョンと秘密情報を除いた段階別結果で報告する。
+- 確認済みの不具合を再現する回帰テストを追加する。
+- 新しいアダプターの提案に向けて、安全に観測できるMCP操作を調べる。
+
+[既存Issue](https://github.com/git-ksk/mcp-interop/issues)を探すか、[報告・質問](https://github.com/git-ksk/mcp-interop/issues/new/choose)から始めてください。小さな文書修正はPRからで構いません。挙動を大きく変える場合は、先にIssueで方針を共有すると進めやすくなります。
+
 ## Pull Requestを作る前に
 
 1. 関連するIssueやPull Requestがないか確認してください。
@@ -20,15 +31,27 @@
 
 必要なGoバージョンは`go.mod`を確認してください。
 
+リポジトリを取得し、作業ブランチを作ります。
+
+```console
+git clone https://github.com/git-ksk/mcp-interop.git
+cd mcp-interop
+git switch -c docs/your-change
+```
+
+ブランチ名は変更内容に合わせて付けてください。
+
 通常はCIと同じ基本チェックを実行します。
 
 ```console
-gofmt -w .
-git diff --exit-code
+gofmt -l .
+git diff --check
 go vet ./...
 go test ./...
 go build ./cmd/mcp-interop
 ```
+
+`gofmt -l .`がファイル名を表示した場合は、提出前にそのファイルを整形してください。基本のビルド・ユニットテストには、MCPクライアントのインストールや本番の認証情報は必要ありません。
 
 プロセス管理、OAuth、共有状態、release gateに関係する変更では、追加で次も確認してください。
 
