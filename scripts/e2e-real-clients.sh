@@ -304,6 +304,79 @@ for client in "${clients[@]}"; do
     cat "$result_stderr" >&2
   fi
 
+  # This optional independent check exercises name expectations against
+  # client-owned evidence, not fixture-side tools/list responses. It intentionally
+  # does not treat a core PASS as proof of a named inventory.
+  if [[ "${MCP_INTEROP_TEST_TOOL_EXPECTATIONS:-0}" == "1" ]]; then
+    if ! command -v python3 >/dev/null 2>&1; then
+      echo "python3 is required for optional tool expectation E2E" >&2
+      overall_fail=1
+      continue
+    fi
+    expectation_json="$result_dir/$client.expected.json"
+    if [[ "$client" == codex ]]; then
+      expected_rc=0
+      run_network_isolated "$interop_bin" test "$endpoint" --client "$client" \
+        --expect-tool ping --expect-tool read_tool --expect-tool write_tool \
+        --expect-tool-count 3 --json > "$expectation_json" || expected_rc=$?
+      expected_status=pass
+    else
+      expected_rc=0
+      run_network_isolated "$interop_bin" test "$endpoint" --client "$client" \
+        --expect-tool ping --json > "$expectation_json" || expected_rc=$?
+      expected_status=unknown
+    fi
+    if ! python3 - "$expectation_json" "$expected_status" "$expected_rc" <<'PYEXPECT'
+import json, sys
+report = json.load(open(sys.argv[1], encoding="utf-8"))
+want, rc = sys.argv[2], int(sys.argv[3])
+assert isinstance(report, list) and len(report) == 1, "legacy result array changed"
+item = report[0]
+assert item.get("tool_expectation", {}).get("status") == want, item
+assert rc == (0 if want == "pass" else 1), (rc, want)
+assert [x["status"] for x in item["stages"]] == ["pass"] * 4, "core stages changed"
+assert "observed_tool_names" not in item, "raw tool names leaked"
+PYEXPECT
+    then
+      echo "$client: optional tool expectation check failed (expected $expected_status, rc=$expected_rc)" >&2
+      overall_fail=1
+    else
+      echo "$client: optional tool expectation $expected_status was observed through the real client"
+    fi
+    if [[ "$client" == codex ]]; then
+      missing_json="$result_dir/codex.missing.json"
+      missing_rc=0
+      protected_result="$result_dir/codex.core-only.json"
+      run_network_isolated "$interop_bin" test "$endpoint" --client codex \
+        --expect-tool definitely_missing_tool --json \
+        --output "$protected_result" --deployment-id fixture-a \
+        > "$missing_json" || missing_rc=$?
+      if ! python3 - "$missing_json" "$missing_rc" "$protected_result" <<'PYMISSING'
+import json, sys
+report = json.load(open(sys.argv[1], encoding="utf-8"))[0]
+check = report["tool_expectation"]
+assert int(sys.argv[2]) == 1
+assert check["status"] == "fail" and check["reason_code"] == "expected_tools_missing"
+assert check["missing_names"] == ["definitely_missing_tool"]
+assert [x["status"] for x in report["stages"]] == ["pass"] * 4
+artifact = json.load(open(sys.argv[3], encoding="utf-8"))
+assert artifact["schema_version"] == 2
+assert artifact["artifact_type"] == "mcp-interop/live-results"
+assert len(artifact["runs"]) == 1
+assert artifact["runs"][0]["endpoint"]["identity"] == "fixture-a"
+assert [x["status"] for x in artifact["runs"][0]["stages"]] == ["pass"] * 4
+assert "tool_expectation" not in json.dumps(artifact), "optional check altered core artifact"
+assert "/mcp/codex" not in json.dumps(artifact), "protected endpoint path leaked"
+PYMISSING
+      then
+        echo "Codex: missing tool was not reliably detected" >&2
+        overall_fail=1
+      else
+        echo "Codex: missing expected tool correctly failed without altering core PASS"
+      fi
+    fi
+  fi
+
   path="/mcp/$client"
   protocol_ok=1
   protocol_era="$(fixture_protocol_readiness "$path")" || protocol_ok=0

@@ -65,6 +65,23 @@ Antigravity CLI  PASS   PASS  PASS  PASS   1.1.11
 
 `--json`を指定した場合は配列を返します。既存JSON契約へartifact用のフィールドを勝手に追加しません。
 
+### 期待ツール名・件数の明示的チェック（v0.11開発中・未リリース）
+
+coreのツール発見PASSは「実クライアントが発見処理を完了した」ことを意味し、個々のツールが存在する保証ではありません。期待名や正確な件数を要求する場合は、明示的に指定します。
+
+```console
+mcp-interop test https://example.com/mcp --client codex \
+  --expect-tool ping --expect-tool read_tool --expect-tool-count 3
+mcp-interop test https://example.com/mcp --client codex \
+  --expect-tool ping --json
+```
+
+`tool_expectation`はオプトイン時だけ既存の`test --json`配列内へ追加されます。直接観測した名前が一致すれば`pass`、欠落や件数不一致なら`fail`、実クライアントの証拠で名前を確実に確認できなければ`unknown`です。coreの4段階がすべてPASSでも、追加チェックが`fail`/`unknown`なら終了コードは`1`。不正な名前・件数は実行前に終了コード`2`で拒否します。ツール実行やモデルへのプロンプト送信は行いません。
+
+現時点でツール名を直接証明できるのは**Codex app-server**です。Cursor/Antigravityではcore PASSでも名前のチェックが`unknown`となる可能性があります。Codexの空一覧は接続失敗と区別できないため、PASSにしません。表示するのは利用者が明示指定した名前と欠落した期待名だけで、未指定の観測名は表示・保存しません。名前は一般的な非機密識別子（日本語などUnicode文字にも対応、UTF-8で最大128バイト、最大64個）とし、トークン等をCLI引数に渡さないでください。
+
+**成果物との区別:** 既存の`--output`によるlive-result schema v1/v2、suite比較、baselineは従来どおり**coreの4段階のみ**を記録・判定します。追加ツール照合の合否は含まれません。現時点で自動処理する場合は別途`test --json`を信頼できる環境で保存し、coreの成果物だけで期待ツールのPASSを判断しないでください。ツール一覧の永続的な差分比較は[#186](https://github.com/git-ksk/mcp-interop/issues/186)で継続します。
+
 <a id="saved-results"></a>
 
 ## 実行結果を保存・比較する

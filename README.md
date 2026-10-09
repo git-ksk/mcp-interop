@@ -66,7 +66,7 @@ Replace the example URL with your Remote MCP endpoint and select an installed cl
 mcp-interop test https://example.com/mcp --client codex
 ```
 
-A complete success has **PASS in all four stages** and exits `0`:
+A complete core success has **PASS in all four stages** and exits `0`:
 
 | Stage | What the real client proves |
 | --- | --- |
@@ -74,6 +74,8 @@ A complete success has **PASS in all four stages** and exits `0`:
 | `auth` | Required authentication completed, or discovery succeeded without it |
 | `init` | Protocol readiness to continue the MCP exchange |
 | `tools` | Discovery of the server's tools |
+
+**Development `main` (unreleased v0.11):** use `--expect-tool ping` or `--expect-tool-count 3` to add a fail-closed direct-client inventory assertion. Unlike core discovery PASS, this checks named tools. Currently Codex supports direct name evidence; other adapters return `unknown`. [Details →](docs/usage.md#opt-in-expected-tool-assertions-v011-development-not-released-yet)
 
 `FAIL`, `SKIP`, or `UNKNOWN` makes a live test exit non-zero. `UNKNOWN` means the available evidence cannot prove the result; it is useful diagnostic information. [Troubleshooting →](docs/troubleshooting.md)
 
