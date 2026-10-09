@@ -31,6 +31,10 @@ A new schema version must document:
 
 ### Versioned derived reports
 
+The offline HTML and CI Markdown are **derived views**, not portable evidence input schemas. They are generated only from validated suite regression reports and retain their existing semantics. See [Offline suite reports](offline-suite-report.md).
+
+
+
 The opt-in expected-tool evidence is **separate** `mcp-interop/tool-expectation-evidence` schema v1 with an independently versioned `mcp-interop/tool-expectation-diff` report; it does not change strict live-result v1/v2 or the core PASS contract. See [Expected-tool evidence v1](tool-expectation-evidence-v1.md).
 
 

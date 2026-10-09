@@ -31,6 +31,10 @@ mcp-interopがpersist後にfail-closed validationで再読込するdocumentで�
 
 ### Versioned derived report
 
+オフラインHTMLとCI Markdownは**派生表示**であり、portable input schemaではありません。検証済みのsuite regression reportからだけ生成し、既存判定の意味は変えません。[オフラインsuiteレポート](offline-suite-report.ja.md)参照。
+
+
+
 期待ツール照合のオプション証拠は独立した`mcp-interop/tool-expectation-evidence` v1と`mcp-interop/tool-expectation-diff`レポートです。strictなlive-result v1/v2およびcore PASSの意味は変更しません。[Expected-tool evidence v1](tool-expectation-evidence-v1.ja.md)参照。
 
 

@@ -381,7 +381,7 @@ PYMISSING
     fi
   fi
 
-  if [[ "${MCP_INTEROP_TEST_SUITE_REPEAT:-0}" == "1" && "$client" == "codex" ]]; then
+  if [[ ( "${MCP_INTEROP_TEST_SUITE_REPEAT:-0}" == "1" || "${MCP_INTEROP_TEST_OFFLINE_REPORT:-0}" == "1" ) && "$client" == "codex" ]]; then
     if ! command -v python3 >/dev/null 2>&1; then
       echo "python3 is required for optional suite repeat E2E" >&2
       overall_fail=1
@@ -424,6 +424,39 @@ PYREPEAT
         overall_fail=1
       else
         echo "Codex: repeated suite real-client evidence and preserved private artifacts PASS"
+      fi
+      if [[ "${MCP_INTEROP_TEST_OFFLINE_REPORT:-0}" == "1" ]]; then
+        offline_html="$result_dir/codex-report.html"
+        offline_ci="$result_dir/codex-summary.md"
+        offline_stdout="$result_dir/codex-report.stdout"
+        offline_rc=0
+        run_network_isolated "$interop_bin" report suite \
+          "$repeat_output/attempt-01" "$repeat_output/attempt-02" \
+          --html "$offline_html" --ci-summary "$offline_ci" --fail-on-regression \
+          > "$offline_stdout" || offline_rc=$?
+        if ! python3 - "$offline_html" "$offline_ci" "$offline_stdout" "$offline_rc" <<'PYOFFLINE'
+import pathlib,sys
+html,ci,stdout=(pathlib.Path(x) for x in sys.argv[1:4])
+assert int(sys.argv[4]) == 0
+text=html.read_text()
+summary=ci.read_text()
+assert "default-src 'none'" in text
+assert "<script" not in text.lower()
+assert "codex" in text and "clean" in text
+assert "CLEAN" in summary and "codex" in summary
+assert "DECISION\tCLEAN" in stdout.read_text()
+for value in [text,summary]:
+    assert "/mcp/codex" not in value
+    assert "127.0.0.1:" not in value
+    assert "/tmp/" not in value
+    assert "http://" not in value and "https://" not in value
+PYOFFLINE
+        then
+          echo "Codex: offline report output failed privacy/content checks" >&2
+          overall_fail=1
+        else
+          echo "Codex: offline static HTML and CI summary from verified real-client suites PASS"
+        fi
       fi
     fi
   fi
