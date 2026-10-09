@@ -40,6 +40,16 @@ func WithAuthorizationHandler(handler AuthorizationHandler) Option {
 	}
 }
 
+// WithTimeout sets the bounded non-OAuth client observation timeout. The
+// public CLI also provides an outer per-client deadline, including OAuth.
+func WithTimeout(timeout time.Duration) Option {
+	return func(adapter *Adapter) {
+		if timeout > 0 {
+			adapter.timeout = timeout
+		}
+	}
+}
+
 // WithOAuthTimeout overrides the time Codex is allowed to wait for its OAuth
 // callback. It is primarily useful to callers that need a stricter deadline.
 func WithOAuthTimeout(timeout time.Duration) Option {

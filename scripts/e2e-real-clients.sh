@@ -297,7 +297,11 @@ for client in "${clients[@]}"; do
   result_stderr="$result_dir/$client.stderr"
   echo
   echo "== Real-client E2E: $client =="
-  run_network_isolated "$interop_bin" test "$endpoint" --client "$client" --json > "$result_json" 2> "$result_stderr"
+  extra_test_args=()
+  if [[ "${MCP_INTEROP_TEST_TIMEOUT:-0}" == "1" ]]; then
+    extra_test_args=(--timeout 45s)
+  fi
+  run_network_isolated "$interop_bin" test "$endpoint" --client "$client" --json "${extra_test_args[@]}" > "$result_json" 2> "$result_stderr"
   rc=$?
   cat "$result_json"
   if [[ -s "$result_stderr" ]]; then
