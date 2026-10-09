@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -65,7 +66,7 @@ func TestEvidencePrivateRoundTrip(t *testing.T) {
 	}
 	if stat, err := os.Stat(path); err != nil {
 		t.Fatal(err)
-	} else if stat.Mode().Perm() != 0o600 {
+	} else if runtime.GOOS != "windows" && stat.Mode().Perm() != 0o600 {
 		t.Fatalf("non-private mode: %s", stat.Mode().Perm())
 	}
 }
@@ -133,7 +134,7 @@ func TestUnknownAndIncompatibleEvidenceFailClosed(t *testing.T) {
 		t.Fatal("different expectation accepted")
 	}
 	bad = base
-	bad.Run.Platform.OS = "linux"
+	bad.Run.Platform.OS = "intentionally-different-os"
 	if _, err := Compare(base, bad); err == nil {
 		t.Fatal("different platform accepted")
 	}
