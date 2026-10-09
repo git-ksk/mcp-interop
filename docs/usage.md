@@ -187,6 +187,18 @@ mcp-interop suite repeat suite.json \
 
 Both `--attempts` (2..5) and per-client `--timeout` (1s..10m) are required. The aggregate declared timeout budget is capped at 45 minutes. All endpoints are resolved once up front, and a frozen secret-free manifest is used for each attempt. Each completed attempt is retained under `attempt-01/`, `attempt-02/`, etc.; a versioned `repeat-report.json` explains `clean`, `non_pass`, `unstable`, `non_pass_and_unstable`, and `incomplete`. A late PASS **never hides** an earlier failure or execution error. Non-clean or interrupted repetitions exit `1`. The directory is never overwritten. For full format, partial-interruption rules, and how to compare every attempt with an accepted baseline, see [Suite repeat report v1](suite-repeat-report-v1.md) ([日本語](suite-repeat-report-v1.ja.md)).
 
+### Offline HTML and CI summary (v0.11 development; not released yet)
+
+After obtaining a validated suite baseline and one or more complete attempt result sets, render a local, **script-free and network-free** HTML report and/or a CI Markdown summary:
+
+```console
+mcp-interop report suite baseline-results \
+  repeat-results/attempt-01 repeat-results/attempt-02 \
+  --html review.html --ci-summary ci-summary.md --fail-on-regression
+```
+
+The HTML shows the suite decision, regression/unstable signals, and per-attempt status changes. It deliberately omits server URLs, untrusted raw client versions, credentials, local paths, endpoint fingerprints and diagnostic log text. Unknown/missing/error evidence remains distinct from PASS. Reports are created privately and never overwrite existing files. Use `--fail-on-regression` to return exit `1` for regression or unstable evidence, while retaining both outputs. See [Offline suite reports](offline-suite-report.md) ([日本語](offline-suite-report.ja.md)) for the input/privacy constraints.
+
 Compare a baseline result set with one or more retained attempts:
 
 ```console

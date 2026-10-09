@@ -32,6 +32,7 @@ const usageText = `mcp-interop - live interoperability testing for Remote MCP se
 Usage:
   mcp-interop clients [--json]
   mcp-interop tools compare <old-tool-evidence.json> <new-tool-evidence.json> [--json] [--fail-on-drift]
+  mcp-interop report suite <baseline-index> <attempt-index> [<attempt-index>...] --html <file> [--ci-summary <file>] [--fail-on-regression]
   mcp-interop test <url> [--client codex,cursor,antigravity] [--timeout <duration>] [--oauth] [--expect-tool <name>]... [--expect-tool-count <n>] [--tool-evidence <file>] [--json] [--output result.json] [--deployment-id <id>]
   mcp-interop compare <old.json> <new.json> [--json] [--fail-on-regression]
   mcp-interop suite validate <manifest.json> [--json]
@@ -56,6 +57,7 @@ Commands:
   test       Run a Remote MCP interoperability test through real clients.
   compare    Compare portable live-result artifacts across client versions/runs.
   tools      Compare explicitly retained expected-name/count evidence without exposing unrequested tool names.
+  report     Render offline HTML and CI Markdown from validated suite regression evidence.
   suite      Validate, execute, and compare repeatable suite result sets.
   baseline   Accept, verify local consistency, and compare suite baselines.
   compatibility  Classify or list exact observed client-version/platform evidence.
@@ -107,6 +109,8 @@ func run(ctx context.Context, args []string) int {
 		return runTest(ctx, args[1:])
 	case "tools":
 		return runTools(args[1:], os.Stdout, os.Stderr)
+	case "report":
+		return runReport(args[1:], os.Stdout, os.Stderr)
 	case "compare":
 		return runCompare(args[1:])
 	case "suite":

@@ -114,7 +114,7 @@ mcp-interop compare before.json after.json --fail-on-regression
 
 The comparison catches lost PASS evidence, including transitions to `FAIL`, `UNKNOWN`, or `SKIP`. For endpoints with credentials in their path, use [`--deployment-id` and protected-path artifacts](docs/usage.md#portable-regression-artifacts).
 
-When you need more than a single run, [suites and immutable baselines](docs/usage.md#repeatable-multi-client-suites) let you declare targets, run multiple clients, and retain retry history. Development `main` also provides `suite repeat` to execute 2–5 attempts with a separate stability report. A passing retry does not erase an earlier failure.
+When you need more than a single run, [suites and immutable baselines](docs/usage.md#repeatable-multi-client-suites) let you declare targets, run multiple clients, and retain retry history. Development `main` also provides `suite repeat` to execute 2–5 attempts with a separate stability report, and opt-in `report suite` for local offline HTML/CI Markdown. A passing retry does not erase an earlier failure.
 
 ## What makes the result useful
 

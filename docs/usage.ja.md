@@ -198,6 +198,18 @@ mcp-interop suite repeat suite.json \
 
 `--attempts`（2〜5）とクライアント単位の`--timeout`（1秒〜10分）は必須で、合計予算は45分以下です。開始前に全endpointを1度だけ解決し、非機密の固定manifestで試行します。各試行は`attempt-01/`等に保存され、`repeat-report.json`で`clean`、`non_pass`、`unstable`、`non_pass_and_unstable`、`incomplete`を区別します。**後続のPASSで以前のFAILや実行エラーを隠しません**。途中中断・不安定・失敗は終了コード`1`。出力ディレクトリは上書きしません。詳しい仕様と既存baselineとの比較は[Suite repeat report v1](suite-repeat-report-v1.ja.md)を参照してください。
 
+### オフラインHTML・CIサマリー（v0.11開発中・未リリース）
+
+検証済みのbaselineと試行結果から、**スクリプトや外部通信なし**で動くHTMLとCI用Markdownを生成できます。
+
+```console
+mcp-interop report suite baseline-results \
+  repeat-results/attempt-01 repeat-results/attempt-02 \
+  --html review.html --ci-summary ci-summary.md --fail-on-regression
+```
+
+decision、退行・不安定の判定、各試行の状態とステージ遷移を表示します。URL、クライアントの生のversion文字列、トークン、ファイルパス、fingerprintやログは表示しません。`unknown`/欠落/実行エラーをPASSにしません。既存ファイルを上書きせず、`--fail-on-regression`で退行・不安定を終了コード`1`にできます。詳しくは[オフラインsuiteレポート](offline-suite-report.ja.md)を参照してください。
+
 比較基準として保存した結果（baseline）と、その後の1回以上の実行結果（attempt）を比較できます。
 
 ```console
