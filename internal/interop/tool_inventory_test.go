@@ -15,7 +15,9 @@ func TestObservedToolNamesRequiresDirectSuccessfulStage(t *testing.T) {
 	if _, known := r.ObservedToolNames(); known {
 		t.Fatal("unknown tools stage must leave inventory unknown")
 	}
-	r.Set(StageTools, StatusPass, "client listed tools")
+	for _, stage := range OrderedStages {
+		r.Set(stage, StatusPass, "direct real-client success")
+	}
 	if !r.SetObservedToolNames([]string{"alpha"}) {
 		t.Fatal("successful real-client stage must accept valid names")
 	}
@@ -23,7 +25,9 @@ func TestObservedToolNamesRequiresDirectSuccessfulStage(t *testing.T) {
 
 func TestObservedToolNamesSortedCopiedAndNotSerialized(t *testing.T) {
 	r := NewResult("codex", "Codex", "1.0", "https://example.test/mcp")
-	r.Set(StageTools, StatusPass, "real-client inventory")
+	for _, stage := range OrderedStages {
+		r.Set(stage, StatusPass, "direct real-client success")
+	}
 	input := []string{"zeta", "あいう", "alpha"}
 	if !r.SetObservedToolNames(input) {
 		t.Fatal("valid inventory rejected")
@@ -61,7 +65,9 @@ func TestObservedToolNamesInvalidInputsFailClosed(t *testing.T) {
 	for name, input := range tests {
 		t.Run(name, func(t *testing.T) {
 			r := NewResult("codex", "Codex", "1.0", "https://example.test")
-			r.Set(StageTools, StatusPass, "client listed tools")
+			for _, stage := range OrderedStages {
+				r.Set(stage, StatusPass, "direct real-client success")
+			}
 			if r.SetObservedToolNames(input) {
 				t.Fatal("invalid inventory accepted")
 			}
@@ -74,7 +80,9 @@ func TestObservedToolNamesInvalidInputsFailClosed(t *testing.T) {
 
 func TestObservedToolNamesEmptyIsKnownOnlyWhenExplicitlySet(t *testing.T) {
 	r := NewResult("test", "test", "1", "https://example.test")
-	r.Set(StageTools, StatusPass, "client explicitly established zero tools")
+	for _, stage := range OrderedStages {
+		r.Set(stage, StatusPass, "direct real-client success")
+	}
 	if !r.SetObservedToolNames(nil) {
 		t.Fatal("an explicit proved zero-tool inventory must be representable")
 	}
@@ -100,5 +108,42 @@ func TestObservedToolNamesRejectedReplacementClearsPreviousEvidence(t *testing.T
 	}
 	if !r.Passed() {
 		t.Fatal("optional inventory rejection changed the core PASS status")
+	}
+}
+
+func TestObservedToolNamesClearedAfterAnyStageMutation(t *testing.T) {
+	for _, stageToUpdate := range OrderedStages {
+		t.Run(string(stageToUpdate), func(t *testing.T) {
+			r := NewResult("codex", "Codex", "1", "https://example.test")
+			for _, stage := range OrderedStages {
+				r.Set(stage, StatusPass, "direct real-client success")
+			}
+			if !r.SetObservedToolNames([]string{"alpha"}) {
+				t.Fatal("initial inventory rejected")
+			}
+			r.SetWithReason(stageToUpdate, StatusUnknown, "", "inconclusive")
+			if names, known := r.ObservedToolNames(); known {
+				t.Fatalf("stale names survived stage update: %q", names)
+			}
+			if r.SetObservedToolNames([]string{"alpha"}) {
+				t.Fatal("accepted names with incomplete core PASS")
+			}
+		})
+	}
+}
+
+func TestObservedToolNamesRequiresFullCorePass(t *testing.T) {
+	for _, incompleteStage := range OrderedStages {
+		t.Run(string(incompleteStage), func(t *testing.T) {
+			r := NewResult("codex", "Codex", "1", "https://example.test")
+			for _, stage := range OrderedStages {
+				if stage != incompleteStage {
+					r.Set(stage, StatusPass, "direct real-client success")
+				}
+			}
+			if r.SetObservedToolNames([]string{"alpha"}) {
+				t.Fatal("accepted tool names with incomplete core PASS")
+			}
+		})
 	}
 }

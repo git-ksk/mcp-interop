@@ -135,6 +135,10 @@ func (r *Result) Set(stage Stage, status Status, message string) bool {
 func (r *Result) SetWithReason(stage Stage, status Status, reasonCode ReasonCode, message string) bool {
 	for i := range r.Stages {
 		if r.Stages[i].Stage == stage {
+			// Any new stage observation invalidates previously accepted
+			// tool-name evidence, even when the new status is also PASS.
+			r.observedToolNames = nil
+			r.observedToolNamesKnown = false
 			r.Stages[i].Status = status
 			r.Stages[i].ReasonCode = reasonCode
 			r.Stages[i].Message = message

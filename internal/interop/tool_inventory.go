@@ -21,8 +21,8 @@ func (r *Result) SetObservedToolNames(names []string) bool {
 	// A rejected replacement must never leave previous evidence available.
 	r.observedToolNames = nil
 	r.observedToolNamesKnown = false
-	stage, ok := r.Get(StageTools)
-	if !ok || stage.Status != StatusPass || len(names) > maxObservedToolNames {
+	// A tool inventory cannot be accepted without a complete core PASS.
+	if !r.Passed() || len(names) > maxObservedToolNames {
 		return false
 	}
 	copied := append([]string(nil), names...)
