@@ -14,7 +14,7 @@ concurrency:
 
 env:
   GOFLAGS: -mod=readonly
-  SECURITY_GO_VERSION: 1.26.6
+  SECURITY_GO_VERSION: 1.26.9
   GOVULNCHECK_VERSION: v1.6.0
 
 jobs:
@@ -33,7 +33,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version-file: go.mod
+          go-version: ${{ env.SECURITY_GO_VERSION }}
           cache: true
 
       - name: Format check
@@ -108,7 +108,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version-file: go.mod
+          go-version: ${{ env.SECURITY_GO_VERSION }}
           cache: true
       - name: Build release archives
         shell: bash
