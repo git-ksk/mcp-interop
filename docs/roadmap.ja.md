@@ -32,6 +32,9 @@ Roadmapは計画と完了条件の正本です。GitHub Milestoneとroadmap trac
 | v0.8.x | [#104](https://github.com/git-ksk/mcp-interop/issues/104) | **完了:** [#125](https://github.com/git-ksk/mcp-interop/issues/125), [#126](https://github.com/git-ksk/mcp-interop/issues/126), [#127](https://github.com/git-ksk/mcp-interop/issues/127) |
 | v0.9.x | [#105](https://github.com/git-ksk/mcp-interop/issues/105) | 調査候補: [#6](https://github.com/git-ksk/mcp-interop/issues/6), [#20](https://github.com/git-ksk/mcp-interop/issues/20), [#48](https://github.com/git-ksk/mcp-interop/issues/48), [#68](https://github.com/git-ksk/mcp-interop/issues/68) |
 | v0.10.x | [#106](https://github.com/git-ksk/mcp-interop/issues/106) | contract review開始時にfocused audit/fix Issueへ分割 |
+| v0.11.0 — [完了Milestone](https://github.com/git-ksk/mcp-interop/milestone/6) | [#189](https://github.com/git-ksk/mcp-interop/issues/189)（リリース監査） | **リリース済み:** [#186](https://github.com/git-ksk/mcp-interop/issues/186)、[#187](https://github.com/git-ksk/mcp-interop/issues/187)、[#188](https://github.com/git-ksk/mcp-interop/issues/188)、[#202](https://github.com/git-ksk/mcp-interop/issues/202)。安定対象はmacOS arm64の**非OAuth core**のみ。#168は別途未完了。 |
+| v0.12.0 — [進行中Milestone](https://github.com/git-ksk/mcp-interop/milestone/7) | [#205](https://github.com/git-ksk/mcp-interop/issues/205) | [#190](https://github.com/git-ksk/mcp-interop/issues/190) 認証・診断、[#191](https://github.com/git-ksk/mcp-interop/issues/191) Capability、[#192](https://github.com/git-ksk/mcp-interop/issues/192) OS対応実証。追加調査[#204](https://github.com/git-ksk/mcp-interop/issues/204)は任意。 |
+| v1.0.0 — [受け入れMilestone](https://github.com/git-ksk/mcp-interop/milestone/8) | [#193](https://github.com/git-ksk/mcp-interop/issues/193) | **OAuthの未完了ゲート:** [#168](https://github.com/git-ksk/mcp-interop/issues/168)。代表的real-client回帰試験の[#162](https://github.com/git-ksk/mcp-interop/issues/162)は完了済み。 |
 
 この対応は双方向です。roadmap作業は実装開始前にGitHub Issueを持ち、Issueがroadmapのscopeや完了条件を変える場合は同じPRで英語・日本語Roadmapも更新します。
 
@@ -276,18 +279,27 @@ Capability profile v1は独立したadditive evidence contractです。capabilit
 
 ## v0.11.0 — 実クライアント検証の実用性強化
 
-- [#186](https://github.com/git-ksk/mcp-interop/issues/186): 期待ツール名・件数の照合、追加・欠落差分。実クライアントから確認できない場合は `unknown`。
-- [#187](https://github.com/git-ksk/mcp-interop/issues/187): 上限付きタイムアウトと反復実行。既存のsuite比較を再利用し、全試行・不安定性・後処理を保持。
-- [#188](https://github.com/git-ksk/mcp-interop/issues/188): 検証済み成果物から安全なオフラインHTMLとCI向け要約を生成。
-- [#189](https://github.com/git-ksk/mcp-interop/issues/189): Go脆弱性対策、#168 OAuth再検証、配布・CI監査。
+**Status: 完了・リリース済み。** 2026年10月10日（JST）に[v0.11.0](https://github.com/git-ksk/mcp-interop/releases/tag/v0.11.0)を正式公開。[GitHub Milestone](https://github.com/git-ksk/mcp-interop/milestone/6)もクローズ済み。安定サポートを主張するのは**macOS arm64の非OAuth Remote MCP coreだけ**で、`--oauth`フラグの存在はOAuth安定動作を保証しません。
 
-完了条件: 実クライアントの直接証拠、既存 `reach/auth/init/tools` PASSの意味を維持、公開スキーマと終了コードの互換性、セキュリティとCIの合格。
+- **完了 [#186](https://github.com/git-ksk/mcp-interop/issues/186):** 明示した期待ツール名・件数の直接照合と、機密保護された差分証拠。未観測は`unknown`。未指定の全ツール名差分、Cursor/Antigravityの直接ツール名観測は**未実装**で、[#204](https://github.com/git-ksk/mcp-interop/issues/204)へ継続。
+- **完了 [#187](https://github.com/git-ksk/mcp-interop/issues/187) / [#202](https://github.com/git-ksk/mcp-interop/issues/202):** 実行時間上限・反復実行・全試行保持・強制タイムアウト/SIGINTと後処理の受け入れ検証。
+- **完了 [#188](https://github.com/git-ksk/mcp-interop/issues/188):** 検証済み成果物から安全なオフラインHTMLとCI要約を生成。
+- **完了 [#189](https://github.com/git-ksk/mcp-interop/issues/189):** Goの安全性、CI・配布・正式リリース監査と実際のサポート範囲の明記。CodexとCursorのOAuthは隔離フィクスチャで実クライアント再検証済みですが、**全クライアントのOAuth検証完了とは扱いません**。
+
+**v0.11.0のリリース条件とは別の未完了項目:** [#168](https://github.com/git-ksk/mcp-interop/issues/168)は**OPENのままv1.0.0受け入れMilestoneへ割当て**。AntigravityのSafari連携OAuthは現行mainで未検証。Codex/Cursorの成功やフィクスチャだけからAntigravity PASSを推測しません。ユーザーが通常使用するSafari・認証情報を変更しない安全な実機検証、またはOAuthの公開サポート範囲を明示的に判断することが必要です。
+
+完了条件は公開済みの**非OAuth core範囲**で達成済み。4段階のPASS、既存公開スキーマ・終了コード、実クライアントの直接証拠、セキュリティ・CIを維持します。OAuth全体の完了はv0.11の必須条件でも達成済み機能でもありません。
 
 ## v0.12.0 — 認証とオプションCapabilityの拡張
 
-- [#190](https://github.com/git-ksk/mcp-interop/issues/190): クライアントが安全に対応するBearer/APIキー認証入力、OAuth診断改善。秘密情報は成果物・ログに保存しない。
+**Status: 計画中・進行中。** [Milestone](https://github.com/git-ksk/mcp-interop/milestone/7)、追跡Issue [#205](https://github.com/git-ksk/mcp-interop/issues/205)。計画段階でありv0.12の公開済みを意味しません。
+
+- [#190](https://github.com/git-ksk/mcp-interop/issues/190): クライアントが安全に対応するBearer/APIキー認証入力、OAuth診断改善。診断だけで対話認証のPASSとは扱わず、秘密情報は成果物・ログに保存しない。
 - [#191](https://github.com/git-ksk/mcp-interop/issues/191): Resources/Promptsの実クライアント証拠と独立した回帰判定。Tasks/MRTRは実現可能性を確認してから。
 - [#192](https://github.com/git-ksk/mcp-interop/issues/192): Windows/Linuxの実クライアント検証範囲拡張。調査中クライアントを証拠なしで対応済みにしない。
+- [#204](https://github.com/git-ksk/mcp-interop/issues/204): 任意のプライバシーレビュー付き完全ツール名差分調査。安全な実クライアント観測経路がなければ延期する。
+
+**OAuthの扱い:** [#168](https://github.com/git-ksk/mcp-interop/issues/168)は**v1リリース前の受け入れ・サポート範囲判断**であり、v0.12でOAuth全クライアントのPASSを強制しません。v0.12でAntigravityの安全な対話テストや診断を改善しても、直接証拠または明確なサポート範囲判断なしに#168をクローズできません。未検証は`unknown`/`untested`のままとします。
 
 完了条件: Capabilityの判定をcore PASSから独立、秘密情報保護、`unsupported`/`untested`をPASSと扱わない。安全な観測経路のない機能は次版へ繰り越す。
 
@@ -297,7 +309,9 @@ Capability profile v1は独立したadditive evidence contractです。capabilit
 
 ## v1.0.0 — Stable contractの完了条件
 
-`v1.0.0`は以下のcategoryをすべて満たした場合だけreleaseします。代表的real-client regression acceptanceは[v1 real-client regression acceptance](v1-real-client-regression-acceptance.ja.md)へ証拠を保持し、[#162](https://github.com/git-ksk/mcp-interop/issues/162)で完了まで追跡します。
+`v1.0.0`は以下のcategoryをすべて満たした場合だけreleaseします。最終判断は[#193](https://github.com/git-ksk/mcp-interop/issues/193)で行い、代表的real-client regression acceptanceは[v1 real-client regression acceptance](v1-real-client-regression-acceptance.ja.md)へ証拠を保持し、[#162](https://github.com/git-ksk/mcp-interop/issues/162)で完了まで追跡しました。
+
+**OAuthのv1前ゲート [#168](https://github.com/git-ksk/mcp-interop/issues/168):** v1で正式対応を主張するOAuth経路には安全な実クライアントの最新受け入れ証拠が必要です。特にAntigravity/Safariはv0.11時点で**未検証**。通常使用中のSafariや認証情報を触らず直接検証を完了するか、OAuthを実験的・安定サポート対象外に据え置く範囲を公開契約として明示的に決めます。IssueのクローズやフィクスチャだけでOAuthの安定対応を主張せず、v1レビューまで#168をOPENに保ちます。
 
 ### 証拠の正しさ
 
