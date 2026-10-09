@@ -274,13 +274,26 @@ Capability profile v1は独立したadditive evidence contractです。capabilit
 
 根本的なCLI・schema・evidence model変更がまだ起こりそうなら、`v0.x`を継続します。
 
-## v0.11.x以降 — 安定化のための余白
+## v0.11.0 — 実クライアント検証の実用性強化
 
-`v0.11.0`以降へ特定featureを予約しません。
+- [#186](https://github.com/git-ksk/mcp-interop/issues/186): 期待ツール名・件数の照合、追加・欠落差分。実クライアントから確認できない場合は `unknown`。
+- [#187](https://github.com/git-ksk/mcp-interop/issues/187): 上限付きタイムアウトと反復実行。既存のsuite比較を再利用し、全試行・不安定性・後処理を保持。
+- [#188](https://github.com/git-ksk/mcp-interop/issues/188): 検証済み成果物から安全なオフラインHTMLとCI向け要約を生成。
+- [#189](https://github.com/git-ksk/mcp-interop/issues/189): Go脆弱性対策、#168 OAuth再検証、配布・CI監査。
 
-実運用で見つかったprotocol差、schema migration、cross-platform cleanup、baseline UX、OAuth変更などを必要なだけ追加`v0.x`で解消します。
+完了条件: 実クライアントの直接証拠、既存 `reach/auth/init/tools` PASSの意味を維持、公開スキーマと終了コードの互換性、セキュリティとCIの合格。
 
-`v1.0.0`を急ぐより、`v0.12.0`、`v0.13.0`以降を出すことを問題としません。
+## v0.12.0 — 認証とオプションCapabilityの拡張
+
+- [#190](https://github.com/git-ksk/mcp-interop/issues/190): クライアントが安全に対応するBearer/APIキー認証入力、OAuth診断改善。秘密情報は成果物・ログに保存しない。
+- [#191](https://github.com/git-ksk/mcp-interop/issues/191): Resources/Promptsの実クライアント証拠と独立した回帰判定。Tasks/MRTRは実現可能性を確認してから。
+- [#192](https://github.com/git-ksk/mcp-interop/issues/192): Windows/Linuxの実クライアント検証範囲拡張。調査中クライアントを証拠なしで対応済みにしない。
+
+完了条件: Capabilityの判定をcore PASSから独立、秘密情報保護、`unsupported`/`untested`をPASSと扱わない。安全な観測経路のない機能は次版へ繰り越す。
+
+## v0.13.x — 必要な場合のみ安定化
+
+受け入れ試験で発見した不具合・移行問題・クライアント仕様変更に限り追加。新機能は事前確約しない。
 
 ## v1.0.0 — Stable contractの完了条件
 
