@@ -11,6 +11,17 @@ There are now two evidence families:
 
 A runtime-diagnostic code is not a real-client interoperability verdict. Preflight, Runtime Evidence, OpenAI Reference Pattern, and real-client execution remain separate evidence layers.
 
+## Optional expected-tool assertion codes (v0.11 development)
+
+These **lowercase** values appear only in the opt-in `test --json` `tool_expectation.reason_code` field, and are not core `stages[].reason_code` values or portable live-result schema v1/v2 evidence:
+
+- `expected_tools_matched`: all explicitly requested tool names and, if specified, the exact count matched the accepted real-client inventory.
+- `expected_tools_missing`: at least one operator-supplied expected name is not in the directly observed inventory; only missing *expected* names are emitted.
+- `expected_tool_count_mismatch`: a directly observed inventory had a different number of tools.
+- `tool_inventory_unobservable`: an exact real-client inventory could not be proven; this is `unknown`, never PASS or an inferred failure.
+
+Name absence has precedence over a simultaneous count mismatch, but both expected and observed counts remain visible. These additional codes do not change the existing four-stage interoperability contract.
+
 ## Real-client OAuth codes
 
 ### `DCR_UNSUPPORTED`

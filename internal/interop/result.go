@@ -95,12 +95,13 @@ type Diagnostic struct {
 
 // Result is the deterministic report returned by one real-client adapter.
 type Result struct {
-	ClientID      string        `json:"client_id"`
-	ClientName    string        `json:"client_name"`
-	ClientVersion string        `json:"client_version,omitempty"`
-	Endpoint      string        `json:"endpoint"`
-	Stages        []StageResult `json:"stages"`
-	Diagnostics   []Diagnostic  `json:"diagnostics,omitempty"`
+	ClientID        string           `json:"client_id"`
+	ClientName      string           `json:"client_name"`
+	ClientVersion   string           `json:"client_version,omitempty"`
+	Endpoint        string           `json:"endpoint"`
+	Stages          []StageResult    `json:"stages"`
+	Diagnostics     []Diagnostic     `json:"diagnostics,omitempty"`
+	ToolExpectation *ToolExpectation `json:"tool_expectation,omitempty"`
 
 	protocolObservation    ProtocolObservation
 	observedToolNames      []string
@@ -139,6 +140,7 @@ func (r *Result) SetWithReason(stage Stage, status Status, reasonCode ReasonCode
 			// tool-name evidence, even when the new status is also PASS.
 			r.observedToolNames = nil
 			r.observedToolNamesKnown = false
+			r.ToolExpectation = nil
 			r.Stages[i].Status = status
 			r.Stages[i].ReasonCode = reasonCode
 			r.Stages[i].Message = message

@@ -15,6 +15,17 @@ Runtime Evidenceのreason codeは、実クライアントのinterop verdictで�
 
 Preflight、Runtime Evidence、OpenAI Reference Pattern、real-client runは別々の証拠です。
 
+## 期待ツール照合のreason code（v0.11開発中）
+
+次の**小文字**コードは、明示的に`--expect-tool`などを指定した場合だけ、`test --json`の`tool_expectation.reason_code`へ追加されます。従来の4段階の`reason_code`やlive-result schema v1/v2の証拠とは別です。
+
+- `expected_tools_matched`：期待したツール名と指定した件数が、実クライアントの直接証拠に一致した。
+- `expected_tools_missing`：期待名が1件以上欠落。表示するのは指定された期待名だけ。
+- `expected_tool_count_mismatch`：観測件数と指定された件数が異なる。
+- `tool_inventory_unobservable`：正確な名前一覧を実クライアントから確認できず`unknown`。成功・失敗を推測しない。
+
+ツール欠落と件数不一致が同時に起きた場合は欠落理由を優先しますが、期待件数・観測件数は双方のフィールドで保持します。
+
 ## 実クライアントOAuth
 
 ### `DCR_UNSUPPORTED`

@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"text/tabwriter"
 	"time"
@@ -27,7 +28,7 @@ const usageText = `mcp-interop - live interoperability testing for Remote MCP se
 
 Usage:
   mcp-interop clients [--json]
-  mcp-interop test <url> [--client codex,cursor,antigravity] [--oauth] [--json] [--output result.json] [--deployment-id <id>]
+  mcp-interop test <url> [--client codex,cursor,antigravity] [--oauth] [--expect-tool <name>]... [--expect-tool-count <n>] [--json] [--output result.json] [--deployment-id <id>]
   mcp-interop compare <old.json> <new.json> [--json] [--fail-on-regression]
   mcp-interop suite validate <manifest.json> [--json]
   mcp-interop suite run <manifest.json> --output-dir <dir> [--json]
@@ -63,6 +64,8 @@ Test options:
   --oauth          Opt in to interactive OAuth where the live adapter supports it (Codex, Cursor, and Antigravity on macOS).
   --output <file>       Write a separate secret-safe portable live-result artifact without changing stdout JSON/text.
   --deployment-id <id>  Use schema v2 protected-path identity. The ID is persisted verbatim and must be non-secret; requires --output.
+  --expect-tool <name>   Assert a named tool is in the directly observed real-client inventory; repeatable (max 64).
+  --expect-tool-count <n>  Assert the exact size of a directly observed inventory (0..4096).
 
 Compare options:
   --json                Print a machine-readable comparison report.
@@ -480,13 +483,15 @@ func runClients(ctx context.Context, args []string) int {
 }
 
 type testOptions struct {
-	endpoint     string
-	clients      []string
-	json         bool
-	oauth        bool
-	output       string
-	deploymentID string
-	showHelp     bool
+	endpoint      string
+	clients       []string
+	json          bool
+	oauth         bool
+	output        string
+	deploymentID  string
+	expectedTools []string
+	expectedCount *int
+	showHelp      bool
 }
 
 func runTest(ctx context.Context, args []string) int {
@@ -513,16 +518,23 @@ func runTestWithIO(ctx context.Context, args []string, stdout, stderr io.Writer)
 		}
 	}
 
+	hadFailure := false
 	results := make([]interop.Result, 0, len(options.clients))
 	executedAt := make([]time.Time, 0, len(options.clients))
 	provenance := make([]artifact.EvidenceProvenance, 0, len(options.clients))
 	appendResult := func(result interop.Result, evidence artifact.EvidenceProvenance) {
-		results = append(results, result)
+		if len(options.expectedTools) != 0 || options.expectedCount != nil {
+			check := interop.CheckToolExpectation(result, options.expectedTools, options.expectedCount)
+			result.ToolExpectation = &check
+			if check.Status != interop.StatusPass {
+				hadFailure = true
+			}
+		}
+		results = append(results, interop.RedactResult(result))
 		executedAt = append(executedAt, time.Now().UTC())
 		provenance = append(provenance, evidence)
 	}
 
-	hadFailure := false
 	for _, clientID := range options.clients {
 		switch clientID {
 		case "codex":
@@ -728,6 +740,51 @@ func parseTestOptions(args []string) (testOptions, error) {
 			options.deploymentID = args[i]
 		case strings.HasPrefix(arg, "--deployment-id="):
 			options.deploymentID = strings.TrimPrefix(arg, "--deployment-id=")
+		case arg == "--expect-tool" || strings.HasPrefix(arg, "--expect-tool="):
+			var name string
+			if arg == "--expect-tool" {
+				if i+1 >= len(args) {
+					return options, fmt.Errorf("--expect-tool requires a name")
+				}
+				i++
+				name = args[i]
+			} else {
+				name = strings.TrimPrefix(arg, "--expect-tool=")
+			}
+			if err := interop.ValidateExpectedToolName(name); err != nil {
+				return options, fmt.Errorf("invalid --expect-tool name: %w", err)
+			}
+			if len(options.expectedTools) >= interop.MaxExpectedToolNames {
+				return options, fmt.Errorf("--expect-tool exceeds %d distinct names", interop.MaxExpectedToolNames)
+			}
+			for _, current := range options.expectedTools {
+				if current == name {
+					return options, fmt.Errorf("duplicate --expect-tool name")
+				}
+			}
+			options.expectedTools = append(options.expectedTools, name)
+		case arg == "--expect-tool-count" || strings.HasPrefix(arg, "--expect-tool-count="):
+			if options.expectedCount != nil {
+				return options, fmt.Errorf("duplicate --expect-tool-count")
+			}
+			var value string
+			if arg == "--expect-tool-count" {
+				if i+1 >= len(args) {
+					return options, fmt.Errorf("--expect-tool-count requires a number")
+				}
+				i++
+				value = args[i]
+			} else {
+				value = strings.TrimPrefix(arg, "--expect-tool-count=")
+			}
+			if value == "" || strings.Trim(value, "0123456789") != "" {
+				return options, fmt.Errorf("--expect-tool-count must be a non-negative decimal integer")
+			}
+			n, err := strconv.Atoi(value)
+			if err != nil || n > 4096 {
+				return options, fmt.Errorf("--expect-tool-count must be between 0 and 4096")
+			}
+			options.expectedCount = &n
 		case arg == "--client":
 			if i+1 >= len(args) {
 				return options, fmt.Errorf("--client requires a value")
@@ -892,6 +949,18 @@ func writeTestResults(output io.Writer, results []interop.Result) error {
 				message = "-"
 			}
 			fmt.Fprintf(writer, "%s\t%s\t%s\t%s\n", stage.Stage, strings.ToUpper(string(stage.Status)), reason, message)
+		}
+		if check := result.ToolExpectation; check != nil {
+			fmt.Fprintf(writer, "\nEXPECTED TOOLS\t%s\t%s\n", strings.ToUpper(string(check.Status)), check.ReasonCode)
+			if check.ObservedCount != nil {
+				fmt.Fprintf(writer, "OBSERVED COUNT\t%d\n", *check.ObservedCount)
+			}
+			if check.ExpectedCount != nil {
+				fmt.Fprintf(writer, "EXPECTED COUNT\t%d\n", *check.ExpectedCount)
+			}
+			if len(check.MissingNames) > 0 {
+				fmt.Fprintf(writer, "MISSING NAMES\t%s\n", strings.Join(check.MissingNames, ", "))
+			}
 		}
 	}
 	return writer.Flush()

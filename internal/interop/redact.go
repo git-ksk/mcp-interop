@@ -105,5 +105,19 @@ func RedactResult(result Result) Result {
 	for i := range result.Diagnostics {
 		result.Diagnostics[i].Message = Redact(result.Diagnostics[i].Message)
 	}
+	if result.ToolExpectation != nil {
+		// The operator supplies these names explicitly, but never emit
+		// unredacted user input when it resembles credential material.
+		report := *result.ToolExpectation
+		report.ExpectedNames = append([]string(nil), report.ExpectedNames...)
+		report.MissingNames = append([]string(nil), report.MissingNames...)
+		for i := range report.ExpectedNames {
+			report.ExpectedNames[i] = Redact(report.ExpectedNames[i])
+		}
+		for i := range report.MissingNames {
+			report.MissingNames[i] = Redact(report.MissingNames[i])
+		}
+		result.ToolExpectation = &report
+	}
 	return result
 }

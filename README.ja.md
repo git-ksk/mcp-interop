@@ -66,7 +66,7 @@ URLを自分のRemote MCPエンドポイントへ置き換え、インストー�
 mcp-interop test https://example.com/mcp --client codex
 ```
 
-**4段階すべてがPASSなら成功**し、終了コードは`0`です。
+**基本の4段階すべてがPASSなら成功**し、終了コードは`0`です。
 
 | 段階 | 実クライアントから確認すること |
 | --- | --- |
@@ -74,6 +74,8 @@ mcp-interop test https://example.com/mcp --client codex
 | `auth` | 必要な認証が完了した、または認証なしでツール発見できた |
 | `init` | MCPのやり取りを続けられるプロトコル状態になった |
 | `tools` | サーバーのツールを発見できた |
+
+**開発中のmain（未リリースのv0.11）：** `--expect-tool ping`や`--expect-tool-count 3`を使うと、ツール名・件数を実クライアントから追加検証できます。現在、名前の直接証拠を取れるのはCodexだけで、他のクライアントは`unknown`になります。[詳細 →](docs/usage.ja.md#期待ツール名件数の明示的チェックv011開発中未リリース)
 
 `FAIL`・`SKIP`・`UNKNOWN`があれば終了コードは非ゼロです。`UNKNOWN`は、結果を確定する証拠が足りない状態を示し、原因を調べる手がかりになります。[トラブルシューティング →](docs/troubleshooting.ja.md)
 

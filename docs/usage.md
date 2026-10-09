@@ -65,6 +65,23 @@ Antigravity CLI  PASS   PASS  PASS  PASS   1.1.11
 
 JSON output remains an array, preserving the existing machine-readable contract.
 
+### Opt-in expected tool assertions (v0.11 development; not released yet)
+
+A core tool-discovery PASS only means a real client completed discovery; it does **not** guarantee that particular tool names are present. To require named tools or an exact inventory size, opt in explicitly:
+
+```console
+mcp-interop test https://example.com/mcp --client codex \
+  --expect-tool ping --expect-tool read_tool --expect-tool-count 3
+mcp-interop test https://example.com/mcp --client codex \
+  --expect-tool ping --json
+```
+
+Assertions run after the four independent core stages. The `tool_expectation` field is **only included when requested** in `test --json`'s existing result array. It uses `pass`, `fail` (expected name missing or exact count mismatch), or `unknown` (the real client did not expose a trustworthy named inventory). A failed or unknown opt-in assertion makes `test` exit `1`, even if all four core stages passed. Invalid names or counts fail before execution with exit `2`. Multiple clients are checked independently. The check never invokes `tools/call` or a model prompt.
+
+Currently the **Codex app-server** provides a directly observed named inventory for this feature. Cursor and Antigravity may report core PASS but return assertion `unknown` until safe, exact-name evidence is demonstrated. Codex's empty inventory is likewise ambiguous with connection failure, so it never becomes a fabricated PASS. The check only emits *operator-supplied* expected tool names and missing names; it does not print or persist additional discovered tool names. Use ordinary non-secret identifiers (Unicode letters/numbers are supported, at most 128 UTF-8 bytes per name and 64 distinct names); never supply tokens as tool names or CLI arguments.
+
+**Evidence boundary:** existing `--output` live-result artifacts v1/v2, suite comparisons, and baselines deliberately continue to represent **core stages only**. They do not record or gate optional tool assertions. Capture `test --json` separately in a trusted CI step if you need machine-readable assertion evidence today; do not treat a passing live-result artifact as proof that the separate check passed. Persistent optional-name regression artifacts/diff reports are tracked in [#186](https://github.com/git-ksk/mcp-interop/issues/186).
+
 ### Portable regression artifacts
 
 Export the same live run into a separate versioned, secret-safe local artifact without changing the existing result shape:
