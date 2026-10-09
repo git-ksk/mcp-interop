@@ -75,7 +75,7 @@ A complete core success has **PASS in all four stages** and exits `0`:
 | `init` | Protocol readiness to continue the MCP exchange |
 | `tools` | Discovery of the server's tools |
 
-**Development `main` (unreleased v0.11):** use `--expect-tool ping` or `--expect-tool-count 3` to add a fail-closed direct-client inventory assertion. Unlike core discovery PASS, this checks named tools. Currently Codex supports direct name evidence; other adapters return `unknown`. [Details →](docs/usage.md#opt-in-expected-tool-assertions-v011-development-not-released-yet)
+**Since v0.11.0:** use `--expect-tool ping` or `--expect-tool-count 3` to add a fail-closed direct-client inventory assertion. Unlike core discovery PASS, this checks named tools. Currently Codex supports direct name evidence; other adapters return `unknown`. [Details →](docs/usage.md)
 
 `FAIL`, `SKIP`, or `UNKNOWN` makes a live test exit non-zero. `UNKNOWN` means the available evidence cannot prove the result; it is useful diagnostic information. [Troubleshooting →](docs/troubleshooting.md)
 
@@ -114,7 +114,7 @@ mcp-interop compare before.json after.json --fail-on-regression
 
 The comparison catches lost PASS evidence, including transitions to `FAIL`, `UNKNOWN`, or `SKIP`. For endpoints with credentials in their path, use [`--deployment-id` and protected-path artifacts](docs/usage.md#portable-regression-artifacts).
 
-When you need more than a single run, [suites and immutable baselines](docs/usage.md#repeatable-multi-client-suites) let you declare targets, run multiple clients, and retain retry history. Development `main` also provides `suite repeat` to execute 2–5 attempts with a separate stability report, and opt-in `report suite` for local offline HTML/CI Markdown. A passing retry does not erase an earlier failure.
+When you need more than a single run, [suites and immutable baselines](docs/usage.md#repeatable-multi-client-suites) let you declare targets, run multiple clients, and retain retry history. v0.11.0 also provides `suite repeat` to execute 2–5 attempts with a separate stability report, and opt-in `report suite` for local offline HTML/CI Markdown. A passing retry does not erase an earlier failure.
 
 ## What makes the result useful
 

@@ -1,4 +1,4 @@
-# オフラインHTMLとCIサマリー（v0.11開発中）
+# オフラインHTMLとCIサマリー（v0.11.0）
 
 [English](offline-suite-report.md) | [日本語](offline-suite-report.ja.md)
 
