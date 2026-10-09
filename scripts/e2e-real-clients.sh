@@ -381,6 +381,53 @@ PYMISSING
     fi
   fi
 
+  if [[ "${MCP_INTEROP_TEST_SUITE_REPEAT:-0}" == "1" && "$client" == "codex" ]]; then
+    if ! command -v python3 >/dev/null 2>&1; then
+      echo "python3 is required for optional suite repeat E2E" >&2
+      overall_fail=1
+    else
+      repeat_manifest="$result_dir/repeat-manifest.json"
+      repeat_output="$result_dir/repeat-results"
+      repeat_json="$result_dir/repeat-stdout.json"
+      cat > "$repeat_manifest" <<'REPEATMANIFEST'
+{"schema_version":1,"execution_context":"trusted_real_client","targets":[{"id":"repeat","endpoint":{"source":"environment","variable":"MCP_INTEROP_SUITE_ENDPOINT_REPEAT"},"deployment_id":"repeat-fixture","clients":[{"id":"codex","auth":"none"}]}]}
+REPEATMANIFEST
+      repeat_rc=0
+      MCP_INTEROP_SUITE_ENDPOINT_REPEAT="$endpoint" run_network_isolated \
+        "$interop_bin" suite repeat "$repeat_manifest" --output-dir "$repeat_output" \
+        --attempts 2 --timeout 45s --json > "$repeat_json" || repeat_rc=$?
+      if ! python3 - "$repeat_output" "$repeat_json" "$repeat_rc" <<'PYREPEAT'
+import json, pathlib, sys
+root = pathlib.Path(sys.argv[1])
+report = json.load(open(sys.argv[2], encoding="utf-8"))
+assert int(sys.argv[3]) == 0
+assert report["schema_version"] == 1
+assert report["artifact_type"] == "mcp-interop/suite-repeat-report"
+assert report["decision"] == "clean" and report["complete"]
+assert report["requested_attempts"] == report["completed_attempts"] == 2
+assert report["attempt_indexes"] == ["attempt-01/index.json", "attempt-02/index.json"]
+assert [x["evidence"]["outcome"] for x in report["runs"][0]["attempts"]] == ["pass", "pass"]
+assert report == json.loads((root/"repeat-report.json").read_text())
+for ref in report["attempt_indexes"]:
+    index = json.loads((root/ref).read_text())
+    assert index["schema_version"] == 1 and index["runs"][0]["outcome"] == "pass"
+    artifact = json.loads((root/ref).parent.joinpath(index["runs"][0]["artifact"]).read_text())
+    assert artifact["schema_version"] == 2
+    assert artifact["runs"][0]["endpoint"]["identity"] == "repeat-fixture"
+    assert [s["status"] for s in artifact["runs"][0]["stages"]] == ["pass"] * 4
+for path in [root/"repeat-report.json", root/"manifest.json", pathlib.Path(sys.argv[2])]:
+    text = path.read_text()
+    assert "/mcp/codex" not in text, "resolved endpoint leaked into public evidence"
+PYREPEAT
+      then
+        echo "Codex: repeat suite evidence failed validation" >&2
+        overall_fail=1
+      else
+        echo "Codex: repeated suite real-client evidence and preserved private artifacts PASS"
+      fi
+    fi
+  fi
+
   path="/mcp/$client"
   protocol_ok=1
   protocol_era="$(fixture_protocol_readiness "$path")" || protocol_ok=0

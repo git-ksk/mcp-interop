@@ -30,6 +30,8 @@ mcp-interopがpersist後にfail-closed validationで再読込するdocumentで�
 - comparison identity変更の有無
 
 ### Versioned derived report
+任意のsuite repeat reportは独立した`mcp-interop/suite-repeat-report` schema v1を使用します。整合性の判定は既存のsuite index・正式baselineの意味を変更しません。[Suite repeat report v1](suite-repeat-report-v1.ja.md)を参照してください。
+
 
 regression、compatibility、maturity、graduation、baseline-verification等は主にoutputでもschema versionを持ちます。同一schema内では既存field名・type・意味を維持します。既存meaningを変えないoptional additive fieldは許可できますが、削除・rename・type変更・semantic repurposeにはreport schema bumpが必要です。
 
