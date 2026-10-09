@@ -161,6 +161,19 @@ suiteは最初のclientを起動する前に全endpointを解決・検証し、�
 
 Manifest v1にはRemote MCP endpoint URL自体を保存しません。hosted fixture宣言は任意network targetやOAuthを指定できず、v0.9.0でもvalidation-onlyです。repositoryのPR CIは任意suite manifestを実行せず、controlled localhost fixture gateを別経路で使います。trusted real-client suiteはtarget固有の`MCP_INTEROP_SUITE_ENDPOINT_*`変数参照と非secret `deployment_id`を使います。詳細は[Suite manifest v1](suite-manifest-v1.ja.md)と[Suite result set v1](suite-result-set-v1.ja.md)を参照してください。
 
+### 実クライアントの反復実行（v0.11開発中・未リリース）
+
+複数回の`suite run`を手作業で繰り返す代わりに、`suite repeat`で**2〜5回の試行をすべて保持**できます。
+
+```console
+mcp-interop suite repeat suite.json \
+  --output-dir repeat-results --attempts 3 --timeout 45s
+mcp-interop suite repeat suite.json \
+  --output-dir repeat-json --attempts 2 --timeout 2m --json
+```
+
+`--attempts`（2〜5）とクライアント単位の`--timeout`（1秒〜10分）は必須で、合計予算は45分以下です。開始前に全endpointを1度だけ解決し、非機密の固定manifestで試行します。各試行は`attempt-01/`等に保存され、`repeat-report.json`で`clean`、`non_pass`、`unstable`、`non_pass_and_unstable`、`incomplete`を区別します。**後続のPASSで以前のFAILや実行エラーを隠しません**。途中中断・不安定・失敗は終了コード`1`。出力ディレクトリは上書きしません。詳しい仕様と既存baselineとの比較は[Suite repeat report v1](suite-repeat-report-v1.ja.md)を参照してください。
+
 比較基準として保存した結果（baseline）と、その後の1回以上の実行結果（attempt）を比較できます。
 
 ```console

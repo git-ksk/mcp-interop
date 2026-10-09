@@ -30,6 +30,8 @@ A new schema version must document:
 - whether comparison identity changed.
 
 ### Versioned derived reports
+The optional suite repeat report uses its **own** `mcp-interop/suite-repeat-report` schema v1. Its consistency verdict does not alter the suite result index or independently accepted baseline semantics. See [Suite repeat report v1](suite-repeat-report-v1.md).
+
 
 Regression, compatibility, maturity, graduation, baseline-verification, and similar reports carry a schema version even when they are primarily outputs. Existing field names, types, and meanings are stable within a schema. Additive optional fields may be introduced when they do not change existing meanings; removal, rename, type changes, or semantic repurposing require a report schema bump.
 

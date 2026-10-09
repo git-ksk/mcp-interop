@@ -114,7 +114,7 @@ mcp-interop compare before.json after.json --fail-on-regression
 
 PASSから`FAIL`・`UNKNOWN`・`SKIP`への変化など、成功の証拠が失われたことを検出できます。URLのパスに認証情報が含まれる場合は、[`--deployment-id`による保護された結果保存](docs/usage.ja.md#saved-results)を使ってください。
 
-複数の接続先やクライアントを継続的に確認するなら、[suiteと固定した比較基準](docs/usage.ja.md#suites)を利用できます。再試行で成功しても、その前の失敗は記録に残ります。
+複数の接続先やクライアントを継続的に確認するなら、[suiteと固定した比較基準](docs/usage.ja.md#suites)を利用できます。開発中の`main`には2〜5回の試行を自動で保存し安定性を判定する`suite repeat`も追加しています。再試行で成功しても、その前の失敗は記録に残ります。
 
 ## 結果を信頼するために
 

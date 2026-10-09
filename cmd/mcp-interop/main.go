@@ -8,10 +8,12 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
+	"syscall"
 	"text/tabwriter"
 	"time"
 
@@ -32,6 +34,7 @@ Usage:
   mcp-interop compare <old.json> <new.json> [--json] [--fail-on-regression]
   mcp-interop suite validate <manifest.json> [--json]
   mcp-interop suite run <manifest.json> --output-dir <dir> [--timeout <duration>] [--json]
+  mcp-interop suite repeat <manifest.json> --output-dir <dir> --attempts 2..5 --timeout <duration> [--json]
   mcp-interop suite compare <baseline-index> <attempt-index> [<attempt-index>...] [--json] [--fail-on-regression]
   mcp-interop baseline create <result-set> --output-dir <dir> [--supersedes <baseline-dir>] [--json]
   mcp-interop baseline verify <baseline-dir> [--predecessor <baseline-dir>] [--json]
@@ -79,7 +82,12 @@ Current live adapters:
 `
 
 func main() {
-	os.Exit(run(context.Background(), os.Args[1:]))
+	// Give each real-client adapter a chance to clean its owned isolated
+	// session before exit, including when an operator interrupts suite repeat.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	code := run(ctx, os.Args[1:])
+	stop()
+	os.Exit(code)
 }
 
 func run(ctx context.Context, args []string) int {
@@ -133,7 +141,7 @@ type suiteValidationSummary struct {
 
 func runSuite(ctx context.Context, args []string) int {
 	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, "suite requires a subcommand: validate, run, or compare")
+		fmt.Fprintln(os.Stderr, "suite requires a subcommand: validate, run, repeat, or compare")
 		return 2
 	}
 	switch args[0] {
@@ -141,6 +149,8 @@ func runSuite(ctx context.Context, args []string) int {
 		return runSuiteValidate(args[1:], os.Stdout, os.Stderr)
 	case "run":
 		return runSuiteRunWith(ctx, args[1:], os.Stdout, os.Stderr, os.LookupEnv, runTestWithIO)
+	case "repeat":
+		return runSuiteRepeatWith(ctx, args[1:], os.Stdout, os.Stderr, os.LookupEnv, runTestWithIO)
 	case "compare":
 		return runSuiteCompare(args[1:], os.Stdout, os.Stderr)
 	default:

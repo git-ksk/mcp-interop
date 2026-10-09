@@ -149,6 +149,19 @@ The suite resolves every endpoint before launching the first client, executes ea
 
 Manifest v1 never stores a Remote MCP endpoint URL. Hosted fixture declarations cannot select network targets or OAuth and remain validation-only in v0.9.0; repository PR CI continues to use controlled localhost fixture gates separately rather than executing arbitrary suite manifests. Trusted real-client suites reference a target-specific `MCP_INTEROP_SUITE_ENDPOINT_*` variable and require a non-secret `deployment_id`. See [Suite manifest v1](suite-manifest-v1.md) ([日本語](suite-manifest-v1.ja.md)) and [Suite result set v1](suite-result-set-v1.md) ([日本語](suite-result-set-v1.ja.md)).
 
+### Execute and retain repeated live suites (v0.11 development; unreleased)
+
+Use `suite repeat` instead of manually launching separate `suite run` commands when you need **two to five repeat observations** with no last-run-wins behavior:
+
+```console
+mcp-interop suite repeat suite.json \
+  --output-dir repeat-results --attempts 3 --timeout 45s
+mcp-interop suite repeat suite.json \
+  --output-dir repeat-json --attempts 2 --timeout 2m --json
+```
+
+Both `--attempts` (2..5) and per-client `--timeout` (1s..10m) are required. The aggregate declared timeout budget is capped at 45 minutes. All endpoints are resolved once up front, and a frozen secret-free manifest is used for each attempt. Each completed attempt is retained under `attempt-01/`, `attempt-02/`, etc.; a versioned `repeat-report.json` explains `clean`, `non_pass`, `unstable`, `non_pass_and_unstable`, and `incomplete`. A late PASS **never hides** an earlier failure or execution error. Non-clean or interrupted repetitions exit `1`. The directory is never overwritten. For full format, partial-interruption rules, and how to compare every attempt with an accepted baseline, see [Suite repeat report v1](suite-repeat-report-v1.md) ([日本語](suite-repeat-report-v1.ja.md)).
+
 Compare a baseline result set with one or more retained attempts:
 
 ```console
