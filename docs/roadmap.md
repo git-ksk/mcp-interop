@@ -28,6 +28,9 @@ The roadmap is the canonical planning/exit-criteria document. GitHub Milestones 
 | v0.8.x | [#104](https://github.com/git-ksk/mcp-interop/issues/104) | **Completed:** [#125](https://github.com/git-ksk/mcp-interop/issues/125), [#126](https://github.com/git-ksk/mcp-interop/issues/126), [#127](https://github.com/git-ksk/mcp-interop/issues/127) |
 | v0.9.x | [#105](https://github.com/git-ksk/mcp-interop/issues/105) | Research candidates: [#6](https://github.com/git-ksk/mcp-interop/issues/6), [#20](https://github.com/git-ksk/mcp-interop/issues/20), [#48](https://github.com/git-ksk/mcp-interop/issues/48), [#68](https://github.com/git-ksk/mcp-interop/issues/68) |
 | v0.10.x | [#106](https://github.com/git-ksk/mcp-interop/issues/106) | Split into focused audit/fix Issues when contract review starts |
+| v0.11.0 — [completed milestone](https://github.com/git-ksk/mcp-interop/milestone/6) | [#189](https://github.com/git-ksk/mcp-interop/issues/189) (release audit) | **Released:** [#186](https://github.com/git-ksk/mcp-interop/issues/186), [#187](https://github.com/git-ksk/mcp-interop/issues/187), [#188](https://github.com/git-ksk/mcp-interop/issues/188), [#202](https://github.com/git-ksk/mcp-interop/issues/202). Scope: stable macOS arm64 **non-OAuth core**; #168 remains open separately. |
+| v0.12.0 — [active milestone](https://github.com/git-ksk/mcp-interop/milestone/7) | [#205](https://github.com/git-ksk/mcp-interop/issues/205) | [#190](https://github.com/git-ksk/mcp-interop/issues/190) secure auth/diagnostics, [#191](https://github.com/git-ksk/mcp-interop/issues/191) optional capabilities, [#192](https://github.com/git-ksk/mcp-interop/issues/192) real-client OS qualification; optional research [#204](https://github.com/git-ksk/mcp-interop/issues/204). |
+| v1.0.0 — [acceptance milestone](https://github.com/git-ksk/mcp-interop/milestone/8) | [#193](https://github.com/git-ksk/mcp-interop/issues/193) | **Open pre-v1 OAuth evidence/scope decision:** [#168](https://github.com/git-ksk/mcp-interop/issues/168). Representative real-client regression [#162](https://github.com/git-ksk/mcp-interop/issues/162) was completed previously. |
 
 This mapping is intentionally bidirectional: roadmap work should have a GitHub Issue before implementation begins, and an Issue that changes roadmap scope/exit criteria should update the English/Japanese roadmap pair in the same PR.
 
@@ -297,18 +300,27 @@ If a fundamental CLI, schema, or evidence-model redesign still appears likely, t
 
 ## v0.11.0 — Real-client usability and regression evidence
 
-- [#186](https://github.com/git-ksk/mcp-interop/issues/186): opt-in expected tool inventory/name/count assertions and tool drift, with direct-client evidence only; unobservable inventory stays `unknown`.
-- [#187](https://github.com/git-ksk/mcp-interop/issues/187): bounded timeout and repeat controls reusing suite regression semantics, retaining every attempt and cleanup guarantees.
-- [#188](https://github.com/git-ksk/mcp-interop/issues/188): privacy-safe offline HTML and CI summaries based on validated artifacts.
-- [#189](https://github.com/git-ksk/mcp-interop/issues/189): Go security/toolchain fixes, #168 OAuth revalidation, workflow and release-candidate audit.
+**Status: completed and released** as [v0.11.0](https://github.com/git-ksk/mcp-interop/releases/tag/v0.11.0) on 2026-10-10 JST. [GitHub milestone](https://github.com/git-ksk/mcp-interop/milestone/6) is closed. The **stable claim is macOS arm64 non-OAuth Remote MCP core only**; a shipped opt-in `--oauth` flag must not be confused with a stable OAuth claim.
 
-Exit: tested real-client evidence; no changes to core reach/auth/init/tools PASS; existing public schemas and exit classes remain compatible; security and CI green.
+- **Completed [#186](https://github.com/git-ksk/mcp-interop/issues/186):** directly observed, explicitly expected tool-name/count assertions and separately versioned, privacy-bounded drift evidence. Unobservable inventories stay `unknown`. Complete unlisted-name drift and Cursor/Antigravity direct-name surfaces are **not shipped**; follow-up [#204](https://github.com/git-ksk/mcp-interop/issues/204).
+- **Completed [#187](https://github.com/git-ksk/mcp-interop/issues/187) and [#202](https://github.com/git-ksk/mcp-interop/issues/202):** bounded timeout, repeat controls, retained attempts, forced timeout/SIGINT and fail-closed cleanup acceptance.
+- **Completed [#188](https://github.com/git-ksk/mcp-interop/issues/188):** privacy-safe offline HTML and CI summaries based on validated artifacts.
+- **Completed [#189](https://github.com/git-ksk/mcp-interop/issues/189):** Go security/toolchain fixes, workflow, release-candidate audit and exact scope documentation. Local controlled-fixture **Codex and Cursor OAuth** paths were revalidated, but this did **not** finish all-client OAuth acceptance.
+
+**Remaining outside the v0.11 release gate:** [#168](https://github.com/git-ksk/mcp-interop/issues/168) stays **open and assigned to the v1.0.0 acceptance milestone**. Antigravity's browser/Safari-backed real-client OAuth flow has not yet passed current-main acceptance. Do not infer Antigravity PASS from Codex/Cursor or from a controlled fixture alone. The existing test must avoid disrupting a normal Safari session; any future acceptance requires a safe operator-controlled flow or an explicit public support-scope decision.
+
+Exit met for the published **non-OAuth core scope**: direct real-client evidence, unchanged four-stage PASS, compatible existing public artifacts/exit classes, security and CI green. Full OAuth support is *not* a retrospective requirement or a claimed v0.11 feature.
 
 ## v0.12.0 — Authentication and optional capabilities
 
-- [#190](https://github.com/git-ksk/mcp-interop/issues/190): isolated non-OAuth auth inputs only for client-supported secure surfaces; improved OAuth diagnostics.
+**Status: planned / active.** [Milestone](https://github.com/git-ksk/mcp-interop/milestone/7); tracking [#205](https://github.com/git-ksk/mcp-interop/issues/205). No v0.12 release is implied by planning.
+
+- [#190](https://github.com/git-ksk/mcp-interop/issues/190): isolated non-OAuth auth inputs only for client-supported secure surfaces; improved OAuth diagnostics, without treating diagnostics as completed interactive authorization.
 - [#191](https://github.com/git-ksk/mcp-interop/issues/191): Resources/Prompts optional direct-client capability evidence and separate regression output; Tasks/MRTR only if evidence is feasible.
 - [#192](https://github.com/git-ksk/mcp-interop/issues/192): exact-version Windows/Linux real-client qualification; research-only clients remain research-only until safe evidence exists.
+- [#204](https://github.com/git-ksk/mcp-interop/issues/204): optional privacy-reviewed complete tool-inventory research; defer if a secure direct-client name surface remains unavailable.
+
+**OAuth dependency:** [#168](https://github.com/git-ksk/mcp-interop/issues/168) remains a **v1 pre-release acceptance/scope decision**, not a mandatory v0.12 capability PASS. v0.12 may improve the safe Antigravity interactive test path and diagnostics, but cannot silently mark #168 complete; failure to validate a client must remain unknown/untested or trigger a documented stable-scope exclusion.
 
 Exit: capability verdicts stay independent of core PASS; no secrets in artifacts/logs; unsupported and untested paths are not advertised as PASS. Defer unsupported probes rather than fabricating coverage.
 
@@ -318,7 +330,9 @@ Reserve a further pre-1.0 release only for regressions, migration or client-surf
 
 ## v1.0.0 — Stable-contract exit criteria
 
-`v1.0.0` ships only when all of the following categories are satisfied. The representative real-client regression acceptance is retained in [v1 real-client regression acceptance](v1-real-client-regression-acceptance.md) and tracked to completion in [#162](https://github.com/git-ksk/mcp-interop/issues/162).
+`v1.0.0` ships only when all of the following categories are satisfied, with the final review in [#193](https://github.com/git-ksk/mcp-interop/issues/193). The representative real-client regression acceptance is retained in [v1 real-client regression acceptance](v1-real-client-regression-acceptance.md) and was tracked to completion in [#162](https://github.com/git-ksk/mcp-interop/issues/162).
+
+**OAuth pre-release gate [#168](https://github.com/git-ksk/mcp-interop/issues/168):** collect safe current release-candidate real-client acceptance for each OAuth path that v1 proposes to advertise; in particular Antigravity/Safari is **unverified** after v0.11. Either obtain direct accepted evidence without touching the user's browser/credential state, or explicitly decide and document which OAuth claims remain experimental/out of stable scope. A closed ticket or successful fixture alone is not permission to advertise OAuth as stable. #168 and this v1 scope decision remain open until reviewed.
 
 ### Evidence correctness
 
