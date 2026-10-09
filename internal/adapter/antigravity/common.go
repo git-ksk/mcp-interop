@@ -59,6 +59,16 @@ func WithOAuthIO(input io.Reader, output io.Writer) Option {
 	}
 }
 
+// WithTimeout sets the bounded non-OAuth client observation timeout. The
+// public CLI also provides an outer per-client deadline, including OAuth.
+func WithTimeout(timeout time.Duration) Option {
+	return func(adapter *Adapter) {
+		if timeout > 0 {
+			adapter.timeout = timeout
+		}
+	}
+}
+
 // WithOAuthTimeout overrides the maximum duration of the explicit OAuth flow.
 func WithOAuthTimeout(timeout time.Duration) Option {
 	return func(adapter *Adapter) {

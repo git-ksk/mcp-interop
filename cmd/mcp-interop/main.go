@@ -28,10 +28,10 @@ const usageText = `mcp-interop - live interoperability testing for Remote MCP se
 
 Usage:
   mcp-interop clients [--json]
-  mcp-interop test <url> [--client codex,cursor,antigravity] [--oauth] [--expect-tool <name>]... [--expect-tool-count <n>] [--json] [--output result.json] [--deployment-id <id>]
+  mcp-interop test <url> [--client codex,cursor,antigravity] [--timeout <duration>] [--oauth] [--expect-tool <name>]... [--expect-tool-count <n>] [--json] [--output result.json] [--deployment-id <id>]
   mcp-interop compare <old.json> <new.json> [--json] [--fail-on-regression]
   mcp-interop suite validate <manifest.json> [--json]
-  mcp-interop suite run <manifest.json> --output-dir <dir> [--json]
+  mcp-interop suite run <manifest.json> --output-dir <dir> [--timeout <duration>] [--json]
   mcp-interop suite compare <baseline-index> <attempt-index> [<attempt-index>...] [--json] [--fail-on-regression]
   mcp-interop baseline create <result-set> --output-dir <dir> [--supersedes <baseline-dir>] [--json]
   mcp-interop baseline verify <baseline-dir> [--predecessor <baseline-dir>] [--json]
@@ -66,6 +66,7 @@ Test options:
   --deployment-id <id>  Use schema v2 protected-path identity. The ID is persisted verbatim and must be non-secret; requires --output.
   --expect-tool <name>   Assert a named tool is in the directly observed real-client inventory; repeatable (max 64).
   --expect-tool-count <n>  Assert the exact size of a directly observed inventory (0..4096).
+  --timeout <duration>  Opt-in per-client total deadline and adapter timeout (1s..10m); affects interactive OAuth too.
 
 Compare options:
   --json                Print a machine-readable comparison report.
@@ -201,6 +202,7 @@ func parseSuiteValidateOptions(args []string) (string, bool, error) {
 }
 
 type suiteRunOptions struct {
+	timeout      *time.Duration
 	manifestPath string
 	outputDir    string
 	json         bool
@@ -227,6 +229,12 @@ func runSuiteRunWith(ctx context.Context, args []string, stdout, stderr io.Write
 	if runOne == nil {
 		fmt.Fprintln(stderr, "suite execution runner is unavailable")
 		return 1
+	}
+	// Divide first to avoid overflowing time.Duration when a trusted
+	// manifest contains a large number of planned client runs.
+	if options.timeout != nil && len(planned) > int((45*time.Minute)/(*options.timeout)) {
+		fmt.Fprintln(stderr, "suite timeout budget exceeds 45 minutes; use smaller --timeout or split the suite")
+		return 2
 	}
 
 	if _, err := os.Lstat(options.outputDir); err == nil {
@@ -275,6 +283,9 @@ func runSuiteRunWith(ctx context.Context, args []string, stdout, stderr io.Write
 		}
 		if plannedRun.Client.Auth == suite.AuthOAuth {
 			testArgs = append(testArgs, "--oauth")
+		}
+		if options.timeout != nil {
+			testArgs = append(testArgs, "--timeout", options.timeout.String())
 		}
 		rc := runOne(ctx, testArgs, io.Discard, stderr)
 		entry := suite.ResultEntry{
@@ -345,6 +356,20 @@ func parseSuiteRunOptions(args []string) (suiteRunOptions, error) {
 		switch {
 		case arg == "--json":
 			options.json = true
+		case arg == "--timeout" || strings.HasPrefix(arg, "--timeout="):
+			if options.timeout != nil {
+				return options, errors.New("duplicate --timeout")
+			}
+			value, next, err := durationArgument(arg, args, i)
+			if err != nil {
+				return options, err
+			}
+			i = next
+			duration, err := parseBoundedTimeout(value)
+			if err != nil {
+				return options, err
+			}
+			options.timeout = &duration
 		case arg == "--output-dir":
 			if i+1 >= len(args) {
 				return options, errors.New("--output-dir requires a directory path")
@@ -483,6 +508,7 @@ func runClients(ctx context.Context, args []string) int {
 }
 
 type testOptions struct {
+	timeout       *time.Duration
 	endpoint      string
 	clients       []string
 	json          bool
@@ -536,9 +562,17 @@ func runTestWithIO(ctx context.Context, args []string, stdout, stderr io.Writer)
 	}
 
 	for _, clientID := range options.clients {
+		clientCtx := ctx
+		if options.timeout != nil {
+			var cancel context.CancelFunc
+			clientCtx, cancel = context.WithTimeout(ctx, *options.timeout)
+			// At most three shipped clients are selected. Each session has
+			// independent bounded cleanup; cancel remaining deadlines on exit.
+			defer cancel()
+		}
 		switch clientID {
 		case "codex":
-			detection := detectClient(ctx, "codex")
+			detection := detectClient(clientCtx, "codex")
 			if !detection.Installed {
 				result := missingClientResult("codex", "Codex CLI", options.endpoint)
 				appendResult(interop.RedactResult(result), artifact.EvidenceProvenance{Kind: artifact.ProvenanceRunnerObservation})
@@ -556,8 +590,11 @@ func runTestWithIO(ctx context.Context, args []string, stdout, stderr io.Writer)
 			if options.oauth {
 				adapterOptions = append(adapterOptions, codexadapter.WithAuthorizationHandler(printAuthorizationURL))
 			}
+			if options.timeout != nil {
+				adapterOptions = append(adapterOptions, codexadapter.WithTimeout(*options.timeout))
+			}
 			adapter := codexadapter.New(detection.Path, detection.Version, adapterOptions...)
-			result, runErr := interop.NewRunner().Run(ctx, adapter, interop.Target{Endpoint: options.endpoint})
+			result, runErr := interop.NewRunner().Run(clientCtx, adapter, interop.Target{Endpoint: options.endpoint})
 			appendResult(result, artifact.EvidenceProvenance{Kind: artifact.ProvenanceRealClientAdapter, AdapterID: "codex"})
 			if runErr != nil {
 				writeLiveTestError(stderr, "Codex", runErr, options.deploymentID != "")
@@ -568,7 +605,7 @@ func runTestWithIO(ctx context.Context, args []string, stdout, stderr io.Writer)
 			}
 
 		case "cursor":
-			detection := detectClient(ctx, "cursor")
+			detection := detectClient(clientCtx, "cursor")
 			if !detection.Installed {
 				result := missingClientResult("cursor", "Cursor CLI", options.endpoint)
 				appendResult(interop.RedactResult(result), artifact.EvidenceProvenance{Kind: artifact.ProvenanceRunnerObservation})
@@ -585,8 +622,11 @@ func runTestWithIO(ctx context.Context, args []string, stdout, stderr io.Writer)
 			if options.oauth {
 				adapterOptions = append(adapterOptions, cursoradapter.WithAuthorizationHandler(printAuthorizationURL))
 			}
+			if options.timeout != nil {
+				adapterOptions = append(adapterOptions, cursoradapter.WithTimeout(*options.timeout))
+			}
 			adapter := cursoradapter.New(detection.Path, detection.Version, adapterOptions...)
-			result, runErr := interop.NewRunner().Run(ctx, adapter, interop.Target{Endpoint: options.endpoint})
+			result, runErr := interop.NewRunner().Run(clientCtx, adapter, interop.Target{Endpoint: options.endpoint})
 			appendResult(result, artifact.EvidenceProvenance{Kind: artifact.ProvenanceRealClientAdapter, AdapterID: "cursor"})
 			if runErr != nil {
 				writeLiveTestError(stderr, "Cursor", runErr, options.deploymentID != "")
@@ -597,7 +637,7 @@ func runTestWithIO(ctx context.Context, args []string, stdout, stderr io.Writer)
 			}
 
 		case "antigravity":
-			detection := detectClient(ctx, "antigravity")
+			detection := detectClient(clientCtx, "antigravity")
 			if !detection.Installed {
 				result := missingClientResult("antigravity", "Antigravity CLI", options.endpoint)
 				appendResult(interop.RedactResult(result), artifact.EvidenceProvenance{Kind: artifact.ProvenanceRunnerObservation})
@@ -614,8 +654,11 @@ func runTestWithIO(ctx context.Context, args []string, stdout, stderr io.Writer)
 			if options.oauth {
 				adapterOptions = append(adapterOptions, antigravityadapter.WithOAuth())
 			}
+			if options.timeout != nil {
+				adapterOptions = append(adapterOptions, antigravityadapter.WithTimeout(*options.timeout))
+			}
 			adapter := antigravityadapter.New(detection.Path, detection.Version, adapterOptions...)
-			result, runErr := interop.NewRunner().Run(ctx, adapter, interop.Target{Endpoint: options.endpoint})
+			result, runErr := interop.NewRunner().Run(clientCtx, adapter, interop.Target{Endpoint: options.endpoint})
 			appendResult(result, artifact.EvidenceProvenance{Kind: artifact.ProvenanceRealClientAdapter, AdapterID: "antigravity"})
 			if runErr != nil {
 				writeLiveTestError(stderr, "Antigravity", runErr, options.deploymentID != "")
@@ -740,6 +783,20 @@ func parseTestOptions(args []string) (testOptions, error) {
 			options.deploymentID = args[i]
 		case strings.HasPrefix(arg, "--deployment-id="):
 			options.deploymentID = strings.TrimPrefix(arg, "--deployment-id=")
+		case arg == "--timeout" || strings.HasPrefix(arg, "--timeout="):
+			if options.timeout != nil {
+				return options, fmt.Errorf("duplicate --timeout")
+			}
+			value, next, err := durationArgument(arg, args, i)
+			if err != nil {
+				return options, err
+			}
+			i = next
+			duration, err := parseBoundedTimeout(value)
+			if err != nil {
+				return options, err
+			}
+			options.timeout = &duration
 		case arg == "--expect-tool" || strings.HasPrefix(arg, "--expect-tool="):
 			var name string
 			if arg == "--expect-tool" {
@@ -836,6 +893,24 @@ func parseTestOptions(args []string) (testOptions, error) {
 		}
 	}
 	return options, nil
+}
+
+func durationArgument(arg string, args []string, i int) (string, int, error) {
+	if strings.HasPrefix(arg, "--timeout=") {
+		return strings.TrimPrefix(arg, "--timeout="), i, nil
+	}
+	if i+1 >= len(args) {
+		return "", i, fmt.Errorf("--timeout requires a duration")
+	}
+	return args[i+1], i + 1, nil
+}
+
+func parseBoundedTimeout(value string) (time.Duration, error) {
+	duration, err := time.ParseDuration(value)
+	if err != nil || duration < time.Second || duration > 10*time.Minute {
+		return 0, fmt.Errorf("--timeout must be a duration between 1s and 10m (for example 45s or 2m)")
+	}
+	return duration, nil
 }
 
 func splitClients(value string) []string {

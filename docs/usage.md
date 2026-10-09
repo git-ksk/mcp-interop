@@ -82,6 +82,19 @@ Currently the **Codex app-server** provides a directly observed named inventory 
 
 **Evidence boundary:** existing `--output` live-result artifacts v1/v2, suite comparisons, and baselines deliberately continue to represent **core stages only**. They do not record or gate optional tool assertions. Capture `test --json` separately in a trusted CI step if you need machine-readable assertion evidence today; do not treat a passing live-result artifact as proof that the separate check passed. Persistent optional-name regression artifacts/diff reports are tracked in [#186](https://github.com/git-ksk/mcp-interop/issues/186).
 
+### Bounded execution timeouts (v0.11 development; not released yet)
+
+Both `test` and `suite run` accept an optional `--timeout <duration>` with bounds **1 second to 10 minutes**. This is a per-client **overall execution deadline** (including client detection and interactive OAuth if explicitly enabled), and adjusts the adapter's own non-OAuth probe timeout. For example:
+
+```console
+mcp-interop test https://example.com/mcp --client codex,cursor --timeout 45s
+mcp-interop suite run suite.json --output-dir results --timeout 2m
+```
+
+Each client gets its own bounded timeout. A `suite run` using `--timeout` is preflight-rejected when the sum of declared per-client budgets exceeds 45 minutes; split large suites or reduce the limit. The default behavior **without `--timeout` is unchanged**. Existing interactive OAuth defaults remain in force when you do not specify the flag; if you do, the outer deadline also bounds user authorization time and may end the flow before its usual OAuth timeout. Cleanup uses its own bounded grace intervals and can complete just after the active-run deadline. Timeouts never convert incomplete evidence into PASS.
+
+This setting is an invocation policy, **not serialized** into existing strict live-result v1/v2 artifacts or suite manifest v1. Use the same explicit timeout when comparing runs, or document the difference alongside your retained evidence. Repeat/flake automation remains tracked in [#187](https://github.com/git-ksk/mcp-interop/issues/187).
+
 ### Portable regression artifacts
 
 Export the same live run into a separate versioned, secret-safe local artifact without changing the existing result shape:

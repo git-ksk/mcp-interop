@@ -46,6 +46,16 @@ func WithAuthorizationHandler(handler AuthorizationHandler) Option {
 	}
 }
 
+// WithTimeout sets the bounded non-OAuth client observation timeout. The
+// public CLI also provides an outer per-client deadline, including OAuth.
+func WithTimeout(timeout time.Duration) Option {
+	return func(adapter *Adapter) {
+		if timeout > 0 {
+			adapter.timeout = timeout
+		}
+	}
+}
+
 // WithOAuthTimeout overrides how long Cursor may wait for the OAuth callback.
 func WithOAuthTimeout(timeout time.Duration) Option {
 	return func(adapter *Adapter) {

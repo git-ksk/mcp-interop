@@ -82,6 +82,19 @@ mcp-interop test https://example.com/mcp --client codex \
 
 **成果物との区別:** 既存の`--output`によるlive-result schema v1/v2、suite比較、baselineは従来どおり**coreの4段階のみ**を記録・判定します。追加ツール照合の合否は含まれません。現時点で自動処理する場合は別途`test --json`を信頼できる環境で保存し、coreの成果物だけで期待ツールのPASSを判断しないでください。ツール一覧の永続的な差分比較は[#186](https://github.com/git-ksk/mcp-interop/issues/186)で継続します。
 
+### 実行時間の上限（v0.11開発中・未リリース）
+
+`test`と`suite run`で`--timeout <duration>`（**1秒〜10分**）を明示指定できます。実クライアント1件の**実行全体**（検出、必要なOAuthの対話待ちを含む）に上限を設け、各アダプター内部の非OAuthタイムアウトも調整します。
+
+```console
+mcp-interop test https://example.com/mcp --client codex,cursor --timeout 45s
+mcp-interop suite run suite.json --output-dir results --timeout 2m
+```
+
+クライアントごとに個別の制限時間を適用します。`suite run`は指定した上限の合計が**45分を超える場合、実行前に拒否**します。指定がなければ従来のタイムアウトを変更しません。OAuthも明示した上限に含まれるため、OAuth固有の通常待機時間より先に終了することがあります。一時プロセスの安全な後処理には別途短い猶予を確保しており、実行上限の直後に完了する場合があります。不確定な証拠をPASSにはしません。
+
+この設定は実行時ポリシーであり、既存のlive-result schema v1/v2やsuite manifest v1には**保存しません**。比較する際は同じ上限を使うか、違いを記録してください。反復実行・不安定性の自動判定は[#187](https://github.com/git-ksk/mcp-interop/issues/187)で引き続き対応します。
+
 <a id="saved-results"></a>
 
 ## 実行結果を保存・比較する
