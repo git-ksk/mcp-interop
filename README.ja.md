@@ -75,7 +75,7 @@ mcp-interop test https://example.com/mcp --client codex
 | `init` | MCPのやり取りを続けられるプロトコル状態になった |
 | `tools` | サーバーのツールを発見できた |
 
-**開発中のmain（未リリースのv0.11）：** `--expect-tool ping`や`--expect-tool-count 3`を使うと、ツール名・件数を実クライアントから追加検証できます。現在、名前の直接証拠を取れるのはCodexだけで、他のクライアントは`unknown`になります。[詳細 →](docs/usage.ja.md#期待ツール名件数の明示的チェックv011開発中未リリース)
+**v0.11.0以降：** `--expect-tool ping`や`--expect-tool-count 3`を使うと、ツール名・件数を実クライアントから追加検証できます。現在、名前の直接証拠を取れるのはCodexだけで、他のクライアントは`unknown`になります。[詳細 →](docs/usage.ja.md)
 
 `FAIL`・`SKIP`・`UNKNOWN`があれば終了コードは非ゼロです。`UNKNOWN`は、結果を確定する証拠が足りない状態を示し、原因を調べる手がかりになります。[トラブルシューティング →](docs/troubleshooting.ja.md)
 
@@ -114,7 +114,7 @@ mcp-interop compare before.json after.json --fail-on-regression
 
 PASSから`FAIL`・`UNKNOWN`・`SKIP`への変化など、成功の証拠が失われたことを検出できます。URLのパスに認証情報が含まれる場合は、[`--deployment-id`による保護された結果保存](docs/usage.ja.md#saved-results)を使ってください。
 
-複数の接続先やクライアントを継続的に確認するなら、[suiteと固定した比較基準](docs/usage.ja.md#suites)を利用できます。開発中の`main`には2〜5回の試行を自動で保存し安定性を判定する`suite repeat`と、オフラインHTML/CI Markdownを生成する`report suite`も追加しています。再試行で成功しても、その前の失敗は記録に残ります。
+複数の接続先やクライアントを継続的に確認するなら、[suiteと固定した比較基準](docs/usage.ja.md#suites)を利用できます。v0.11.0以降は2〜5回の試行を自動で保存し安定性を判定する`suite repeat`と、オフラインHTML/CI Markdownを生成する`report suite`も追加しています。再試行で成功しても、その前の失敗は記録に残ります。
 
 ## 結果を信頼するために
 

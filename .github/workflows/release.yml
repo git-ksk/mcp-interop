@@ -59,6 +59,8 @@ jobs:
           bash -n scripts/test-real-client-e2e-guard.sh
           bash -n scripts/test-security-contract.sh
           bash -n scripts/e2e-cursor-oauth.sh
+          bash -n scripts/e2e-codex-oauth.sh
+          bash -n scripts/e2e-real-client-interruptions.sh
           bash -n scripts/e2e-antigravity-oauth.sh
           bash -n scripts/poc-vscode-agent-plugin.sh
           bash -n scripts/poc-copilot-cli-mcp.sh

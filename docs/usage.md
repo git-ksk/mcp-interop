@@ -65,7 +65,7 @@ Antigravity CLI  PASS   PASS  PASS  PASS   1.1.11
 
 JSON output remains an array, preserving the existing machine-readable contract.
 
-### Opt-in expected tool assertions (v0.11 development; not released yet)
+### Opt-in expected tool assertions (v0.11.0)
 
 A core tool-discovery PASS only means a real client completed discovery; it does **not** guarantee that particular tool names are present. To require named tools or an exact inventory size, opt in explicitly:
 
@@ -82,7 +82,7 @@ Currently the **Codex app-server** provides a directly observed named inventory 
 
 **Evidence boundary:** existing `--output` live-result artifacts v1/v2, suite comparisons, and baselines deliberately continue to represent **core stages only**. They do not record or gate optional tool assertions. To save tool checks, use the separate opt-in `--tool-evidence` file described below; do not interpret a core-only live-result PASS as named-tool PASS.
 
-## Persist and compare expected tool evidence (v0.11 development; unreleased)
+## Persist and compare expected tool evidence (v0.11.0)
 
 Unlike the core `--output` artifact, optional **separate tool-evidence v1** captures operator-declared expected tool names, membership results, an observed inventory count *when directly proven*, and a schema-v2 protected-path real-client run for identity and provenance. It **does not** persist the complete raw inventory, unlisted tool names, or endpoint paths/queries.
 
@@ -107,7 +107,7 @@ mcp-interop tools compare expected-old.json expected-new.json --json --fail-on-d
 
 **Limit:** Only explicitly listed names are compared. If two *unlisted* tools are swapped and the total count remains unchanged, the diff is `clean` because those identities cannot be safely published. Cursor and Antigravity remain `unknown` for named inventories until accepted direct-client evidence is available. These reports are untrusted local evidence without a cryptographic signature; publish or retain them only under your own security policy. `suite repeat` and baseline comparison still analyze core stages only. See [Expected-tool evidence v1](tool-expectation-evidence-v1.md) ([日本語](tool-expectation-evidence-v1.ja.md)).
 
-### Bounded execution timeouts (v0.11 development; not released yet)
+### Bounded execution timeouts (v0.11.0)
 
 Both `test` and `suite run` accept an optional `--timeout <duration>` with bounds **1 second to 10 minutes**. This is a per-client **overall execution deadline** (including client detection and interactive OAuth if explicitly enabled), and adjusts the adapter's own non-OAuth probe timeout. For example:
 
@@ -174,7 +174,7 @@ The suite resolves every endpoint before launching the first client, executes ea
 
 Manifest v1 never stores a Remote MCP endpoint URL. Hosted fixture declarations cannot select network targets or OAuth and remain validation-only in v0.9.0; repository PR CI continues to use controlled localhost fixture gates separately rather than executing arbitrary suite manifests. Trusted real-client suites reference a target-specific `MCP_INTEROP_SUITE_ENDPOINT_*` variable and require a non-secret `deployment_id`. See [Suite manifest v1](suite-manifest-v1.md) ([日本語](suite-manifest-v1.ja.md)) and [Suite result set v1](suite-result-set-v1.md) ([日本語](suite-result-set-v1.ja.md)).
 
-### Execute and retain repeated live suites (v0.11 development; unreleased)
+### Execute and retain repeated live suites (v0.11.0)
 
 Use `suite repeat` instead of manually launching separate `suite run` commands when you need **two to five repeat observations** with no last-run-wins behavior:
 
@@ -187,7 +187,7 @@ mcp-interop suite repeat suite.json \
 
 Both `--attempts` (2..5) and per-client `--timeout` (1s..10m) are required. The aggregate declared timeout budget is capped at 45 minutes. All endpoints are resolved once up front, and a frozen secret-free manifest is used for each attempt. Each completed attempt is retained under `attempt-01/`, `attempt-02/`, etc.; a versioned `repeat-report.json` explains `clean`, `non_pass`, `unstable`, `non_pass_and_unstable`, and `incomplete`. A late PASS **never hides** an earlier failure or execution error. Non-clean or interrupted repetitions exit `1`. The directory is never overwritten. For full format, partial-interruption rules, and how to compare every attempt with an accepted baseline, see [Suite repeat report v1](suite-repeat-report-v1.md) ([日本語](suite-repeat-report-v1.ja.md)).
 
-### Offline HTML and CI summary (v0.11 development; not released yet)
+### Offline HTML and CI summary (v0.11.0)
 
 After obtaining a validated suite baseline and one or more complete attempt result sets, render a local, **script-free and network-free** HTML report and/or a CI Markdown summary:
 

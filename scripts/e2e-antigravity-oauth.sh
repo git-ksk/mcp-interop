@@ -7,6 +7,13 @@ cd "$repo_root" || exit 1
 [[ "$(uname -s)" == "Darwin" ]] || { echo "Antigravity OAuth E2E requires macOS" >&2; exit 2; }
 command -v agy >/dev/null 2>&1 || { echo "Antigravity CLI missing" >&2; exit 2; }
 
+# This test launches the real client's browser OAuth flow. Never commandeer a
+# browser already used by the operator; do not close their Safari windows.
+if pgrep -x Safari >/dev/null 2>&1; then
+  echo "Antigravity OAuth acceptance deferred: Safari is already running; normal browser state must be preserved" >&2
+  exit 2
+fi
+
 work_root="$(mktemp -d "${TMPDIR:-/tmp}/mcp-antigravity-oauth.XXXXXX")" || exit 1
 interop_bin="$work_root/mcp-interop"
 fixture_bin="$work_root/oauth-fixture"
@@ -21,7 +28,7 @@ interop_pid=""
 cleanup() {
   kill "${interop_pid:-}" "${fixture_pid:-}" 2>/dev/null || true
   wait "${interop_pid:-}" "${fixture_pid:-}" 2>/dev/null || true
-  /usr/bin/osascript -e 'tell application "Safari" to quit' >/dev/null 2>&1 || true
+  # Never quit Safari globally: another session may have opened meanwhile.
   [[ "${MCP_INTEROP_KEEP_E2E_TMP:-0}" == "1" ]] || rm -rf "$work_root"
 }
 trap cleanup EXIT INT TERM
@@ -131,7 +138,6 @@ wait "$interop_pid"
 rc=$?
 set -e
 interop_pid=""
-/usr/bin/osascript -e 'tell application "Safari" to quit' >/dev/null 2>&1 || true
 
 cat "$result"
 python3 - "$result" "$trace" "$rc" <<'PY'

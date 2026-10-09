@@ -65,7 +65,7 @@ Antigravity CLI  PASS   PASS  PASS  PASS   1.1.11
 
 `--json`を指定した場合は配列を返します。既存JSON契約へartifact用のフィールドを勝手に追加しません。
 
-### 期待ツール名・件数の明示的チェック（v0.11開発中・未リリース）
+### 期待ツール名・件数の明示的チェック（v0.11.0）
 
 coreのツール発見PASSは「実クライアントが発見処理を完了した」ことを意味し、個々のツールが存在する保証ではありません。期待名や正確な件数を要求する場合は、明示的に指定します。
 
@@ -82,7 +82,7 @@ mcp-interop test https://example.com/mcp --client codex \
 
 **成果物との区別:** 従来の`--output`によるlive-result schema v1/v2、suite比較、baselineは引き続き**coreの4段階のみ**を記録・判定します。名前照合の合否は別途`--tool-evidence`で保存し、coreのPASSを期待ツールのPASSと取り違えないでください。
 
-## 期待ツールの証拠保存・差分比較（v0.11開発中・未リリース）
+## 期待ツールの証拠保存・差分比較（v0.11.0）
 
 従来の`--output`（coreの4段階のみ）とは**別のtool-evidence schema v1**に、利用者が明示した期待名・有無・直接観測できた件数、protected-path形式の実クライアント実行情報を保存できます。**観測した全ツール名、未指定のツール名、endpointのpath/queryは保存しません。**
 
@@ -106,7 +106,7 @@ mcp-interop tools compare expected-old.json expected-new.json --json --fail-on-d
 
 **限界:** 名前を明示していないツール2件が入れ替わり、総件数が同じなら差分は検知できません。Cursor/Antigravityは名前の直接証拠が得られるまで`unknown`。ファイルはローカルの観測記録であり署名による真実性証明ではありません。`suite repeat`と既存baselineは引き続きcoreだけを判定します。詳細は[Expected-tool evidence v1](tool-expectation-evidence-v1.ja.md)を参照してください。
 
-### 実行時間の上限（v0.11開発中・未リリース）
+### 実行時間の上限（v0.11.0）
 
 `test`と`suite run`で`--timeout <duration>`（**1秒〜10分**）を明示指定できます。実クライアント1件の**実行全体**（検出、必要なOAuthの対話待ちを含む）に上限を設け、各アダプター内部の非OAuthタイムアウトも調整します。
 
@@ -185,7 +185,7 @@ suiteは最初のclientを起動する前に全endpointを解決・検証し、�
 
 Manifest v1にはRemote MCP endpoint URL自体を保存しません。hosted fixture宣言は任意network targetやOAuthを指定できず、v0.9.0でもvalidation-onlyです。repositoryのPR CIは任意suite manifestを実行せず、controlled localhost fixture gateを別経路で使います。trusted real-client suiteはtarget固有の`MCP_INTEROP_SUITE_ENDPOINT_*`変数参照と非secret `deployment_id`を使います。詳細は[Suite manifest v1](suite-manifest-v1.ja.md)と[Suite result set v1](suite-result-set-v1.ja.md)を参照してください。
 
-### 実クライアントの反復実行（v0.11開発中・未リリース）
+### 実クライアントの反復実行（v0.11.0）
 
 複数回の`suite run`を手作業で繰り返す代わりに、`suite repeat`で**2〜5回の試行をすべて保持**できます。
 
@@ -198,7 +198,7 @@ mcp-interop suite repeat suite.json \
 
 `--attempts`（2〜5）とクライアント単位の`--timeout`（1秒〜10分）は必須で、合計予算は45分以下です。開始前に全endpointを1度だけ解決し、非機密の固定manifestで試行します。各試行は`attempt-01/`等に保存され、`repeat-report.json`で`clean`、`non_pass`、`unstable`、`non_pass_and_unstable`、`incomplete`を区別します。**後続のPASSで以前のFAILや実行エラーを隠しません**。途中中断・不安定・失敗は終了コード`1`。出力ディレクトリは上書きしません。詳しい仕様と既存baselineとの比較は[Suite repeat report v1](suite-repeat-report-v1.ja.md)を参照してください。
 
-### オフラインHTML・CIサマリー（v0.11開発中・未リリース）
+### オフラインHTML・CIサマリー（v0.11.0）
 
 検証済みのbaselineと試行結果から、**スクリプトや外部通信なし**で動くHTMLとCI用Markdownを生成できます。
 
