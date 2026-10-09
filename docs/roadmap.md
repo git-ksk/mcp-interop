@@ -295,21 +295,26 @@ The public surface can be reviewed and the maintainers can reasonably say: **we 
 
 If a fundamental CLI, schema, or evidence-model redesign still appears likely, the project remains in `v0.x`.
 
-## v0.11.x and later — Stabilization buffer
+## v0.11.0 — Real-client usability and regression evidence
 
-No feature set is reserved for `v0.11.0` or any later pre-1.0 minor release.
+- [#186](https://github.com/git-ksk/mcp-interop/issues/186): opt-in expected tool inventory/name/count assertions and tool drift, with direct-client evidence only; unobservable inventory stays `unknown`.
+- [#187](https://github.com/git-ksk/mcp-interop/issues/187): bounded timeout and repeat controls reusing suite regression semantics, retaining every attempt and cleanup guarantees.
+- [#188](https://github.com/git-ksk/mcp-interop/issues/188): privacy-safe offline HTML and CI summaries based on validated artifacts.
+- [#189](https://github.com/git-ksk/mcp-interop/issues/189): Go security/toolchain fixes, #168 OAuth revalidation, workflow and release-candidate audit.
 
-Use additional `v0.x` milestones for issues discovered by real use, including:
+Exit: tested real-client evidence; no changes to core reach/auth/init/tools PASS; existing public schemas and exit classes remain compatible; security and CI green.
 
-- unexpected modern/legacy client differences;
-- artifact schema migration gaps;
-- cross-platform lifecycle or cleanup problems;
-- baseline/manifest usability problems;
-- new OAuth behavior;
-- a real-client automation surface changing or disappearing;
-- protocol revisions/extensions that require evidence-model adaptation.
+## v0.12.0 — Authentication and optional capabilities
 
-There is no penalty for shipping `v0.12.0`, `v0.13.0`, or later instead of declaring `v1.0.0` prematurely.
+- [#190](https://github.com/git-ksk/mcp-interop/issues/190): isolated non-OAuth auth inputs only for client-supported secure surfaces; improved OAuth diagnostics.
+- [#191](https://github.com/git-ksk/mcp-interop/issues/191): Resources/Prompts optional direct-client capability evidence and separate regression output; Tasks/MRTR only if evidence is feasible.
+- [#192](https://github.com/git-ksk/mcp-interop/issues/192): exact-version Windows/Linux real-client qualification; research-only clients remain research-only until safe evidence exists.
+
+Exit: capability verdicts stay independent of core PASS; no secrets in artifacts/logs; unsupported and untested paths are not advertised as PASS. Defer unsupported probes rather than fabricating coverage.
+
+## v0.13.x — Conditional stabilization only
+
+Reserve a further pre-1.0 release only for regressions, migration or client-surface changes discovered in acceptance; no fixed feature commitment.
 
 ## v1.0.0 — Stable-contract exit criteria
 
