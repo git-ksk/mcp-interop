@@ -17,6 +17,7 @@
 - [Suite manifest](suite-manifest-v1.ja.md)
 - [Suite result sets](suite-result-set-v1.ja.md)
 - [Regression reports](suite-regression-report-v1.ja.md)
+- [期待ツールの証拠と差分比較](tool-expectation-evidence-v1.ja.md)
 - [反復実行・安定性レポート](suite-repeat-report-v1.ja.md)
 - [Immutable baselines](suite-baseline-v1.ja.md)
 - [Compatibility envelope](compatibility-envelope-v1.ja.md)
