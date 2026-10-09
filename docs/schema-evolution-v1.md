@@ -30,6 +30,10 @@ A new schema version must document:
 - whether comparison identity changed.
 
 ### Versioned derived reports
+
+The opt-in expected-tool evidence is **separate** `mcp-interop/tool-expectation-evidence` schema v1 with an independently versioned `mcp-interop/tool-expectation-diff` report; it does not change strict live-result v1/v2 or the core PASS contract. See [Expected-tool evidence v1](tool-expectation-evidence-v1.md).
+
+
 The optional suite repeat report uses its **own** `mcp-interop/suite-repeat-report` schema v1. Its consistency verdict does not alter the suite result index or independently accepted baseline semantics. See [Suite repeat report v1](suite-repeat-report-v1.md).
 
 

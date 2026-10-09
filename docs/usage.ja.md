@@ -80,7 +80,31 @@ mcp-interop test https://example.com/mcp --client codex \
 
 現時点でツール名を直接証明できるのは**Codex app-server**です。Cursor/Antigravityではcore PASSでも名前のチェックが`unknown`となる可能性があります。Codexの空一覧は接続失敗と区別できないため、PASSにしません。表示するのは利用者が明示指定した名前と欠落した期待名だけで、未指定の観測名は表示・保存しません。名前は一般的な非機密識別子（日本語などUnicode文字にも対応、UTF-8で最大128バイト、最大64個）とし、トークン等をCLI引数に渡さないでください。
 
-**成果物との区別:** 既存の`--output`によるlive-result schema v1/v2、suite比較、baselineは従来どおり**coreの4段階のみ**を記録・判定します。追加ツール照合の合否は含まれません。現時点で自動処理する場合は別途`test --json`を信頼できる環境で保存し、coreの成果物だけで期待ツールのPASSを判断しないでください。ツール一覧の永続的な差分比較は[#186](https://github.com/git-ksk/mcp-interop/issues/186)で継続します。
+**成果物との区別:** 従来の`--output`によるlive-result schema v1/v2、suite比較、baselineは引き続き**coreの4段階のみ**を記録・判定します。名前照合の合否は別途`--tool-evidence`で保存し、coreのPASSを期待ツールのPASSと取り違えないでください。
+
+## 期待ツールの証拠保存・差分比較（v0.11開発中・未リリース）
+
+従来の`--output`（coreの4段階のみ）とは**別のtool-evidence schema v1**に、利用者が明示した期待名・有無・直接観測できた件数、protected-path形式の実クライアント実行情報を保存できます。**観測した全ツール名、未指定のツール名、endpointのpath/queryは保存しません。**
+
+```console
+mcp-interop test 'https://example.com/private/mcp' --client codex \
+  --expect-tool ping --expect-tool read_tool \
+  --output core-old.json --deployment-id my-deployment \
+  --tool-evidence expected-old.json
+
+mcp-interop test 'https://example.com/private/mcp' --client codex \
+  --expect-tool ping --expect-tool read_tool \
+  --output core-new.json --deployment-id my-deployment \
+  --tool-evidence expected-new.json
+
+mcp-interop tools compare expected-old.json expected-new.json --json --fail-on-drift
+```
+
+`--tool-evidence`はクライアント1件、期待名か期待件数、別の`--output`、機密ではない`--deployment-id`を必須とします。既存ファイルへの上書きは拒否します。追加チェックが`fail`や`unknown`でも、その結果を保存し、後の成功で失敗を隠しません。従来のlive-result成果物の意味は変更しません。
+
+`tools compare`はスキーマを検証し、接続先deployment identity・クライアントID・実行OS/arch・認証方法・**指定した期待名と期待件数**が一致する場合だけ比較します。不一致は終了コード`2`で拒否。判定は`clean`、`regression`（期待名の新たな欠落・件数減少）、`recovered`、`drift`（件数増加）、`non_pass`、`unknown`です。`--fail-on-drift`では`regression`/`drift`/`non_pass`/`unknown`が終了コード`1`、`clean`と検証済みの`recovered`は`0`。クライアントのバージョン変更だけでは退行にしません。
+
+**限界:** 名前を明示していないツール2件が入れ替わり、総件数が同じなら差分は検知できません。Cursor/Antigravityは名前の直接証拠が得られるまで`unknown`。ファイルはローカルの観測記録であり署名による真実性証明ではありません。`suite repeat`と既存baselineは引き続きcoreだけを判定します。詳細は[Expected-tool evidence v1](tool-expectation-evidence-v1.ja.md)を参照してください。
 
 ### 実行時間の上限（v0.11開発中・未リリース）
 

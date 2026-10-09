@@ -80,7 +80,32 @@ Assertions run after the four independent core stages. The `tool_expectation` fi
 
 Currently the **Codex app-server** provides a directly observed named inventory for this feature. Cursor and Antigravity may report core PASS but return assertion `unknown` until safe, exact-name evidence is demonstrated. Codex's empty inventory is likewise ambiguous with connection failure, so it never becomes a fabricated PASS. The check only emits *operator-supplied* expected tool names and missing names; it does not print or persist additional discovered tool names. Use ordinary non-secret identifiers (Unicode letters/numbers are supported, at most 128 UTF-8 bytes per name and 64 distinct names); never supply tokens as tool names or CLI arguments.
 
-**Evidence boundary:** existing `--output` live-result artifacts v1/v2, suite comparisons, and baselines deliberately continue to represent **core stages only**. They do not record or gate optional tool assertions. Capture `test --json` separately in a trusted CI step if you need machine-readable assertion evidence today; do not treat a passing live-result artifact as proof that the separate check passed. Persistent optional-name regression artifacts/diff reports are tracked in [#186](https://github.com/git-ksk/mcp-interop/issues/186).
+**Evidence boundary:** existing `--output` live-result artifacts v1/v2, suite comparisons, and baselines deliberately continue to represent **core stages only**. They do not record or gate optional tool assertions. To save tool checks, use the separate opt-in `--tool-evidence` file described below; do not interpret a core-only live-result PASS as named-tool PASS.
+
+## Persist and compare expected tool evidence (v0.11 development; unreleased)
+
+Unlike the core `--output` artifact, optional **separate tool-evidence v1** captures operator-declared expected tool names, membership results, an observed inventory count *when directly proven*, and a schema-v2 protected-path real-client run for identity and provenance. It **does not** persist the complete raw inventory, unlisted tool names, or endpoint paths/queries.
+
+```console
+mcp-interop test 'https://example.com/private/mcp' --client codex \
+  --expect-tool ping --expect-tool read_tool \
+  --output core-old.json --deployment-id my-deployment \
+  --tool-evidence expected-old.json
+
+# Repeat the same expectation on a later deployment/client version:
+mcp-interop test 'https://example.com/private/mcp' --client codex \
+  --expect-tool ping --expect-tool read_tool \
+  --output core-new.json --deployment-id my-deployment \
+  --tool-evidence expected-new.json
+
+mcp-interop tools compare expected-old.json expected-new.json --json --fail-on-drift
+```
+
+`--tool-evidence` requires one client, at least one `--expect-tool` or an explicit `--expect-tool-count`, a separate `--output` file, and a **non-secret** `--deployment-id`. Existing output files are refused. The standalone evidence file uses owner-private permissions where supported; the ordinary live-result artifact remains *core-only*. The extra evidence is emitted even if the optional assertion returned `fail` or `unknown`, so these cannot be silently lost after a later PASS.
+
+`tools compare` verifies both versioned input files and requires matching protected deployment identity, client ID, runner platform, auth mode, and the **same configured expected names/count**. If these differ, comparison fails closed with exit `2` rather than pairing unrelated observations. The opt-in diff is `clean`, `regression` (new missing expected name or decrease in inventory count), `recovered`, `drift` (increased count), `non_pass`, or `unknown`. `--fail-on-drift` exits `1` on `regression`, `drift`, `non_pass`, or `unknown`; `clean` and verified `recovered` exit `0`. Without the gate, valid comparisons return `0` and include their decision in the report. A client version change is reported, but does not by itself cause regression.
+
+**Limit:** Only explicitly listed names are compared. If two *unlisted* tools are swapped and the total count remains unchanged, the diff is `clean` because those identities cannot be safely published. Cursor and Antigravity remain `unknown` for named inventories until accepted direct-client evidence is available. These reports are untrusted local evidence without a cryptographic signature; publish or retain them only under your own security policy. `suite repeat` and baseline comparison still analyze core stages only. See [Expected-tool evidence v1](tool-expectation-evidence-v1.md) ([日本語](tool-expectation-evidence-v1.ja.md)).
 
 ### Bounded execution timeouts (v0.11 development; not released yet)
 

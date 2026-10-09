@@ -428,6 +428,68 @@ PYREPEAT
     fi
   fi
 
+  if [[ "${MCP_INTEROP_TEST_TOOL_DRIFT:-0}" == "1" ]]; then
+    if ! command -v python3 >/dev/null 2>&1; then
+      echo "python3 is required for optional tool evidence E2E" >&2
+      overall_fail=1
+    else
+      expected_drift_status=unknown
+      [[ "$client" == "codex" ]] && expected_drift_status=pass
+      for attempt in 1 2; do
+        core_file="$result_dir/$client.drift-$attempt.core.json"
+        tool_file="$result_dir/$client.drift-$attempt.tools.json"
+        drift_stdout="$result_dir/$client.drift-$attempt.stdout.json"
+        drift_rc=0
+        run_network_isolated "$interop_bin" test "$endpoint" --client "$client" \
+          --expect-tool ping --expect-tool-count 3 --output "$core_file" \
+          --deployment-id fixture-a --tool-evidence "$tool_file" --json > "$drift_stdout" || drift_rc=$?
+        if ! python3 - "$core_file" "$tool_file" "$drift_stdout" "$drift_rc" "$expected_drift_status" <<'PYDRIFT'
+import json, pathlib, sys
+core, tool, stdout = (pathlib.Path(arg) for arg in sys.argv[1:4])
+rc, want = int(sys.argv[4]), sys.argv[5]
+assert rc == (0 if want == "pass" else 1), rc
+payload = json.loads(tool.read_text())
+assert payload["schema_version"] == 1
+assert payload["artifact_type"] == "mcp-interop/tool-expectation-evidence"
+assert payload["expectation"]["status"] == want
+assert payload["expectation"]["expected_names"] == ["ping"]
+assert payload["run"]["endpoint"]["identity"] == "fixture-a"
+assert [s["status"] for s in payload["run"]["stages"]] == ["pass"] * 4
+assert "tool_expectation" not in core.read_text()
+assert json.loads(stdout.read_text())[0]["tool_expectation"]["status"] == want
+for text in [core.read_text(), tool.read_text()]:
+    assert "/mcp/" not in text and "?key=" not in text, "protected path leaked"
+    assert "write_tool" not in text, "unexpected tool name leaked"
+PYDRIFT
+        then
+          echo "$client: saved tool evidence failed direct-client validation" >&2
+          overall_fail=1
+          break
+        fi
+      done
+      if [[ -f "$result_dir/$client.drift-2.tools.json" ]]; then
+        diff_rc=0
+        run_network_isolated "$interop_bin" tools compare \
+          "$result_dir/$client.drift-1.tools.json" "$result_dir/$client.drift-2.tools.json" \
+          --json --fail-on-drift > "$result_dir/$client.drift-comparison.json" || diff_rc=$?
+        if ! python3 - "$result_dir/$client.drift-comparison.json" "$diff_rc" "$expected_drift_status" <<'PYDIFF'
+import json, sys
+report = json.load(open(sys.argv[1], encoding="utf-8"))
+assert report["schema_version"] == 1 and report["artifact_type"] == "mcp-interop/tool-expectation-diff"
+want = "clean" if sys.argv[3] == "pass" else "unknown"
+assert report["decision"] == want, report
+assert int(sys.argv[2]) == (0 if want == "clean" else 1)
+PYDIFF
+        then
+          echo "$client: tool drift comparison failed" >&2
+          overall_fail=1
+        else
+          echo "$client: retained opt-in tool evidence and safe drift comparison $expected_drift_status PASS"
+        fi
+      fi
+    fi
+  fi
+
   path="/mcp/$client"
   protocol_ok=1
   protocol_era="$(fixture_protocol_readiness "$path")" || protocol_ok=0

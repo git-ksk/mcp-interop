@@ -24,13 +24,15 @@ import (
 	"github.com/git-ksk/mcp-interop/internal/client"
 	"github.com/git-ksk/mcp-interop/internal/interop"
 	"github.com/git-ksk/mcp-interop/internal/suite"
+	"github.com/git-ksk/mcp-interop/internal/toolinventory"
 )
 
 const usageText = `mcp-interop - live interoperability testing for Remote MCP servers
 
 Usage:
   mcp-interop clients [--json]
-  mcp-interop test <url> [--client codex,cursor,antigravity] [--timeout <duration>] [--oauth] [--expect-tool <name>]... [--expect-tool-count <n>] [--json] [--output result.json] [--deployment-id <id>]
+  mcp-interop tools compare <old-tool-evidence.json> <new-tool-evidence.json> [--json] [--fail-on-drift]
+  mcp-interop test <url> [--client codex,cursor,antigravity] [--timeout <duration>] [--oauth] [--expect-tool <name>]... [--expect-tool-count <n>] [--tool-evidence <file>] [--json] [--output result.json] [--deployment-id <id>]
   mcp-interop compare <old.json> <new.json> [--json] [--fail-on-regression]
   mcp-interop suite validate <manifest.json> [--json]
   mcp-interop suite run <manifest.json> --output-dir <dir> [--timeout <duration>] [--json]
@@ -53,6 +55,7 @@ Commands:
   clients    Detect supported MCP clients installed on this machine.
   test       Run a Remote MCP interoperability test through real clients.
   compare    Compare portable live-result artifacts across client versions/runs.
+  tools      Compare explicitly retained expected-name/count evidence without exposing unrequested tool names.
   suite      Validate, execute, and compare repeatable suite result sets.
   baseline   Accept, verify local consistency, and compare suite baselines.
   compatibility  Classify or list exact observed client-version/platform evidence.
@@ -69,6 +72,7 @@ Test options:
   --deployment-id <id>  Use schema v2 protected-path identity. The ID is persisted verbatim and must be non-secret; requires --output.
   --expect-tool <name>   Assert a named tool is in the directly observed real-client inventory; repeatable (max 64).
   --expect-tool-count <n>  Assert the exact size of a directly observed inventory (0..4096).
+  --tool-evidence <path> Save private, separately versioned expected-tool evidence (requires --output and --deployment-id; one client).
   --timeout <duration>  Opt-in per-client total deadline and adapter timeout (1s..10m); affects interactive OAuth too.
 
 Compare options:
@@ -101,6 +105,8 @@ func run(ctx context.Context, args []string) int {
 		return runClients(ctx, args[1:])
 	case "test":
 		return runTest(ctx, args[1:])
+	case "tools":
+		return runTools(args[1:], os.Stdout, os.Stderr)
 	case "compare":
 		return runCompare(args[1:])
 	case "suite":
@@ -518,6 +524,7 @@ func runClients(ctx context.Context, args []string) int {
 }
 
 type testOptions struct {
+	toolEvidence  string
 	timeout       *time.Duration
 	endpoint      string
 	clients       []string
@@ -736,6 +743,21 @@ func runTestWithIO(ctx context.Context, args []string, stdout, stderr io.Writer)
 			fmt.Fprintf(stderr, "write portable artifact: %v\n", err)
 			return 1
 		}
+		if options.toolEvidence != "" {
+			if len(runs) != 1 || results[0].ToolExpectation == nil {
+				fmt.Fprintln(stderr, "missing optional tool expectation for evidence")
+				return 1
+			}
+			evidence, err := toolinventory.New(runs[0], *results[0].ToolExpectation)
+			if err != nil {
+				fmt.Fprintf(stderr, "validate private tool evidence: %v\n", err)
+				return 1
+			}
+			if err := toolinventory.WriteFile(options.toolEvidence, evidence); err != nil {
+				fmt.Fprintf(stderr, "write private tool evidence: %v\n", err)
+				return 1
+			}
+		}
 	}
 
 	if hadFailure {
@@ -771,6 +793,22 @@ func parseTestOptions(args []string) (testOptions, error) {
 			options.json = true
 		case arg == "--oauth":
 			options.oauth = true
+		case arg == "--tool-evidence" || strings.HasPrefix(arg, "--tool-evidence="):
+			if options.toolEvidence != "" {
+				return options, fmt.Errorf("duplicate --tool-evidence")
+			}
+			if arg == "--tool-evidence" {
+				if i+1 >= len(args) {
+					return options, fmt.Errorf("--tool-evidence requires a path")
+				}
+				i++
+				options.toolEvidence = args[i]
+			} else {
+				options.toolEvidence = strings.TrimPrefix(arg, "--tool-evidence=")
+			}
+			if options.toolEvidence == "" || options.toolEvidence == "-" || strings.TrimSpace(options.toolEvidence) != options.toolEvidence {
+				return options, fmt.Errorf("--tool-evidence requires a non-empty file path")
+			}
 		case arg == "--output":
 			if i+1 >= len(args) {
 				return options, fmt.Errorf("--output requires a file path")
@@ -900,6 +938,33 @@ func parseTestOptions(args []string) (testOptions, error) {
 		}
 		if err := artifact.ValidateDeploymentID(options.deploymentID); err != nil {
 			return options, fmt.Errorf("invalid --deployment-id: %w", err)
+		}
+	}
+	if options.toolEvidence != "" {
+		if options.output == "" || options.deploymentID == "" || len(options.clients) != 1 || (len(options.expectedTools) == 0 && options.expectedCount == nil) {
+			return options, fmt.Errorf("--tool-evidence requires --output, --deployment-id, one client and expected tools or count")
+		}
+		canonical := make([]string, 0, 2)
+		for _, path := range []string{options.toolEvidence, options.output} {
+			absolute, err := filepath.Abs(path)
+			if err != nil {
+				return options, fmt.Errorf("resolve output path: %w", err)
+			}
+			parent, err := filepath.EvalSymlinks(filepath.Dir(absolute))
+			if err != nil {
+				return options, fmt.Errorf("resolve output parent: %w", err)
+			}
+			canonical = append(canonical, filepath.Join(parent, filepath.Base(absolute)))
+		}
+		if canonical[0] == canonical[1] {
+			return options, fmt.Errorf("--tool-evidence cannot overwrite core artifact output")
+		}
+		for _, path := range []string{options.toolEvidence, options.output} {
+			if _, err := os.Lstat(path); err == nil {
+				return options, fmt.Errorf("output file already exists: refusing overwrite")
+			} else if !errors.Is(err, os.ErrNotExist) {
+				return options, fmt.Errorf("inspect output file: %w", err)
+			}
 		}
 	}
 	return options, nil

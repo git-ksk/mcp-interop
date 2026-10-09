@@ -30,6 +30,10 @@ mcp-interopがpersist後にfail-closed validationで再読込するdocumentで�
 - comparison identity変更の有無
 
 ### Versioned derived report
+
+期待ツール照合のオプション証拠は独立した`mcp-interop/tool-expectation-evidence` v1と`mcp-interop/tool-expectation-diff`レポートです。strictなlive-result v1/v2およびcore PASSの意味は変更しません。[Expected-tool evidence v1](tool-expectation-evidence-v1.ja.md)参照。
+
+
 任意のsuite repeat reportは独立した`mcp-interop/suite-repeat-report` schema v1を使用します。整合性の判定は既存のsuite index・正式baselineの意味を変更しません。[Suite repeat report v1](suite-repeat-report-v1.ja.md)を参照してください。
 
 

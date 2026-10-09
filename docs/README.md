@@ -17,6 +17,7 @@ Choose a task below. The [README](../README.md) is the shortest route to a first
 - [Suite manifest](suite-manifest-v1.md)
 - [Suite result sets](suite-result-set-v1.md)
 - [Regression reports](suite-regression-report-v1.md)
+- [Expected-tool evidence and drift comparison](tool-expectation-evidence-v1.md)
 - [Repeated suite execution and stability reports](suite-repeat-report-v1.md)
 - [Immutable baselines](suite-baseline-v1.md)
 - [Compatibility envelope](compatibility-envelope-v1.md)
