@@ -189,6 +189,10 @@ func TestInterpretStatusWithToolsProvesLiveInterop(t *testing.T) {
 	assertStage(t, result, interop.StageAuth, interop.StatusPass)
 	assertStage(t, result, interop.StageInit, interop.StatusPass)
 	assertStage(t, result, interop.StageTools, interop.StatusPass)
+	names, known := result.ObservedToolNames()
+	if !known || len(names) != 1 || names[0] != "ping" {
+		t.Fatalf("unexpected directly observed tool names: %q known=%v", names, known)
+	}
 }
 
 func TestInterpretStatusUnknownAuthWithToolsProvesNoUnresolvedAuthGate(t *testing.T) {
@@ -219,6 +223,9 @@ func TestInterpretStatusUnknownAuthWithoutToolsRemainsUnknown(t *testing.T) {
 	assertStage(t, result, interop.StageAuth, interop.StatusUnknown)
 	assertStage(t, result, interop.StageInit, interop.StatusUnknown)
 	assertStage(t, result, interop.StageTools, interop.StatusUnknown)
+	if names, known := result.ObservedToolNames(); known {
+		t.Fatalf("ambiguous empty inventory must stay unknown: %q", names)
+	}
 }
 
 func TestInterpretStatusDoesNotTreatEmptyInventoryAsSuccess(t *testing.T) {
