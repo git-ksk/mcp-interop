@@ -352,6 +352,13 @@ func interpretStatus(result *interop.Result, status serverStatus) {
 		result.Set(interop.StageReach, interop.StatusPass, "Codex returned live MCP inventory")
 		result.SetProtocolReadiness(interop.StatusPass, interop.ProtocolObservation{Era: interop.ProtocolEraUnknown, Source: interop.ProtocolEvidenceRealClientSurface, Readiness: interop.ProtocolReadinessToolInventory}, "tool discovery proves MCP protocol readiness")
 		result.Set(interop.StageTools, interop.StatusPass, fmt.Sprintf("Codex discovered %d MCP tool(s)", toolCount))
+		// Tool keys come from the real Codex app-server inventory, not
+		// fixture metadata. Keep them internal unless explicitly requested.
+		names := make([]string, 0, len(status.Tools))
+		for name := range status.Tools {
+			names = append(names, name)
+		}
+		result.SetObservedToolNames(names)
 		return
 	}
 

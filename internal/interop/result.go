@@ -102,7 +102,9 @@ type Result struct {
 	Stages        []StageResult `json:"stages"`
 	Diagnostics   []Diagnostic  `json:"diagnostics,omitempty"`
 
-	protocolObservation ProtocolObservation
+	protocolObservation    ProtocolObservation
+	observedToolNames      []string
+	observedToolNamesKnown bool
 }
 
 // NewResult creates a report with every stage explicitly unknown. Adapters must
